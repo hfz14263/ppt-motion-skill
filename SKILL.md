@@ -98,6 +98,28 @@ slides:
 | `transition.type` | `fade` `push` `wipe` `cover` `split` `zoom` `dissolve` `strips` `pull` `randombar` `none` | 见 `references/mso-primitives.md` |
 | `media.*` | src/bounds/loop/rewind/mute/volume/autoplay/elementId | 媒体必须走 COM 层 |
 
+### 3.0 3D 相机与旋转（本 skill **尚未**纳入 spec）
+
+`<a:scene3d>` 里的相机**不在 spec 字段里**。要做立体效果只能手写注入，
+实测对照表见 [`references/camera-reference.md`](references/camera-reference.md)，
+测量脚本 `scripts/build_camera_table.py`。
+
+**三条最容易翻车的，先看这三条：**
+
+1. **只有 `prst="perspective*"` / `"legacyPerspective*"` 会产生透视。**
+   另外 47 个（`oblique*` / `isometric*` / `orthographicFront`）
+   **全是平行投影、永远没有灭点** —— 平面不可能"躺下去"，
+   无论角度怎么调。
+2. **`a:rot` 的 `lat` / `lon` / `rev` 必须落在 `0..21599999`。**
+   规范写的上界 `21600000` **会让 PowerPoint 报整个文件损坏（`0x80070570`）**，
+   负数同样。所以 `-45°` 要写成 `18900000`。
+3. **判断"躺下没有"要量收敛比（远边宽 / 近边宽）：`1.000` = 平行，明显小于 1 才是透视。**
+   **不要看"像不像平行四边形"** —— 平行投影的矩形在任何角度都像，
+   这个判据零区分力。
+
+`fov`（0~180°）是**透视强度的连续旋钮**，越大透视越强；
+实测它对压扁度几乎无影响，所以**透视强度和俯角可以分别调**。
+
 ### 3.1 方向性擦除（`dir`）
 
 `wipe` 默认是 `wipe(down)`。给带 filter 的效果加 `dir:` 改方向，这是**唯一**能让

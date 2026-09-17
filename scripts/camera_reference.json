@@ -1,0 +1,729 @@
+{
+ "meta": {
+  "measured_on": "PowerPoint 16.0 build 20228",
+  "method": "white plane on a dark ground, exported by PowerPoint, silhouette thresholded; convergence = far_edge/near_edge where 1.000 means parallel projection",
+  "probe_geometry": {
+   "plane_position_in": [
+    4.75,
+    3.3
+   ],
+   "plane_width_in": 3.83,
+   "slide_in": [
+    13.3333,
+    7.5
+   ],
+   "export_px": [
+    1200,
+    675
+   ]
+  },
+  "comparability_warning": "Convergence is a ratio of two projected edge widths, so its ABSOLUTE value depends on this probe's geometry. Only compare numbers measured with the same probe. What transfers across probes is the relative result: which presets are parallel, the ordering of the sweeps, and fov's monotonic effect.",
+  "tolerance": "pixel measurement noise puts a true parallel projection at 0.90-1.00, so the test is 'close to 1', not 'equal to 1'",
+  "sources": {
+   "schema": "ECMA-376 Part 1, CT_Camera / CT_SphereCoords / ST_FOVAngle",
+   "office_behaviour": "[MS-OI29500] Part 1 s.20.1.5.5 camera",
+   "preset_names": "Microsoft.Office.Core.MsoPresetCamera, values 1..62"
+  },
+  "documented_ranges": {
+   "lat_lon_rev": "0..21600000 (1/60000 deg)",
+   "fov": "0..180 deg (1/60000 deg)",
+   "zoom": "1/1000 percent, default 100000"
+  },
+  "measured_ranges": {
+   "lat_lon_rev": "0..21599999",
+   "fov": "0..10800000",
+   "zoom": "not validated, accepts int32"
+  },
+  "doc_disagreements": [
+   "a:rot lat/lon/rev = 21600000 is the spec's own maximum and makes PowerPoint report the file CORRUPT (0x80070570); real max is 21599999",
+   "zoom values far outside the documented percentage range are accepted without complaint, so zoom is not range-checked"
+  ]
+ },
+ "presets": {
+  "legacyObliqueTopLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 344,
+   "height": 177,
+   "convergence": 0.9971,
+   "aspect": 0.5145,
+   "skew": 0.0,
+   "enum_value": 1
+  },
+  "legacyObliqueTop": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 199,
+   "convergence": 1.0,
+   "aspect": 0.5751,
+   "skew": 0.0,
+   "enum_value": 2
+  },
+  "legacyObliqueTopRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 177,
+   "convergence": 1.0,
+   "aspect": 0.513,
+   "skew": 0.0,
+   "enum_value": 3
+  },
+  "legacyObliqueLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3623,
+   "skew": 0.0,
+   "enum_value": 4
+  },
+  "legacyObliqueFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 5
+  },
+  "legacyObliqueRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3623,
+   "skew": 0.0,
+   "enum_value": 6
+  },
+  "legacyObliqueBottomLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 344,
+   "height": 73,
+   "convergence": 1.0,
+   "aspect": 0.2116,
+   "skew": 0.0,
+   "enum_value": 7
+  },
+  "legacyObliqueBottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 51,
+   "convergence": 1.0,
+   "aspect": 0.1474,
+   "skew": 0.0,
+   "enum_value": 8
+  },
+  "legacyObliqueBottomRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 344,
+   "height": 73,
+   "convergence": 1.0,
+   "aspect": 0.2116,
+   "skew": 0.0,
+   "enum_value": 9
+  },
+  "legacyPerspectiveTopLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 331,
+   "far_w": 289,
+   "height": 143,
+   "convergence": 0.8731,
+   "aspect": 0.4613,
+   "skew": 0.0,
+   "enum_value": 10
+  },
+  "legacyPerspectiveTop": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 370,
+   "far_w": 324,
+   "height": 162,
+   "convergence": 0.8757,
+   "aspect": 0.4669,
+   "skew": 0.0,
+   "enum_value": 11
+  },
+  "legacyPerspectiveTopRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 358,
+   "far_w": 312,
+   "height": 156,
+   "convergence": 0.8715,
+   "aspect": 0.4657,
+   "skew": 0.0,
+   "enum_value": 12
+  },
+  "legacyPerspectiveLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 341,
+   "far_w": 298,
+   "height": 115,
+   "convergence": 0.8739,
+   "aspect": 0.3594,
+   "skew": 0.0,
+   "enum_value": 13
+  },
+  "legacyPerspectiveFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 370,
+   "far_w": 324,
+   "height": 125,
+   "convergence": 0.8757,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 14
+  },
+  "legacyPerspectiveRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 363,
+   "far_w": 318,
+   "height": 122,
+   "convergence": 0.876,
+   "aspect": 0.3578,
+   "skew": 0.0,
+   "enum_value": 15
+  },
+  "legacyPerspectiveBottomLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 347,
+   "far_w": 304,
+   "height": 82,
+   "convergence": 0.8761,
+   "aspect": 0.2515,
+   "skew": 0.0,
+   "enum_value": 16
+  },
+  "legacyPerspectiveBottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 370,
+   "far_w": 324,
+   "height": 88,
+   "convergence": 0.8757,
+   "aspect": 0.2536,
+   "skew": 0.0,
+   "enum_value": 17
+  },
+  "legacyPerspectiveBottomRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 365,
+   "far_w": 321,
+   "height": 86,
+   "convergence": 0.8795,
+   "aspect": 0.2507,
+   "skew": 0.0,
+   "enum_value": 18
+  },
+  "orthographicFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 19
+  },
+  "isometricTopUp": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 20
+  },
+  "isometricTopDown": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 21
+  },
+  "isometricBottomUp": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 22
+  },
+  "isometricBottomDown": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 23
+  },
+  "isometricLeftUp": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 24
+  },
+  "isometricLeftDown": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 25
+  },
+  "isometricRightUp": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 26
+  },
+  "isometricRightDown": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 27
+  },
+  "isometricOffAxis1Left": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 28
+  },
+  "isometricOffAxis1Right": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 29
+  },
+  "isometricOffAxis1Top": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 30
+  },
+  "isometricOffAxis2Left": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 31
+  },
+  "isometricOffAxis2Right": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 32
+  },
+  "isometricOffAxis2Top": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 33
+  },
+  "isometricOffAxis3Left": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 34
+  },
+  "isometricOffAxis3Right": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 35
+  },
+  "isometricOffAxis3Bottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 36
+  },
+  "isometricOffAxis4Left": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 37
+  },
+  "isometricOffAxis4Right": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 38
+  },
+  "isometricOffAxis4Bottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 125,
+   "convergence": 1.0,
+   "aspect": 0.3613,
+   "skew": 0.0,
+   "enum_value": 39
+  },
+  "obliqueTopLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 344,
+   "height": 157,
+   "convergence": 1.0,
+   "aspect": 0.4551,
+   "skew": 0.0,
+   "enum_value": 40
+  },
+  "obliqueTop": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 169,
+   "convergence": 1.0,
+   "aspect": 0.4884,
+   "skew": 0.0,
+   "enum_value": 41
+  },
+  "obliqueTopRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 344,
+   "height": 157,
+   "convergence": 1.0,
+   "aspect": 0.4551,
+   "skew": 0.0,
+   "enum_value": 42
+  },
+  "obliqueLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 345,
+   "height": 125,
+   "convergence": 1.0029,
+   "aspect": 0.3634,
+   "skew": 0.0,
+   "enum_value": 43
+  },
+  "obliqueRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 345,
+   "height": 125,
+   "convergence": 1.0029,
+   "aspect": 0.3623,
+   "skew": 0.0,
+   "enum_value": 44
+  },
+  "obliqueBottomLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 344,
+   "far_w": 344,
+   "height": 93,
+   "convergence": 1.0,
+   "aspect": 0.2696,
+   "skew": 0.0,
+   "enum_value": 45
+  },
+  "obliqueBottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 80,
+   "convergence": 1.0,
+   "aspect": 0.2312,
+   "skew": 0.0,
+   "enum_value": 46
+  },
+  "obliqueBottomRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 93,
+   "convergence": 1.0,
+   "aspect": 0.2696,
+   "skew": 0.0,
+   "enum_value": 47
+  },
+  "perspectiveFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 48
+  },
+  "perspectiveLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 49
+  },
+  "perspectiveRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 50
+  },
+  "perspectiveAbove": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 51
+  },
+  "perspectiveBelow": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 52
+  },
+  "perspectiveAboveLeftFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 53
+  },
+  "perspectiveAboveRightFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 54
+  },
+  "perspectiveContrastingLeftFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 55
+  },
+  "perspectiveContrastingRightFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 56
+  },
+  "perspectiveHeroicLeftFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 57
+  },
+  "perspectiveHeroicRightFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 58
+  },
+  "perspectiveHeroicExtremeLeftFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 380,
+   "far_w": 318,
+   "height": 125,
+   "convergence": 0.8368,
+   "aspect": 0.3571,
+   "skew": 0.0,
+   "enum_value": 59
+  },
+  "perspectiveHeroicExtremeRightFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 380,
+   "far_w": 318,
+   "height": 125,
+   "convergence": 0.8368,
+   "aspect": 0.3571,
+   "skew": 0.0,
+   "enum_value": 60
+  },
+  "perspectiveRelaxed": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 61
+  },
+  "perspectiveRelaxedModerately": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 360,
+   "far_w": 330,
+   "height": 124,
+   "convergence": 0.9167,
+   "aspect": 0.3584,
+   "skew": 0.0,
+   "enum_value": 62
+  }
+ },
+ "rotation": {},
+ "fov": {},
+ "zoom": {}
+}
