@@ -140,6 +140,9 @@ S7  read_image 看 review/render/*.png         # 视觉审阅
 这两步输出 `geometry: UNCHANGED`，才是本 skill 的核心承诺兑现。
 一旦报 CHANGED，说明注入了不该注入的东西，停下排查。
 
+⚠️ **加上 S5 的 `-Strict` 和第 3 步的覆盖率审计，一共四道闸——但它们仍然证不了
+"动效正确"。** 这一点见 [`authoring-rules.md`](authoring-rules.md) §H。
+
 ### 为什么需要这么多道闸：PowerPoint 的"静默失败"
 
 **这是整个设计的动机。** PowerPoint 有一类失败方式：

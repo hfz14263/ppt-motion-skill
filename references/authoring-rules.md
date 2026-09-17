@@ -213,19 +213,15 @@ presetID，方向只存在于 `<p:animEffect filter="...">` 的取值里。
 - 数据条从左到右填充 = 时间在推进；同一批形状改成上下展开就完全没有这个含义。
 - 一页里**同一个效果因为方向不同而表达不同意思**，这是 spec 层面唯一能做到的手段。
 
-### I3. 为什么方向在本机无法自动验证（三条死路，别重走）
+### I3. 为什么方向无法自动验证
 
-想把方向测出来，必须看到动画的**中间态**。本机三条路全部不通：
-
-| 探针 | 结果 |
-| --- | --- |
-| `SlideShowView.Export` | 这个 build **根本没有这个成员**，报 `<unknown>.Export` |
-| `Slide.Export` / `Shape.Export` | 导出的是**终态**，完全无视实时可见性与 filter 状态。实测：6 秒的 wipe 在 2.4 秒采样，八个方向**全部 100% 不透明** |
-| 截屏（`ImageGrab` / `PrintWindow`） | 需要桌面真的在渲染。实测抓到的画面 97% 接近纯黑、只有 0.55% 亮于灰 200，即屏幕没有输出（休眠/锁定）。`PrintWindow(PW_RENDERFULLCONTENT)` 返回的是**桌面 DC**，不是窗口自身内容 |
+想把方向测出来，必须看到动画的**中间态**，而三条可能的探针**全部不通**
+（`SlideShowView.Export` 在这个 build 上不存在、`Slide.Export`/`Shape.Export` 只渲染终态、
+截屏需要桌面真的在渲染）。**详细的实测数据和失败原因见
+[`com-pitfalls.md`](com-pitfalls.md) §17**——那是机制说明，这里只说结论。
 
 所以：`player.py` 的 `WIPE_CLIP` 按文档约定映射，在代码里**明确标注为未在本机验证**，
-并靠 §H 那一条人眼检查兜底。`showcase/qa/calib_wipe.py` 只验证能得到证的部分：
-`dir` 确实写进了 `filter=`、几何字节不变、以及"给无方向效果写 dir 会报错"。
+并靠 §H 那一条人眼检查兜底。
 
 ### I4. `player` 必须跟着做方向
 
@@ -236,31 +232,13 @@ presetID，方向只存在于 `<p:animEffect filter="...">` 的取值里。
 ## J. 那个"同一个形状上多个效果"的坑，Round-trip 会以另一种方式咬你
 
 §A3 说了一个形状只能有一个效果，理由是"入场+强调"会被 PowerPoint 丢掉。
-还有**第二种**表现，成因不同、症状相似，容易误诊：
+还有**第二种**表现，成因不同、症状相似，容易误诊：**逐段揭示**（by-paragraph build）
+在 PowerPoint 里也是"同一形状挂多个效果"。
 
-**逐段揭示**（by-paragraph build）在 PowerPoint 里就是"同一形状挂多个效果"。你写进
-spec，`motion.py apply` 会老老实实写成 5 个 `<p:par>`，`--assert-geometry` 通过、
-`verify_motion` 通过、`motion.py check` 也通过——然后 `motion.ps1 -Strict` 的往返普查
-报 **`LOSS`**：
+你写进 spec，`motion.py apply` 会老老实实写成多个 `<p:par>`，`--assert-geometry`、
+`verify_motion`、`motion.py check` **全部通过**——然后 `motion.ps1 -Strict` 的往返普查
+报 `LOSS`，数量**正好等于"逐段块数 × (段数-1)"**。看到这个规律就别去查"入场+强调"了。
 
-```
-round-trip census: 153 effect(s) written back, 155 were in the input
-```
-
-**实测**：两个逐段块，每个多一个效果，正好丢 2 个。PowerPoint 重新读时间轴时把重复
-形状折叠成一行，多出来的效果被丢掉。
-
-**正确做法**：不要靠"一个框多段"来做逐行揭示，改成**一行一个文本框**。每个文本框是
-独立的 shape id，各自只有一个效果，什么都不会被折叠；版面看起来一模一样。
-
-```python
-# 错的：一个框两段，spec 里必须给同一 id 写两个效果
-text(sl, x, y, w, h, [("第一行", 16, ...), ("第二行", 16, ...)])
-
-# 对的：一行一个框，各自独立
-for i, (line, y) in enumerate([("第一行", y0), ("第二行", y0 + pitch)]):
-    text(sl, x, y, w, h, [(line, 16, ...)])
-```
-
-判断方法：`LOSS` 的数字**正好等于"逐段块数 × (段数-1)"**，而不是任意数字。
-看到这个规律就别去查"入场+强调"了。
+**正确的修法是改版面，不是改 spec**：不要靠"一个框多段"做逐行揭示，改成
+**一行一个文本框**。每个框是独立的 shape id、各自一个效果，什么都不会被折叠，
+版面看起来一模一样。机制细节见 [`com-pitfalls.md`](com-pitfalls.md) §18。
