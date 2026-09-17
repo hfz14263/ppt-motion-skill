@@ -1,0 +1,85 @@
+# Example motion spec (ASCII-safe: usable from PowerShell and Python alike).
+#
+# Workflow:
+#   python scripts/motion.py inspect --pptx deck.pptx        # find your elementIds
+#   python scripts/motion.py apply --pptx deck.pptx --spec examples/motion.example.yaml \
+#          --out animated.pptx --assert-geometry
+#   python scripts/verify_motion.py --pptx animated.pptx --source deck.pptx
+#   powershell -NoProfile -File scripts/motion.ps1 -Pptx animated.pptx \
+#          -Spec examples/motion.example.yaml -OutDir review -ExportPdf
+#
+# Effect names come from `python scripts/motion.py catalog`.
+# This file intentionally contains no non-ASCII so PowerShell 5.1 parse it safely.
+
+version: 1
+
+defaults:
+  # informational only; the engine applies per-effect values
+  trigger: after
+  duration: 0.6
+
+slides:
+  # ---------------------------------------------------------------- cover
+  - page: 1
+    transition: {type: fade, duration: 0.8}
+    effects:
+      - {target: band, effect: fade, duration: 1.0, trigger: with}
+      - {target: title, effect: fly, duration: 0.7, trigger: after, delay: 0.2}
+      - {target: sub, effect: fade, duration: 0.5, trigger: after}
+      - {target: badge, effect: zoom, duration: 0.5, trigger: after}
+      - {target: badge, effect: spin, duration: 1.0, trigger: after, repeat: 2}
+      - {target: badge_t, effect: fade, duration: 0.4, trigger: with}
+
+  # --------------------------------------------------------- content page
+  - page: 2
+    transition: {type: push, duration: 0.6}
+    effects:
+      - {target: panel, effect: fade, duration: 0.8, trigger: with}
+      - {target: box_a, effect: growTurn, duration: 0.6, trigger: after}
+      - {target: box_a_t, effect: wipe, duration: 0.5, trigger: after}
+      - {target: box_a_b, effect: fade, duration: 0.5, trigger: with}
+      - {target: box_b, effect: growTurn, duration: 0.6, trigger: after}
+      - {target: box_b_t, effect: wipe, duration: 0.5, trigger: after}
+      - {target: box_b_b, effect: fade, duration: 0.5, trigger: with}
+      - {target: arrow, effect: wipe, duration: 0.8, trigger: after}
+      - {target: foot, effect: fade, duration: 0.4, trigger: after}
+
+  # ------------------------------------------------- motion path showcase
+  - page: 3
+    transition: {type: cover, duration: 0.7}
+    effects:
+      - {target: hero, effect: zoom, duration: 0.6, trigger: after}
+      # a named geometric path, reversing smoothly
+      - {target: hero, effect: pathSineWave, duration: 3.0, trigger: after,
+         autoReverse: true, smooth: 0.5}
+      # an emphasis that keeps running, then a second one on click
+      - {target: ring, effect: spin, duration: 1.2, trigger: with, repeat: 3}
+      - {target: ring, effect: growShrink, duration: 0.8, trigger: click}
+
+  # -------------------------------------------------- chart + media page
+  - page: 4
+    transition: {type: wipe, duration: 0.7}
+    effects:
+      - {target: c_head, effect: fly, duration: 0.6, trigger: after}
+      - {target: "chart-d0-0", effect: stretch, duration: 0.5, trigger: after}
+      - {target: "chart-d1-0", effect: stretch, duration: 0.5, trigger: after, delay: 0.15}
+      - {target: "chart-d2-0", effect: stretch, duration: 0.5, trigger: after, delay: 0.30}
+      - {target: "chart-d3-0", effect: stretch, duration: 0.5, trigger: after, delay: 0.45}
+      - {target: key, effect: fade, duration: 0.6, trigger: after}
+      - {target: key_body, effect: fade, duration: 0.6, trigger: with}
+    # media is applied by the Office COM layer; bounds are in points (1px = 1pt)
+    media:
+      - src: media/clip.mp4
+        bounds: [180, 90, 520, 293]
+        loop: false
+        rewind: true
+        autoplay: true
+        volume: 0.8
+        elementId: DEMO_VIDEO
+
+  # --------------------------------------------------------- closing page
+  - page: 5
+    transition: {type: fade, duration: 0.9}
+    effects:
+      - {target: thanks, effect: zoom, duration: 0.8, trigger: after, smooth: 0.4}
+      - {target: contact, effect: fade, duration: 0.5, trigger: after}

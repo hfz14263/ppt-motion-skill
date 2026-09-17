@@ -1,0 +1,19 @@
+# Normalise line endings in the repository and stop Git rewriting them on checkout.
+#
+# This matters here for a concrete reason: the skill ships a PowerShell script
+# (`scripts/motion.ps1`) AND Python that are edited on Windows and may be pulled onto
+# Linux/macOS. Without this, the first checkout on another machine rewrites every file
+# to CRLF (or the reverse), so an install diff shows the whole tree changed when one
+# line did.
+* text=auto eol=lf
+
+# PowerShell is happiest with CRLF on Windows and the shebang-based scripts are not,
+# but `eol=lf` everywhere is the safe default: pwsh and powershell.exe both accept LF.
+*.ps1 text eol=crlf
+
+# Binary-ish assets must never be touched.
+*.png binary
+*.jpg binary
+*.pptx binary
+*.pdf binary
+*.json text eol=lf

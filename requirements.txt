@@ -1,0 +1,15 @@
+# dsh-ppt-office-motion :: Python dependencies of the OOXML engine
+#
+#   pip install -r requirements.txt
+#
+# PyYAML is only needed for .yaml motion specs. If you cannot install it, write the
+# spec as .json instead -- motion.py picks the parser from the file extension and
+# the JSON form is structurally identical.
+PyYAML>=5.1
+
+# lxml powers two things:
+#   1. verify_motion.py        (structural self-check: well-formed XML, spid refs)
+#   2. motion.py's final gate  (refuses to write a malformed part)
+# Both degrade gracefully when lxml is absent, but you lose the safety net that
+# catches "well-formed enough for no viewer, but PowerPoint refuses to open".
+lxml>=4.6

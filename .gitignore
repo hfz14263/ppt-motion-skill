@@ -1,0 +1,16 @@
+# Python bytecode. `import`ing the skill's modules writes these next to the source,
+# and they are build residue, not source.
+__pycache__/
+*.py[cod]
+
+# The skill's own working directories. Rendered decks, per-shape preview layers and
+# review PNGs are outputs, not part of the tool.
+**/preview/
+**/review/
+*.com.pptx
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
