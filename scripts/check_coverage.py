@@ -31,8 +31,10 @@ import motion  # noqa: E402
 import player  # noqa: E402
 
 # Shapes that are legitimately static on every slide: the footer credit and the
-# page number. Matched on text so this works for any deck.
-DEFAULT_STATIC = ("小组汇报", "汇报", "Confidential")
+# page number. These are defaults for convenience -- pass `--footer` with your own
+# text, or an empty value to disable the text match entirely. The list is
+# deliberately generic: a tool should not hard-code one project's wording.
+DEFAULT_STATIC = ("汇报", "Report", "Confidential", "Confidential - Do Not Distribute")
 
 
 def is_static(sh, footer_texts, bottom_y=None, right_x=None):

@@ -181,4 +181,4 @@ python scripts/selftest.py      # 63 passed, 0 failed
 
 ## 许可
 
-未附许可文件。若要公开分发,请先补一个。
+[MIT](LICENSE)。

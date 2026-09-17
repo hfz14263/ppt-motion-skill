@@ -132,8 +132,11 @@ function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
 
 - 无 BOM 的 `.ps1` 里写中文会被按 ANSI 读成乱码，**甚至引发语法错误**（中文注释吃掉引号）。
   脚本一律纯 ASCII，中文用 `[char]0xXXXX` 拼。
-- 本机没有 `pwsh`，用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File`。
-- 本机没有 `git`/`tar`（`tar` 被策略拦），解压用 .NET 的 `ZipFile`。
+- 用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 调用。**不要假定 `pwsh` 存在**：
+  Windows PowerShell 5.1 是 Windows 自带的，PowerShell 7（`pwsh`）是另装的，
+  很多机器上只有前者。脚本按 5.1 的语法子集写，别用 7 才有的东西。
+- 解压/打包优先用 .NET 的 `ZipFile` 而不是外部 `tar`：`tar` 在受限环境里可能被策略拦住，
+  而 `ZipFile` 不依赖任何外部进程。
 
 ## 11. 颜色/几何断言要按"布局帧"口径
 

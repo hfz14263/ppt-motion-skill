@@ -347,13 +347,16 @@ def main():
         # check_coverage reports numeric ids only (motion.py's apply resolves names;
         # an audit that merely mirrored that would report OK for a name-only spec
         # and hide exactly the gap it exists to find). So the fixture spec uses ids.
+        # The footer marker here is an invented placeholder, not any real project's
+        # wording: a shipped test fixture should not carry a client's strings.
+        FOOTER = "汇报 · 示例"
         partial = {"version": 1, "slides": [
             {"page": 1, "effects": [{"target": 2, "effect": "fade"}]},
         ]}
         audit_spec = os.path.join(tmp, "partial.json")
         with open(audit_spec, "w", encoding="utf-8") as fh:
             json.dump(partial, fh)
-        rc = cc.main(["--pptx", src, "--spec", audit_spec, "--footer", "小组汇报"])
+        rc = cc.main(["--pptx", src, "--spec", audit_spec, "--footer", FOOTER])
         check("un-animated shape -> non-zero exit", rc == 1, "rc=%s" % rc)
         full = {"version": 1, "slides": [
             {"page": 1, "effects": [{"target": 2, "effect": "fade"},
@@ -362,20 +365,20 @@ def main():
         full_spec = os.path.join(tmp, "full.json")
         with open(full_spec, "w", encoding="utf-8") as fh:
             json.dump(full, fh)
-        rc2 = cc.main(["--pptx", src, "--spec", full_spec, "--footer", "小组汇报"])
+        rc2 = cc.main(["--pptx", src, "--spec", full_spec, "--footer", FOOTER])
         check("fully covered -> zero exit", rc2 == 0, "rc=%s" % rc2)
 
         # page number: bottom-RIGHT bare digit is static, a bare digit elsewhere is not
         pn = {"text": "7", "pt": (871.2, 506.16, 43.2, 21.6)}
         check("bottom-right page number is treated as static",
-              cc.is_static(pn, ("小组汇报",), 486.0, 816.0))
+              cc.is_static(pn, (FOOTER,), 486.0, 816.0))
         odd = {"text": "7", "pt": (100.0, 506.16, 43.2, 21.6)}
         check("a bare digit elsewhere is NOT static",
-              not cc.is_static(odd, ("小组汇报",), 486.0, 816.0))
+              not cc.is_static(odd, (FOOTER,), 486.0, 816.0))
         check("footer credit is treated as static",
-              cc.is_static({"text": "《人工智能伦理与安全》小组汇报",
+              cc.is_static({"text": "示例演示文稿 · 汇报 · 示例",
                             "pt": (44.64, 506.16, 576.0, 21.6)},
-                           ("小组汇报",), 486.0, 816.0))
+                           (FOOTER,), 486.0, 816.0))
 
         # ---- direction: `dir` rewrites the filter, and only where it can ----
         # A direction is invisible to every other gate: all eight values share one
