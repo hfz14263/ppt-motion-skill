@@ -1149,9 +1149,16 @@ def main(argv=None):
                 flags = "".join(["P" if v["hasMotionPath"] else "-",
                                  "F" if v["hasFilter"] else "-",
                                  "V" if v["hasVisibilitySet"] else "-"])
-                print("%-24s %-9s presetID=%-4d sub=%-3d %s" % (
-                    k, v["kind"], v["presetID"], v["presetSubtype"], flags))
-            print("\ntotal %d aliases (P=motion path, F=filter, V=visibility set)" % len(rows))
+                # The MsoAnimEffect names are printed because enum != presetID:
+                # `spin` is presetID 8 but enum 61, so anyone reading a Microsoft
+                # reference needs the name to find the effect they mean.
+                print("%-24s %-9s presetID=%-4d sub=%-3d enum=%-4s %-26s %s" % (
+                    k, v["kind"], v["presetID"], v["presetSubtype"],
+                    v.get("enum", ""), v.get("enumName", ""), flags))
+            print("\ntotal %d aliases (P=motion path, F=filter, V=visibility set)"
+                  % len(rows))
+            print("enum = MsoAnimEffect value; enumName = its constant. "
+                  "enum != presetID by design.")
         return 0
 
     if ns.cmd == "player":
