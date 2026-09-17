@@ -302,3 +302,118 @@ round-trip census: 153 effect(s) written back, 155 were in the input
 什么都折叠不了，版面看起来完全一样。见 `references/authoring-rules.md` §J。
 
 
+
+
+## 19. 「静默丢弃」的第三种成因：元素放错了父节点
+
+§5 讲过"改完 OOXML 必须用 PowerPoint 真开一次"。这里补一个更隐蔽的变体：
+**元素写在了正确的文档里、正确的元素附近，但父节点不对，PowerPoint 不报错、直接丢掉。**
+
+实测样例（图片亮度 −40）：
+
+```xml
+错的：<a:blip r:embed="rId2"/><a:lum bright="-80000"/>
+      └──── 自闭合 ────┘  于是 <a:lum> 成了 <a:blip> 的「兄弟」
+
+对的：<a:blip r:embed="rId2"><a:lum bright="-80000"/></a:blip>
+                            └──── 必须在 <a:blip>「内部」 ────┘
+```
+
+**症状和"这个版本不支持该功能"一模一样**：打开正常、保存后元素消失。
+所以很容易误诊成版本问题，然后放弃一个其实能做的功能。
+
+### 排查方法：让 PowerPoint 自己写一遍
+
+不要读 schema 猜，也不要只试一种写法。**让 PowerPoint 用它自己的对象模型设一次，
+再把它写出来的 XML 读回来对比。** 这是唯一能把"我写错了"和"它不支持"分开的办法：
+
+```powershell
+$pf = $sh.PictureFormat
+$pf.Brightness = 0.1                 # COM 侧：0.0~1.0，0.5 = 0%
+$pres.SaveAs("out.pptx")             # 然后读 out.pptx 里它写了什么
+```
+
+对比时**逐字符看父节点的开闭**，不要只看元素本身在不在。
+
+### 顺带记住两个数值口径
+
+| 界面 | COM `PictureFormat.Brightness` | OOXML `a:lum/@bright` |
+| --- | --- | --- |
+| 0% | 0.5 | 省略 |
+| −40% | 0.1 | `-80000` |
+| +20% | 0.6 | `20000` |
+
+换算：`bright = (COM值 − 0.5) × 200000`。
+
+**别在两个口径之间混用**：COM 传 `-0.4` 会得到"参数无效"，
+而按界面百分比猜 XML 会写成 `-40000`（少一倍）。两个错叠加起来，
+看起来就像"这个功能根本不存在"。
+
+## 20. Morph（平滑）在这台机器上不可用
+
+需要明确区分**版本能力**和**写法错误**。Morph 属于前者，三条独立证据：
+
+1. **打开不报错，保存就没了。** 手写 `<p:transition><p:morph/></p:transition>`
+   能正常打开（不弹修复），但 `SaveAs` 之后 slide XML 里**连 `<p:transition>`
+   都不存在**。
+2. **对象模型里没有它。** `SlideShowTransition` 的成员只有
+   `AdvanceOnClick / AdvanceOnTime / AdvanceTime / Duration / EntryEffect / Hidden /
+   LoopSoundUntilNext / SoundEffect / Speed`——全是旧式那一套。
+3. **按名字设也失败。** `EntryEffect = "ppEffectMorph"`（含 `ByWord`/`ByObject`）
+   全部报错；让 PowerPoint 自己 SaveAs，写出的 slide 没有 transition。
+
+**推论**：任何**依赖 Morph 补间**的效果（例如"同一个平面在不同 3D 相机角度之间
+平滑翻倒"）在本机**无法用注入复现**。3D 相机本身能存（见下），但**没有东西去补间它**。
+
+**替代路线**：自己算中间帧 → 合成视频 → 内嵌。这样绕开了对 PowerPoint 补间能力的依赖。
+
+## 21. 3D 相机（`scene3d`）可以被注入，且角度原样保留
+
+和 §20 相反，这一项**能**做，实测确认（PowerPoint 16.0 build 20228）：
+
+```xml
+<a:scene3d>
+  <a:camera prst="perspectiveRelaxedModerately">
+    <a:rot lat="0" lon="17400000" rev="0"/>   <!-- 1/60000 度；17400000 = 290° -->
+  </a:camera>
+  <a:lightRig rig="threePt" dir="t"/>
+</a:scene3d>
+```
+
+放进 `<p:spPr>` 内、写在几何之后。`SaveAs` 往返后 `lon` **一位不差**。
+
+**要点**：
+
+- 「三维旋转」调的是**相机**，不是物体转。物体在平面内转是 `<a:xfrm/@rot>`，
+  两者完全不同，别混。
+- `perspectiveRelaxedModerately` 是 OOXML **62 个标准预设相机之一**（中文界面叫
+  「适度宽松」）；同族的还有 `perspectiveRelaxed` / `perspectiveFront` /
+  `perspectiveAbove` 等。
+- 预设名**不要自己编**。完整的 62 个预设名和它们的实测角度值，LibreOffice 有一份
+  整理好的表：`oox/source/drawingml/scene3dhelper.cxx`
+  （注释注明是 experimental 实测所得）。
+  ⚠️ 但那份表里**角度数值的单位换算我核对不上**（`perspectiveRelaxedModerately`
+  的值与其单位注释差约 725 倍，原因未查明），**所以角度以实测为准，不要照抄那份数**。
+
+## 22. 判断"不支持"之前，先排除"我写错了"
+
+§19 和 §20 是同一个教训的两面，值得单独留一条：
+
+遇到「元素写进去、保存后消失」，**不要立刻下结论说是版本不支持**。
+两个成因的症状完全一样，但处理方式相反：
+
+| 成因 | 判据 | 处理 |
+| --- | --- | --- |
+| **我写错了**（父节点 / 属性 / 值域） | **让 PowerPoint 自己写一遍**，对比它写的 XML —— 它能写出来，就说明它支持 | 照它写的形式改注入 |
+| **确实不支持** | 用它自己的对象模型也**设不上**，或它自己保存后**也不写**这个元素 | 换路线 |
+
+**顺序很重要。** §19 那个亮度问题，我一开始跳过了这一步，直接判成"未攻克"，
+结果它只是父节点写错——**一个本来能做的功能差点被我放弃。**
+
+**说"不支持"要三条同时成立**（§20 就是这么确认的）：
+
+1. 手写能正常打开，但保存后元素消失；
+2. 对象模型里**没有**对应成员；
+3. 按名字设**也失败**，且让 PowerPoint 自己保存后，它**也不写**这个元素。
+
+只满足第 1 条，多半是 §19 那个坑。
