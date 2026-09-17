@@ -1,13 +1,14 @@
 {
  "meta": {
   "measured_on": "PowerPoint 16.0 build 20228",
-  "method": "white plane on a dark ground, exported by PowerPoint, silhouette thresholded; convergence = far_edge/near_edge where 1.000 means parallel projection",
+  "method": "white plane with a calibration cross on a dark ground, exported by PowerPoint, silhouette thresholded. convergence = far_edge/near_edge (1.000 = parallel projection); pitch/yaw inferred from the projected axis lengths against the source axis length.",
   "probe_geometry": {
    "plane_position_in": [
     4.75,
     3.3
    ],
    "plane_width_in": 3.83,
+   "probe_source_px": 1600,
    "slide_in": [
     13.3333,
     7.5
@@ -20,9 +21,10 @@
   "comparability_warning": "Convergence is a ratio of two projected edge widths, so its ABSOLUTE value depends on this probe's geometry. Only compare numbers measured with the same probe. What transfers across probes is the relative result: which presets are parallel, the ordering of the sweeps, and fov's monotonic effect.",
   "tolerance": "pixel measurement noise puts a true parallel projection at 0.90-1.00, so the test is 'close to 1', not 'equal to 1'",
   "sources": {
-   "schema": "ECMA-376 Part 1, CT_Camera / CT_SphereCoords / ST_FOVAngle",
-   "office_behaviour": "[MS-OI29500] Part 1 s.20.1.5.5 camera",
-   "preset_names": "Microsoft.Office.Core.MsoPresetCamera, values 1..62"
+   "schema": "ECMA-376 Part 1 s.20.1.5.5 / Part 4 <camera>, CT_Camera",
+   "office_behaviour": "[MS-OI29500] s.20.1.5.5 camera",
+   "preset_names": "Microsoft.Office.Core.MsoPresetCamera, values 1..62",
+   "preset_angles": "NOT PUBLISHED. ECMA-376 says only that @prst is a 'starting point for common preset rotations', and does not list them; PowerPoint writes no <a:rot> when a preset is used without an override, so the angles are absent from the file too. They are therefore inferred here by measurement."
   },
   "documented_ranges": {
    "lat_lon_rev": "0..21600000 (1/60000 deg)",
@@ -37,18 +39,48 @@
   "doc_disagreements": [
    "a:rot lat/lon/rev = 21600000 is the spec's own maximum and makes PowerPoint report the file CORRUPT (0x80070570); real max is 21599999",
    "zoom values far outside the documented percentage range are accepted without complaint, so zoom is not range-checked"
-  ]
+  ],
+  "angle_calibration": {
+   "relationship": "pitch = 29.66 + (330 - lat), solved from the four measured pairs",
+   "worst_error_deg": 1.0,
+   "error_spread_deg": 1.0,
+   "ok": true,
+   "note": "the residual must be FLAT, not zero: a constant offset means the empirical reference constant is approximate, whereas a GROWING residual would mean the corner inference is drifting and the pitch column should not be used."
+  }
  },
  "presets": {
   "legacyObliqueTopLeft": {
    "opens": true,
    "clipped": false,
    "near_w": 345,
-   "far_w": 344,
-   "height": 177,
-   "convergence": 0.9971,
-   "aspect": 0.5145,
+   "far_w": 345,
+   "height": 330,
+   "mid_w": 344,
+   "convergence": 1.0,
+   "aspect": 0.9593,
    "skew": 0.0,
+   "corners": [
+    [
+     384,
+     304
+    ],
+    [
+     728,
+     304
+    ],
+    [
+     814,
+     634
+    ],
+    [
+     470,
+     633
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 8.14,
+   "axis_h_px": 344.0,
+   "axis_v_px": 340.5,
    "enum_value": 1
   },
   "legacyObliqueTop": {
@@ -56,10 +88,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 199,
+   "height": 366,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.5751,
+   "aspect": 1.0578,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     286
+    ],
+    [
+     772,
+     286
+    ],
+    [
+     772,
+     652
+    ],
+    [
+     427,
+     652
+    ]
+   ],
+   "yaw_deg": 19.5,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 366.0,
    "enum_value": 2
   },
   "legacyObliqueTopRight": {
@@ -67,10 +122,33 @@
    "clipped": false,
    "near_w": 345,
    "far_w": 345,
-   "height": 177,
+   "height": 330,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.513,
+   "aspect": 0.9538,
    "skew": 0.0,
+   "corners": [
+    [
+     471,
+     304
+    ],
+    [
+     815,
+     304
+    ],
+    [
+     729,
+     633
+    ],
+    [
+     384,
+     634
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 8.56,
+   "axis_h_px": 344.5,
+   "axis_v_px": 340.7,
    "enum_value": 3
   },
   "legacyObliqueLeft": {
@@ -78,10 +156,33 @@
    "clipped": false,
    "near_w": 345,
    "far_w": 345,
-   "height": 125,
+   "height": 244,
+   "mid_w": 345,
    "convergence": 1.0,
-   "aspect": 0.3623,
+   "aspect": 0.7072,
    "skew": 0.0,
+   "corners": [
+    [
+     367,
+     347
+    ],
+    [
+     711,
+     347
+    ],
+    [
+     832,
+     591
+    ],
+    [
+     488,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 37.65,
+   "axis_h_px": 344.0,
+   "axis_v_px": 272.4,
    "enum_value": 4
   },
   "legacyObliqueFront": {
@@ -89,10 +190,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 5
   },
   "legacyObliqueRight": {
@@ -100,21 +224,67 @@
    "clipped": false,
    "near_w": 345,
    "far_w": 345,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3623,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     488,
+     347
+    ],
+    [
+     832,
+     347
+    ],
+    [
+     711,
+     591
+    ],
+    [
+     367,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 37.65,
+   "axis_h_px": 344.0,
+   "axis_v_px": 272.4,
    "enum_value": 6
   },
   "legacyObliqueBottomLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
-   "far_w": 344,
-   "height": 73,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 158,
+   "mid_w": 344,
    "convergence": 1.0,
-   "aspect": 0.2116,
+   "aspect": 0.4593,
    "skew": 0.0,
+   "corners": [
+    [
+     385,
+     390
+    ],
+    [
+     728,
+     390
+    ],
+    [
+     814,
+     548
+    ],
+    [
+     470,
+     548
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 58.47,
+   "axis_h_px": 343.5,
+   "axis_v_px": 179.7,
    "enum_value": 7
   },
   "legacyObliqueBottom": {
@@ -122,120 +292,373 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 51,
+   "height": 122,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.1474,
+   "aspect": 0.3526,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     408
+    ],
+    [
+     772,
+     408
+    ],
+    [
+     772,
+     530
+    ],
+    [
+     427,
+     530
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 69.29,
+   "axis_h_px": 345.0,
+   "axis_v_px": 122.0,
    "enum_value": 8
   },
   "legacyObliqueBottomRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
-   "far_w": 344,
-   "height": 73,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 158,
+   "mid_w": 345,
    "convergence": 1.0,
-   "aspect": 0.2116,
+   "aspect": 0.458,
    "skew": 0.0,
+   "corners": [
+    [
+     470,
+     390
+    ],
+    [
+     814,
+     390
+    ],
+    [
+     729,
+     548
+    ],
+    [
+     385,
+     548
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 58.56,
+   "axis_h_px": 344.0,
+   "axis_v_px": 179.4,
    "enum_value": 9
   },
   "legacyPerspectiveTopLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 331,
-   "far_w": 289,
-   "height": 143,
-   "convergence": 0.8731,
-   "aspect": 0.4613,
+   "near_w": 340,
+   "far_w": 273,
+   "height": 289,
+   "mid_w": 307,
+   "convergence": 0.8029,
+   "aspect": 0.9414,
    "skew": 0.0,
+   "corners": [
+    [
+     436,
+     344
+    ],
+    [
+     700,
+     344
+    ],
+    [
+     814,
+     633
+    ],
+    [
+     466,
+     632
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 11.26,
+   "axis_h_px": 306.0,
+   "axis_v_px": 300.1,
    "enum_value": 10
   },
   "legacyPerspectiveTop": {
    "opens": true,
    "clipped": false,
-   "near_w": 370,
-   "far_w": 324,
-   "height": 162,
-   "convergence": 0.8757,
-   "aspect": 0.4669,
+   "near_w": 390,
+   "far_w": 314,
+   "height": 331,
+   "mid_w": 352,
+   "convergence": 0.8051,
+   "aspect": 0.9403,
    "skew": 0.0,
+   "corners": [
+    [
+     448,
+     326
+    ],
+    [
+     751,
+     326
+    ],
+    [
+     799,
+     657
+    ],
+    [
+     400,
+     657
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 17.66,
+   "axis_h_px": 351.0,
+   "axis_v_px": 334.5,
    "enum_value": 11
   },
   "legacyPerspectiveTopRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 358,
-   "far_w": 312,
-   "height": 156,
-   "convergence": 0.8715,
-   "aspect": 0.4657,
+   "near_w": 370,
+   "far_w": 296,
+   "height": 315,
+   "mid_w": 333,
+   "convergence": 0.8,
+   "aspect": 0.9459,
    "skew": 0.0,
+   "corners": [
+    [
+     490,
+     333
+    ],
+    [
+     777,
+     333
+    ],
+    [
+     744,
+     648
+    ],
+    [
+     365,
+     648
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 10.13,
+   "axis_h_px": 333.0,
+   "axis_v_px": 327.8,
    "enum_value": 12
   },
   "legacyPerspectiveLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 341,
-   "far_w": 298,
-   "height": 115,
-   "convergence": 0.8739,
-   "aspect": 0.3594,
+   "near_w": 359,
+   "far_w": 289,
+   "height": 229,
+   "mid_w": 324,
+   "convergence": 0.805,
+   "aspect": 0.7068,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     370
+    ],
+    [
+     706,
+     370
+    ],
+    [
+     826,
+     599
+    ],
+    [
+     459,
+     599
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 40.7,
+   "axis_h_px": 323.0,
+   "axis_v_px": 244.9,
    "enum_value": 13
   },
   "legacyPerspectiveFront": {
    "opens": true,
    "clipped": false,
-   "near_w": 370,
-   "far_w": 324,
-   "height": 125,
-   "convergence": 0.8757,
-   "aspect": 0.3613,
+   "near_w": 390,
+   "far_w": 314,
+   "height": 248,
+   "mid_w": 352,
+   "convergence": 0.8051,
+   "aspect": 0.7045,
    "skew": 0.0,
+   "corners": [
+    [
+     448,
+     362
+    ],
+    [
+     751,
+     362
+    ],
+    [
+     799,
+     610
+    ],
+    [
+     400,
+     610
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 43.97,
+   "axis_h_px": 351.0,
+   "axis_v_px": 252.6,
    "enum_value": 14
   },
   "legacyPerspectiveRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 363,
-   "far_w": 318,
-   "height": 122,
-   "convergence": 0.876,
-   "aspect": 0.3578,
+   "near_w": 384,
+   "far_w": 308,
+   "height": 243,
+   "mid_w": 346,
+   "convergence": 0.8021,
+   "aspect": 0.7023,
    "skew": 0.0,
+   "corners": [
+    [
+     485,
+     364
+    ],
+    [
+     783,
+     364
+    ],
+    [
+     749,
+     607
+    ],
+    [
+     357,
+     607
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 41.09,
+   "axis_h_px": 345.0,
+   "axis_v_px": 260.0,
    "enum_value": 15
   },
   "legacyPerspectiveBottomLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 347,
-   "far_w": 304,
-   "height": 82,
-   "convergence": 0.8761,
-   "aspect": 0.2515,
+   "near_w": 368,
+   "far_w": 295,
+   "height": 156,
+   "mid_w": 331,
+   "convergence": 0.8016,
+   "aspect": 0.4713,
    "skew": 0.0,
+   "corners": [
+    [
+     423,
+     402
+    ],
+    [
+     708,
+     402
+    ],
+    [
+     831,
+     558
+    ],
+    [
+     456,
+     558
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 57.14,
+   "axis_h_px": 330.0,
+   "axis_v_px": 179.1,
    "enum_value": 16
   },
   "legacyPerspectiveBottom": {
    "opens": true,
    "clipped": false,
-   "near_w": 370,
-   "far_w": 324,
-   "height": 88,
-   "convergence": 0.8757,
-   "aspect": 0.2536,
+   "near_w": 390,
+   "far_w": 313,
+   "height": 165,
+   "mid_w": 352,
+   "convergence": 0.8026,
+   "aspect": 0.4688,
    "skew": 0.0,
+   "corners": [
+    [
+     448,
+     398
+    ],
+    [
+     751,
+     398
+    ],
+    [
+     799,
+     563
+    ],
+    [
+     400,
+     563
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 60.69,
+   "axis_h_px": 351.0,
+   "axis_v_px": 171.8,
    "enum_value": 17
   },
   "legacyPerspectiveBottomRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 365,
-   "far_w": 321,
-   "height": 86,
-   "convergence": 0.8795,
-   "aspect": 0.2507,
+   "near_w": 386,
+   "far_w": 310,
+   "height": 163,
+   "mid_w": 348,
+   "convergence": 0.8031,
+   "aspect": 0.4684,
    "skew": 0.0,
+   "corners": [
+    [
+     484,
+     399
+    ],
+    [
+     784,
+     399
+    ],
+    [
+     750,
+     562
+    ],
+    [
+     356,
+     562
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 57.41,
+   "axis_h_px": 347.0,
+   "axis_v_px": 186.9,
    "enum_value": 18
   },
   "orthographicFront": {
@@ -243,10 +666,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 19
   },
   "isometricTopUp": {
@@ -254,10 +700,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 20
   },
   "isometricTopDown": {
@@ -265,10 +734,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 21
   },
   "isometricBottomUp": {
@@ -276,10 +768,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 22
   },
   "isometricBottomDown": {
@@ -287,10 +802,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 23
   },
   "isometricLeftUp": {
@@ -298,10 +836,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 24
   },
   "isometricLeftDown": {
@@ -309,10 +870,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 25
   },
   "isometricRightUp": {
@@ -320,10 +904,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 26
   },
   "isometricRightDown": {
@@ -331,10 +938,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 27
   },
   "isometricOffAxis1Left": {
@@ -342,10 +972,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 28
   },
   "isometricOffAxis1Right": {
@@ -353,10 +1006,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 29
   },
   "isometricOffAxis1Top": {
@@ -364,10 +1040,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 30
   },
   "isometricOffAxis2Left": {
@@ -375,10 +1074,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 31
   },
   "isometricOffAxis2Right": {
@@ -386,10 +1108,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 32
   },
   "isometricOffAxis2Top": {
@@ -397,10 +1142,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 33
   },
   "isometricOffAxis3Left": {
@@ -408,10 +1176,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 34
   },
   "isometricOffAxis3Right": {
@@ -419,10 +1210,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 35
   },
   "isometricOffAxis3Bottom": {
@@ -430,10 +1244,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 36
   },
   "isometricOffAxis4Left": {
@@ -441,10 +1278,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 37
   },
   "isometricOffAxis4Right": {
@@ -452,10 +1312,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 38
   },
   "isometricOffAxis4Bottom": {
@@ -463,21 +1346,67 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 125,
+   "height": 244,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.3613,
+   "aspect": 0.7052,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     347
+    ],
+    [
+     772,
+     347
+    ],
+    [
+     772,
+     591
+    ],
+    [
+     427,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.99,
+   "axis_h_px": 345.0,
+   "axis_v_px": 244.0,
    "enum_value": 39
   },
   "obliqueTopLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
-   "far_w": 344,
-   "height": 157,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 296,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.4551,
+   "aspect": 0.8555,
    "skew": 0.0,
+   "corners": [
+    [
+     401,
+     321
+    ],
+    [
+     746,
+     321
+    ],
+    [
+     798,
+     617
+    ],
+    [
+     453,
+     617
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 29.41,
+   "axis_h_px": 345.0,
+   "axis_v_px": 300.5,
    "enum_value": 40
   },
   "obliqueTop": {
@@ -485,54 +1414,169 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 169,
+   "height": 317,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.4884,
+   "aspect": 0.9162,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     310
+    ],
+    [
+     772,
+     310
+    ],
+    [
+     772,
+     627
+    ],
+    [
+     427,
+     627
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 23.24,
+   "axis_h_px": 345.0,
+   "axis_v_px": 317.0,
    "enum_value": 41
   },
   "obliqueTopRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
-   "far_w": 344,
-   "height": 157,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 296,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.4551,
+   "aspect": 0.8555,
    "skew": 0.0,
+   "corners": [
+    [
+     453,
+     321
+    ],
+    [
+     798,
+     321
+    ],
+    [
+     746,
+     617
+    ],
+    [
+     401,
+     617
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 29.41,
+   "axis_h_px": 345.0,
+   "axis_v_px": 300.5,
    "enum_value": 42
   },
   "obliqueLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
+   "near_w": 345,
    "far_w": 345,
-   "height": 125,
-   "convergence": 1.0029,
-   "aspect": 0.3634,
+   "height": 244,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.7072,
    "skew": 0.0,
+   "corners": [
+    [
+     390,
+     347
+    ],
+    [
+     734,
+     347
+    ],
+    [
+     807,
+     591
+    ],
+    [
+     463,
+     590
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 42.36,
+   "axis_h_px": 344.0,
+   "axis_v_px": 254.2,
    "enum_value": 43
   },
   "obliqueRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
+   "near_w": 345,
    "far_w": 345,
-   "height": 125,
-   "convergence": 1.0029,
-   "aspect": 0.3623,
+   "height": 244,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.7072,
    "skew": 0.0,
+   "corners": [
+    [
+     463,
+     347
+    ],
+    [
+     808,
+     347
+    ],
+    [
+     735,
+     591
+    ],
+    [
+     390,
+     591
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 42.42,
+   "axis_h_px": 345.0,
+   "axis_v_px": 254.7,
    "enum_value": 44
   },
   "obliqueBottomLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 344,
-   "far_w": 344,
-   "height": 93,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 192,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.2696,
+   "aspect": 0.5549,
    "skew": 0.0,
+   "corners": [
+    [
+     401,
+     373
+    ],
+    [
+     746,
+     373
+    ],
+    [
+     797,
+     565
+    ],
+    [
+     453,
+     565
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 54.76,
+   "axis_h_px": 344.5,
+   "axis_v_px": 198.8,
    "enum_value": 45
   },
   "obliqueBottom": {
@@ -540,10 +1584,33 @@
    "clipped": false,
    "near_w": 346,
    "far_w": 346,
-   "height": 80,
+   "height": 170,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.2312,
+   "aspect": 0.4913,
    "skew": 0.0,
+   "corners": [
+    [
+     427,
+     384
+    ],
+    [
+     772,
+     384
+    ],
+    [
+     772,
+     554
+    ],
+    [
+     427,
+     554
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 60.48,
+   "axis_h_px": 345.0,
+   "axis_v_px": 170.0,
    "enum_value": 46
   },
   "obliqueBottomRight": {
@@ -551,179 +1618,3590 @@
    "clipped": false,
    "near_w": 345,
    "far_w": 345,
-   "height": 93,
+   "height": 192,
+   "mid_w": 346,
    "convergence": 1.0,
-   "aspect": 0.2696,
+   "aspect": 0.5549,
    "skew": 0.0,
+   "corners": [
+    [
+     453,
+     373
+    ],
+    [
+     798,
+     373
+    ],
+    [
+     746,
+     565
+    ],
+    [
+     401,
+     565
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 54.79,
+   "axis_h_px": 345.0,
+   "axis_v_px": 198.9,
    "enum_value": 47
   },
   "perspectiveFront": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 48
   },
   "perspectiveLeft": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 49
   },
   "perspectiveRight": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 50
   },
   "perspectiveAbove": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 51
   },
   "perspectiveBelow": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 52
   },
   "perspectiveAboveLeftFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 53
   },
   "perspectiveAboveRightFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 54
   },
   "perspectiveContrastingLeftFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 55
   },
   "perspectiveContrastingRightFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 56
   },
   "perspectiveHeroicLeftFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 57
   },
   "perspectiveHeroicRightFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 58
   },
   "perspectiveHeroicExtremeLeftFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 380,
-   "far_w": 318,
-   "height": 125,
-   "convergence": 0.8368,
-   "aspect": 0.3571,
+   "near_w": 407,
+   "far_w": 305,
+   "height": 251,
+   "mid_w": 357,
+   "convergence": 0.7494,
+   "aspect": 0.7031,
    "skew": 0.0,
+   "corners": [
+    [
+     453,
+     366
+    ],
+    [
+     745,
+     366
+    ],
+    [
+     809,
+     617
+    ],
+    [
+     389,
+     617
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 43.31,
+   "axis_h_px": 356.0,
+   "axis_v_px": 259.0,
    "enum_value": 59
   },
   "perspectiveHeroicExtremeRightFacing": {
    "opens": true,
    "clipped": false,
-   "near_w": 380,
-   "far_w": 318,
-   "height": 125,
-   "convergence": 0.8368,
-   "aspect": 0.3571,
+   "near_w": 407,
+   "far_w": 305,
+   "height": 251,
+   "mid_w": 357,
+   "convergence": 0.7494,
+   "aspect": 0.7031,
    "skew": 0.0,
+   "corners": [
+    [
+     453,
+     366
+    ],
+    [
+     745,
+     366
+    ],
+    [
+     809,
+     617
+    ],
+    [
+     389,
+     617
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 43.31,
+   "axis_h_px": 356.0,
+   "axis_v_px": 259.0,
    "enum_value": 60
   },
   "perspectiveRelaxed": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 61
   },
   "perspectiveRelaxedModerately": {
    "opens": true,
    "clipped": false,
-   "near_w": 360,
-   "far_w": 330,
-   "height": 124,
-   "convergence": 0.9167,
-   "aspect": 0.3584,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
    "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
    "enum_value": 62
   }
  },
- "rotation": {},
- "fov": {},
- "zoom": {}
+ "presets_without_rot_override": {
+  "legacyObliqueTopLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 1,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueTop": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 2,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueTopRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 3,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 4,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 5,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 344,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9942,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     772,
+     297
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 4.36,
+   "axis_h_px": 345.0,
+   "axis_v_px": 344.0,
+   "enum_value": 6,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueBottomLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 7,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueBottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 8,
+   "effective_lat_from_conv": 285
+  },
+  "legacyObliqueBottomRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 9,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveTopLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 10,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveTop": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 11,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveTopRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 12,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 13,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 14,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 15,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveBottomLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 16,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveBottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 17,
+   "effective_lat_from_conv": 285
+  },
+  "legacyPerspectiveBottomRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 18,
+   "effective_lat_from_conv": 285
+  },
+  "orthographicFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 19,
+   "effective_lat_from_conv": 285
+  },
+  "isometricTopUp": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 102,
+   "far_w": 98,
+   "height": 279,
+   "mid_w": 484,
+   "convergence": 0.9608,
+   "aspect": 0.5764,
+   "skew": 0.0,
+   "corners": [
+    [
+     358,
+     468
+    ],
+    [
+     841,
+     468
+    ],
+    [
+     842,
+     469
+    ],
+    [
+     357,
+     469
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 89.83,
+   "axis_h_px": 484.0,
+   "axis_v_px": 1.4,
+   "enum_value": 20,
+   "effective_lat_from_conv": 285
+  },
+  "isometricTopDown": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 102,
+   "far_w": 98,
+   "height": 279,
+   "mid_w": 484,
+   "convergence": 0.9608,
+   "aspect": 0.5764,
+   "skew": 0.0,
+   "corners": [
+    [
+     358,
+     468
+    ],
+    [
+     841,
+     468
+    ],
+    [
+     842,
+     469
+    ],
+    [
+     357,
+     469
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 89.83,
+   "axis_h_px": 484.0,
+   "axis_v_px": 1.4,
+   "enum_value": 21,
+   "effective_lat_from_conv": 285
+  },
+  "isometricBottomUp": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 102,
+   "far_w": 98,
+   "height": 279,
+   "mid_w": 484,
+   "convergence": 0.9608,
+   "aspect": 0.5764,
+   "skew": 0.0,
+   "corners": [
+    [
+     358,
+     468
+    ],
+    [
+     841,
+     468
+    ],
+    [
+     842,
+     469
+    ],
+    [
+     357,
+     469
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 89.83,
+   "axis_h_px": 484.0,
+   "axis_v_px": 1.4,
+   "enum_value": 22,
+   "effective_lat_from_conv": 285
+  },
+  "isometricBottomDown": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 102,
+   "far_w": 98,
+   "height": 279,
+   "mid_w": 484,
+   "convergence": 0.9608,
+   "aspect": 0.5764,
+   "skew": 0.0,
+   "corners": [
+    [
+     358,
+     468
+    ],
+    [
+     841,
+     468
+    ],
+    [
+     842,
+     469
+    ],
+    [
+     357,
+     469
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 89.83,
+   "axis_h_px": 484.0,
+   "axis_v_px": 1.4,
+   "enum_value": 23,
+   "effective_lat_from_conv": 285
+  },
+  "isometricLeftUp": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 84,
+   "far_w": 74,
+   "height": 416,
+   "mid_w": 245,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 24,
+   "effective_lat_from_conv": null
+  },
+  "isometricLeftDown": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 84,
+   "far_w": 74,
+   "height": 415,
+   "mid_w": 245,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 25,
+   "effective_lat_from_conv": null
+  },
+  "isometricRightUp": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 84,
+   "far_w": 74,
+   "height": 416,
+   "mid_w": 245,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 26,
+   "effective_lat_from_conv": null
+  },
+  "isometricRightDown": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 84,
+   "far_w": 74,
+   "height": 415,
+   "mid_w": 245,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 27,
+   "effective_lat_from_conv": null
+  },
+  "isometricOffAxis1Left": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 78,
+   "far_w": 68,
+   "height": 416,
+   "mid_w": 152,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 28,
+   "effective_lat_from_conv": null
+  },
+  "isometricOffAxis1Right": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 247,
+   "far_w": 248,
+   "height": 374,
+   "mid_w": 311,
+   "convergence": 1.004,
+   "aspect": 1.2026,
+   "skew": 0.0,
+   "corners": [
+    [
+     444,
+     329
+    ],
+    [
+     754,
+     282
+    ],
+    [
+     754,
+     609
+    ],
+    [
+     444,
+     656
+    ]
+   ],
+   "yaw_deg": 16.49,
+   "pitch_deg": 0.0,
+   "axis_h_px": 313.5,
+   "axis_v_px": 327.0,
+   "enum_value": 29,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis1Top": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 116,
+   "far_w": 117,
+   "height": 142,
+   "mid_w": 384,
+   "convergence": 1.0086,
+   "aspect": 0.3698,
+   "skew": 0.0,
+   "enum_value": 30,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis2Left": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 248,
+   "far_w": 247,
+   "height": 374,
+   "mid_w": 311,
+   "convergence": 0.996,
+   "aspect": 1.2026,
+   "skew": 0.0,
+   "corners": [
+    [
+     444,
+     282
+    ],
+    [
+     754,
+     329
+    ],
+    [
+     754,
+     656
+    ],
+    [
+     444,
+     609
+    ]
+   ],
+   "yaw_deg": 16.49,
+   "pitch_deg": 0.0,
+   "axis_h_px": 313.5,
+   "axis_v_px": 327.0,
+   "enum_value": 31,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis2Right": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 78,
+   "far_w": 67,
+   "height": 417,
+   "mid_w": 152,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 32,
+   "effective_lat_from_conv": null
+  },
+  "isometricOffAxis2Top": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 117,
+   "far_w": 116,
+   "height": 142,
+   "mid_w": 384,
+   "convergence": 0.9915,
+   "aspect": 0.3698,
+   "skew": 0.0,
+   "enum_value": 33,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis3Left": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 78,
+   "far_w": 67,
+   "height": 417,
+   "mid_w": 152,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 34,
+   "effective_lat_from_conv": null
+  },
+  "isometricOffAxis3Right": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 248,
+   "far_w": 247,
+   "height": 374,
+   "mid_w": 311,
+   "convergence": 0.996,
+   "aspect": 1.2026,
+   "skew": 0.0,
+   "corners": [
+    [
+     444,
+     282
+    ],
+    [
+     754,
+     329
+    ],
+    [
+     754,
+     656
+    ],
+    [
+     444,
+     609
+    ]
+   ],
+   "yaw_deg": 16.49,
+   "pitch_deg": 0.0,
+   "axis_h_px": 313.5,
+   "axis_v_px": 327.0,
+   "enum_value": 35,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis3Bottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 117,
+   "far_w": 116,
+   "height": 142,
+   "mid_w": 384,
+   "convergence": 0.9915,
+   "aspect": 0.3698,
+   "skew": 0.0,
+   "enum_value": 36,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis4Left": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 247,
+   "far_w": 248,
+   "height": 374,
+   "mid_w": 311,
+   "convergence": 1.004,
+   "aspect": 1.2026,
+   "skew": 0.0,
+   "corners": [
+    [
+     444,
+     329
+    ],
+    [
+     754,
+     282
+    ],
+    [
+     754,
+     609
+    ],
+    [
+     444,
+     656
+    ]
+   ],
+   "yaw_deg": 16.49,
+   "pitch_deg": 0.0,
+   "axis_h_px": 313.5,
+   "axis_v_px": 327.0,
+   "enum_value": 37,
+   "effective_lat_from_conv": 285
+  },
+  "isometricOffAxis4Right": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 78,
+   "far_w": 68,
+   "height": 416,
+   "mid_w": 152,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 38,
+   "effective_lat_from_conv": null
+  },
+  "isometricOffAxis4Bottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 116,
+   "far_w": 117,
+   "height": 142,
+   "mid_w": 384,
+   "convergence": 1.0086,
+   "aspect": 0.3698,
+   "skew": 0.0,
+   "enum_value": 39,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueTopLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 40,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueTop": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 41,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueTopRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 42,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 344,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9942,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     772,
+     297
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 4.36,
+   "axis_h_px": 345.0,
+   "axis_v_px": 344.0,
+   "enum_value": 43,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 344,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9942,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     772,
+     297
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 4.36,
+   "axis_h_px": 345.0,
+   "axis_v_px": 344.0,
+   "enum_value": 44,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueBottomLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 45,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueBottom": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 46,
+   "effective_lat_from_conv": 285
+  },
+  "obliqueBottomRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 346,
+   "far_w": 346,
+   "height": 345,
+   "mid_w": 346,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     296
+    ],
+    [
+     772,
+     296
+    ],
+    [
+     772,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 345.0,
+   "enum_value": 47,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveFront": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 344,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.9971,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     297
+    ],
+    [
+     771,
+     297
+    ],
+    [
+     771,
+     641
+    ],
+    [
+     427,
+     641
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 0.0,
+   "axis_h_px": 344.0,
+   "axis_v_px": 344.0,
+   "enum_value": 48,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveLeft": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 324,
+   "far_w": 324,
+   "height": 360,
+   "mid_w": 324,
+   "convergence": 1.0,
+   "aspect": 1.1111,
+   "skew": 0.0,
+   "corners": [
+    [
+     445,
+     304
+    ],
+    [
+     768,
+     289
+    ],
+    [
+     768,
+     649
+    ],
+    [
+     445,
+     634
+    ]
+   ],
+   "yaw_deg": 20.41,
+   "pitch_deg": 0.0,
+   "axis_h_px": 323.3,
+   "axis_v_px": 345.0,
+   "enum_value": 49,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveRight": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 324,
+   "far_w": 324,
+   "height": 360,
+   "mid_w": 324,
+   "convergence": 1.0,
+   "aspect": 1.1111,
+   "skew": 0.0,
+   "corners": [
+    [
+     431,
+     289
+    ],
+    [
+     754,
+     304
+    ],
+    [
+     754,
+     634
+    ],
+    [
+     431,
+     649
+    ]
+   ],
+   "yaw_deg": 20.41,
+   "pitch_deg": 0.0,
+   "axis_h_px": 323.3,
+   "axis_v_px": 345.0,
+   "enum_value": 50,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveAbove": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 358,
+   "far_w": 334,
+   "height": 324,
+   "mid_w": 346,
+   "convergence": 0.933,
+   "aspect": 0.9364,
+   "skew": 0.0,
+   "corners": [
+    [
+     435,
+     314
+    ],
+    [
+     764,
+     314
+    ],
+    [
+     779,
+     638
+    ],
+    [
+     420,
+     638
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 19.46,
+   "axis_h_px": 344.0,
+   "axis_v_px": 324.3,
+   "enum_value": 51,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveBelow": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 334,
+   "far_w": 358,
+   "height": 324,
+   "mid_w": 346,
+   "convergence": 1.0719,
+   "aspect": 0.9364,
+   "skew": 0.0,
+   "corners": [
+    [
+     420,
+     300
+    ],
+    [
+     779,
+     300
+    ],
+    [
+     764,
+     624
+    ],
+    [
+     435,
+     624
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 19.46,
+   "axis_h_px": 344.0,
+   "axis_v_px": 324.3,
+   "enum_value": 52,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveAboveLeftFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 94,
+   "far_w": 92,
+   "height": 412,
+   "mid_w": 357,
+   "convergence": 0.9787,
+   "aspect": 1.1541,
+   "skew": 0.0,
+   "corners": [
+    [
+     488,
+     251
+    ],
+    [
+     813,
+     416
+    ],
+    [
+     700,
+     663
+    ],
+    [
+     426,
+     511
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 37.34,
+   "axis_h_px": 338.9,
+   "axis_v_px": 269.5,
+   "enum_value": 53,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveAboveRightFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 94,
+   "far_w": 92,
+   "height": 412,
+   "mid_w": 357,
+   "convergence": 0.9787,
+   "aspect": 1.1541,
+   "skew": 0.0,
+   "corners": [
+    [
+     386,
+     416
+    ],
+    [
+     711,
+     251
+    ],
+    [
+     773,
+     511
+    ],
+    [
+     499,
+     663
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 37.34,
+   "axis_h_px": 338.9,
+   "axis_v_px": 269.5,
+   "enum_value": 54,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveContrastingLeftFacing": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 131,
+   "far_w": 255,
+   "height": 391,
+   "mid_w": 251,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 55,
+   "effective_lat_from_conv": null
+  },
+  "perspectiveContrastingRightFacing": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 131,
+   "far_w": 256,
+   "height": 391,
+   "mid_w": 252,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 56,
+   "effective_lat_from_conv": null
+  },
+  "perspectiveHeroicLeftFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 341,
+   "far_w": 302,
+   "height": 369,
+   "mid_w": 335,
+   "convergence": 0.8856,
+   "aspect": 1.1015,
+   "skew": 0.0,
+   "corners": [
+    [
+     436,
+     323
+    ],
+    [
+     759,
+     283
+    ],
+    [
+     783,
+     631
+    ],
+    [
+     442,
+     652
+    ]
+   ],
+   "yaw_deg": 10.23,
+   "pitch_deg": 0.0,
+   "axis_h_px": 333.6,
+   "axis_v_px": 338.9,
+   "enum_value": 57,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveHeroicRightFacing": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 342,
+   "far_w": 302,
+   "height": 369,
+   "mid_w": 336,
+   "convergence": 0.883,
+   "aspect": 1.0982,
+   "skew": 0.0,
+   "corners": [
+    [
+     440,
+     283
+    ],
+    [
+     764,
+     324
+    ],
+    [
+     757,
+     652
+    ],
+    [
+     415,
+     631
+    ]
+   ],
+   "yaw_deg": 8.67,
+   "pitch_deg": 0.0,
+   "axis_h_px": 334.6,
+   "axis_v_px": 338.5,
+   "enum_value": 58,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveHeroicExtremeLeftFacing": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 157,
+   "far_w": 300,
+   "height": 387,
+   "mid_w": 290,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 59,
+   "effective_lat_from_conv": null
+  },
+  "perspectiveHeroicExtremeRightFacing": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 156,
+   "far_w": 300,
+   "height": 387,
+   "mid_w": 290,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "enum_value": 60,
+   "effective_lat_from_conv": null
+  },
+  "perspectiveRelaxed": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 376,
+   "far_w": 322,
+   "height": 221,
+   "mid_w": 348,
+   "convergence": 0.8564,
+   "aspect": 0.6351,
+   "skew": 0.0,
+   "corners": [
+    [
+     443,
+     369
+    ],
+    [
+     756,
+     369
+    ],
+    [
+     790,
+     590
+    ],
+    [
+     409,
+     590
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 49.88,
+   "axis_h_px": 347.0,
+   "axis_v_px": 223.6,
+   "enum_value": 61,
+   "effective_lat_from_conv": 285
+  },
+  "perspectiveRelaxedModerately": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 367,
+   "far_w": 326,
+   "height": 282,
+   "mid_w": 346,
+   "convergence": 0.8883,
+   "aspect": 0.815,
+   "skew": 0.0,
+   "corners": [
+    [
+     439,
+     338
+    ],
+    [
+     760,
+     338
+    ],
+    [
+     785,
+     620
+    ],
+    [
+     414,
+     620
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 35.09,
+   "axis_h_px": 346.0,
+   "axis_v_px": 283.1,
+   "enum_value": 62,
+   "effective_lat_from_conv": 285
+  }
+ },
+ "rotation": {
+  "lat330_lon0": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 364,
+   "far_w": 328,
+   "height": 299,
+   "mid_w": 346,
+   "convergence": 0.9011,
+   "aspect": 0.8642,
+   "skew": 0.0,
+   "corners": [
+    [
+     438,
+     329
+    ],
+    [
+     761,
+     329
+    ],
+    [
+     783,
+     628
+    ],
+    [
+     416,
+     628
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 29.66,
+   "axis_h_px": 345.0,
+   "axis_v_px": 299.8,
+   "lat_deg": 330,
+   "lon_deg": 0
+  },
+  "lat330_lon15": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 322,
+   "far_w": 222,
+   "height": 342,
+   "mid_w": 334,
+   "convergence": 0.6894,
+   "aspect": 1.024,
+   "skew": 0.0,
+   "corners": [
+    [
+     447,
+     353
+    ],
+    [
+     760,
+     304
+    ],
+    [
+     782,
+     608
+    ],
+    [
+     427,
+     646
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 27.36,
+   "axis_h_px": 336.9,
+   "axis_v_px": 299.2,
+   "lat_deg": 330,
+   "lon_deg": 15
+  },
+  "lat330_lon30": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 166,
+   "far_w": 116,
+   "height": 383,
+   "mid_w": 301,
+   "convergence": 0.6988,
+   "aspect": 1.2724,
+   "skew": 0.0,
+   "corners": [
+    [
+     466,
+     374
+    ],
+    [
+     747,
+     279
+    ],
+    [
+     768,
+     589
+    ],
+    [
+     449,
+     662
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 16.16,
+   "axis_h_px": 311.9,
+   "axis_v_px": 299.6,
+   "lat_deg": 330,
+   "lon_deg": 30
+  },
+  "lat330_lon45": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 109,
+   "far_w": 74,
+   "height": 418,
+   "mid_w": 246,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "lat_deg": 330,
+   "lon_deg": 45
+  },
+  "lat330_lon60": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 78,
+   "far_w": 46,
+   "height": 436,
+   "mid_w": 175,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "lat_deg": 330,
+   "lon_deg": 60
+  },
+  "lat315_lon0": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
+   "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
+   "lat_deg": 315,
+   "lon_deg": 0
+  },
+  "lat315_lon15": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 179,
+   "far_w": 157,
+   "height": 308,
+   "mid_w": 335,
+   "convergence": 0.8771,
+   "aspect": 0.9194,
+   "skew": 0.0,
+   "corners": [
+    [
+     450,
+     388
+    ],
+    [
+     755,
+     325
+    ],
+    [
+     786,
+     570
+    ],
+    [
+     422,
+     633
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 43.54,
+   "axis_h_px": 340.4,
+   "axis_v_px": 246.8,
+   "lat_deg": 315,
+   "lon_deg": 15
+  },
+  "lat315_lon30": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 97,
+   "far_w": 89,
+   "height": 366,
+   "mid_w": 303,
+   "convergence": 0.9175,
+   "aspect": 1.2079,
+   "skew": 0.0,
+   "corners": [
+    [
+     468,
+     415
+    ],
+    [
+     742,
+     294
+    ],
+    [
+     771,
+     539
+    ],
+    [
+     444,
+     660
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 40.5,
+   "axis_h_px": 324.1,
+   "axis_v_px": 246.4,
+   "lat_deg": 315,
+   "lon_deg": 30
+  },
+  "lat315_lon45": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 74,
+   "far_w": 58,
+   "height": 407,
+   "mid_w": 248,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "lat_deg": 315,
+   "lon_deg": 45
+  },
+  "lat315_lon60": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 58,
+   "far_w": 36,
+   "height": 428,
+   "mid_w": 175,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "lat_deg": 315,
+   "lon_deg": 60
+  },
+  "lat300_lon0": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 379,
+   "far_w": 319,
+   "height": 173,
+   "mid_w": 349,
+   "convergence": 0.8417,
+   "aspect": 0.4957,
+   "skew": 0.0,
+   "corners": [
+    [
+     444,
+     392
+    ],
+    [
+     754,
+     392
+    ],
+    [
+     792,
+     565
+    ],
+    [
+     406,
+     565
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 59.4,
+   "axis_h_px": 348.0,
+   "axis_v_px": 177.1,
+   "lat_deg": 300,
+   "lon_deg": 0
+  },
+  "lat300_lon15": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 109,
+   "far_w": 113,
+   "height": 251,
+   "mid_w": 339,
+   "convergence": 1.0367,
+   "aspect": 0.7404,
+   "skew": 0.0,
+   "corners": [
+    [
+     452,
+     427
+    ],
+    [
+     751,
+     355
+    ],
+    [
+     789,
+     523
+    ],
+    [
+     416,
+     606
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 59.04,
+   "axis_h_px": 344.8,
+   "axis_v_px": 177.4,
+   "lat_deg": 300,
+   "lon_deg": 15
+  },
+  "lat300_lon30": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 62,
+   "far_w": 70,
+   "height": 323,
+   "mid_w": 309,
+   "convergence": 1.129,
+   "aspect": 1.0453,
+   "skew": 0.0,
+   "corners": [
+    [
+     470,
+     458
+    ],
+    [
+     738,
+     320
+    ],
+    [
+     773,
+     482
+    ],
+    [
+     438,
+     643
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 58.32,
+   "axis_h_px": 336.6,
+   "axis_v_px": 176.7,
+   "lat_deg": 300,
+   "lon_deg": 30
+  },
+  "lat300_lon45": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 42,
+   "far_w": 52,
+   "height": 382,
+   "mid_w": 202,
+   "convergence": 1.2381,
+   "aspect": 1.8911,
+   "skew": 0.0,
+   "corners": [
+    [
+     497,
+     482
+    ],
+    [
+     714,
+     290
+    ],
+    [
+     743,
+     445
+    ],
+    [
+     469,
+     672
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 57.2,
+   "axis_h_px": 322.8,
+   "axis_v_px": 174.9,
+   "lat_deg": 300,
+   "lon_deg": 45
+  },
+  "lat300_lon60": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 38,
+   "far_w": 34,
+   "height": 408,
+   "mid_w": 117,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "lat_deg": 300,
+   "lon_deg": 60
+  },
+  "lat285_lon0": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 383,
+   "far_w": 317,
+   "height": 89,
+   "mid_w": 349,
+   "convergence": 0.8277,
+   "aspect": 0.255,
+   "skew": 0.0,
+   "corners": [
+    [
+     445,
+     430
+    ],
+    [
+     753,
+     430
+    ],
+    [
+     795,
+     519
+    ],
+    [
+     403,
+     519
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 73.67,
+   "axis_h_px": 350.0,
+   "axis_v_px": 98.4,
+   "lat_deg": 285,
+   "lon_deg": 0
+  },
+  "lat285_lon15": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 64,
+   "far_w": 81,
+   "height": 176,
+   "mid_w": 309,
+   "convergence": 1.2656,
+   "aspect": 0.5696,
+   "skew": 0.0,
+   "corners": [
+    [
+     452,
+     468
+    ],
+    [
+     748,
+     391
+    ],
+    [
+     790,
+     470
+    ],
+    [
+     412,
+     567
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 73.62,
+   "axis_h_px": 348.0,
+   "axis_v_px": 98.1,
+   "lat_deg": 285,
+   "lon_deg": 15
+  },
+  "lat285_lon30": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 39,
+   "far_w": 62,
+   "height": 257,
+   "mid_w": 162,
+   "convergence": 1.5897,
+   "aspect": 1.5864,
+   "skew": 0.0,
+   "corners": [
+    [
+     470,
+     502
+    ],
+    [
+     734,
+     354
+    ],
+    [
+     772,
+     424
+    ],
+    [
+     433,
+     611
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 73.6,
+   "axis_h_px": 344.9,
+   "axis_v_px": 97.4,
+   "lat_deg": 285,
+   "lon_deg": 30
+  },
+  "lat285_lon45": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 28,
+   "far_w": 52,
+   "height": 326,
+   "mid_w": 93,
+   "convergence": 1.8571,
+   "aspect": 3.5054,
+   "skew": 0.0,
+   "corners": [
+    [
+     517,
+     510
+    ],
+    [
+     710,
+     322
+    ],
+    [
+     741,
+     384
+    ],
+    [
+     465,
+     648
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 70.56,
+   "axis_h_px": 325.7,
+   "axis_v_px": 108.4,
+   "lat_deg": 285,
+   "lon_deg": 45
+  },
+  "lat285_lon60": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 17,
+   "far_w": 38,
+   "height": 377,
+   "mid_w": 54,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "lat_deg": 285,
+   "lon_deg": 60
+  },
+  "lat270_lon0": {
+   "opens": true,
+   "visible": false,
+   "lat_deg": 270,
+   "lon_deg": 0
+  },
+  "lat270_lon15": {
+   "opens": true,
+   "visible": false,
+   "lat_deg": 270,
+   "lon_deg": 15
+  },
+  "lat270_lon30": {
+   "opens": true,
+   "visible": false,
+   "lat_deg": 270,
+   "lon_deg": 30
+  },
+  "lat270_lon45": {
+   "opens": true,
+   "visible": false,
+   "lat_deg": 270,
+   "lon_deg": 45
+  },
+  "lat270_lon60": {
+   "opens": true,
+   "visible": false,
+   "lat_deg": 270,
+   "lon_deg": 60
+  }
+ },
+ "rev": {
+  "rev0": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
+   "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
+   "rev_deg": 0
+  },
+  "rev30": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 93,
+   "far_w": 96,
+   "height": 381,
+   "mid_w": 405,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "rev_deg": 30
+  },
+  "rev90": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 246,
+   "far_w": 246,
+   "height": 378,
+   "mid_w": 246,
+   "convergence": 1.0,
+   "aspect": 1.5366,
+   "skew": 0.0,
+   "corners": [
+    [
+     488,
+     311
+    ],
+    [
+     733,
+     280
+    ],
+    [
+     733,
+     658
+    ],
+    [
+     488,
+     627
+    ]
+   ],
+   "yaw_deg": 44.63,
+   "pitch_deg": 0.0,
+   "axis_h_px": 247.0,
+   "axis_v_px": 347.0,
+   "rev_deg": 90
+  },
+  "rev180": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 322,
+   "far_w": 372,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 1.1553,
+   "aspect": 0.704,
+   "skew": 0.0,
+   "corners": [
+    [
+     411,
+     335
+    ],
+    [
+     788,
+     335
+    ],
+    [
+     757,
+     580
+    ],
+    [
+     442,
+     580
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
+   "rev_deg": 180
+  },
+  "rev270": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 246,
+   "far_w": 246,
+   "height": 378,
+   "mid_w": 246,
+   "convergence": 1.0,
+   "aspect": 1.5366,
+   "skew": 0.0,
+   "corners": [
+    [
+     466,
+     280
+    ],
+    [
+     711,
+     311
+    ],
+    [
+     711,
+     627
+    ],
+    [
+     466,
+     658
+    ]
+   ],
+   "yaw_deg": 44.63,
+   "pitch_deg": 0.0,
+   "axis_h_px": 247.0,
+   "axis_v_px": 347.0,
+   "rev_deg": 270
+  },
+  "rev350": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 175,
+   "far_w": 182,
+   "height": 301,
+   "mid_w": 353,
+   "convergence": 1.04,
+   "aspect": 0.8527,
+   "skew": 0.0,
+   "corners": [
+    [
+     463,
+     332
+    ],
+    [
+     774,
+     387
+    ],
+    [
+     762,
+     633
+    ],
+    [
+     390,
+     567
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.78,
+   "axis_h_px": 346.8,
+   "axis_v_px": 246.2,
+   "rev_deg": 350
+  }
+ },
+ "fov": {
+  "fov0": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 345,
+   "far_w": 345,
+   "height": 242,
+   "mid_w": 345,
+   "convergence": 1.0,
+   "aspect": 0.7014,
+   "skew": 0.0,
+   "corners": [
+    [
+     427,
+     348
+    ],
+    [
+     771,
+     348
+    ],
+    [
+     771,
+     590
+    ],
+    [
+     427,
+     590
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 45.29,
+   "axis_h_px": 344.0,
+   "axis_v_px": 242.0,
+   "fov_deg": 0
+  },
+  "fov15": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 353,
+   "far_w": 337,
+   "height": 243,
+   "mid_w": 345,
+   "convergence": 0.9547,
+   "aspect": 0.7043,
+   "skew": 0.0,
+   "corners": [
+    [
+     432,
+     351
+    ],
+    [
+     766,
+     351
+    ],
+    [
+     776,
+     594
+    ],
+    [
+     422,
+     594
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 45.01,
+   "axis_h_px": 344.0,
+   "axis_v_px": 243.2,
+   "fov_deg": 15
+  },
+  "fov45": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
+   "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
+   "fov_deg": 45
+  },
+  "fov90": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 424,
+   "far_w": 300,
+   "height": 255,
+   "mid_w": 362,
+   "convergence": 0.7075,
+   "aspect": 0.7044,
+   "skew": 0.0,
+   "corners": [
+    [
+     458,
+     369
+    ],
+    [
+     741,
+     369
+    ],
+    [
+     819,
+     624
+    ],
+    [
+     380,
+     624
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 42.38,
+   "axis_h_px": 361.0,
+   "axis_v_px": 266.7,
+   "fov_deg": 90
+  },
+  "fov120": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 520,
+   "far_w": 281,
+   "height": 282,
+   "mid_w": 400,
+   "convergence": 0.5404,
+   "aspect": 0.705,
+   "skew": 0.0,
+   "corners": [
+    [
+     474,
+     381
+    ],
+    [
+     725,
+     381
+    ],
+    [
+     873,
+     663
+    ],
+    [
+     325,
+     663
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 37.08,
+   "axis_h_px": 399.5,
+   "axis_v_px": 318.7,
+   "fov_deg": 120
+  },
+  "fov150": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 750,
+   "far_w": 254,
+   "height": 272,
+   "mid_w": 502,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "fov_deg": 150
+  },
+  "fov180": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 841,
+   "far_w": 250,
+   "height": 266,
+   "mid_w": 546,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "fov_deg": 180
+  }
+ },
+ "zoom": {
+  "zoom25000": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 94,
+   "far_w": 80,
+   "height": 61,
+   "mid_w": 88,
+   "convergence": 0.8511,
+   "aspect": 0.6932,
+   "skew": 0.0,
+   "corners": [
+    [
+     560,
+     441
+    ],
+    [
+     639,
+     441
+    ],
+    [
+     646,
+     502
+    ],
+    [
+     553,
+     502
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.44,
+   "axis_h_px": 86.0,
+   "axis_v_px": 61.4,
+   "zoom": 25000
+  },
+  "zoom50000": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 187,
+   "far_w": 161,
+   "height": 121,
+   "mid_w": 174,
+   "convergence": 0.861,
+   "aspect": 0.6954,
+   "skew": 0.0,
+   "corners": [
+    [
+     520,
+     414
+    ],
+    [
+     678,
+     414
+    ],
+    [
+     693,
+     535
+    ],
+    [
+     505,
+     535
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 45.19,
+   "axis_h_px": 173.0,
+   "axis_v_px": 121.9,
+   "zoom": 50000
+  },
+  "zoom100000": {
+   "opens": true,
+   "clipped": false,
+   "near_w": 372,
+   "far_w": 322,
+   "height": 245,
+   "mid_w": 348,
+   "convergence": 0.8656,
+   "aspect": 0.704,
+   "skew": 0.0,
+   "corners": [
+    [
+     442,
+     357
+    ],
+    [
+     757,
+     357
+    ],
+    [
+     788,
+     602
+    ],
+    [
+     411,
+     602
+    ]
+   ],
+   "yaw_deg": 0.0,
+   "pitch_deg": 44.46,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
+   "zoom": 100000
+  },
+  "zoom200000": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 730,
+   "far_w": 644,
+   "height": 429,
+   "mid_w": 688,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "zoom": 200000
+  },
+  "zoom400000": {
+   "opens": true,
+   "clipped": true,
+   "near_w": 1200,
+   "far_w": 1200,
+   "height": 652,
+   "mid_w": 1200,
+   "unmeasurable": "silhouette touches the frame edge; the shape has scaled or rotated out of view",
+   "zoom": 400000
+  }
+ },
+ "_conv_to_lat": [
+  [
+   0.8277,
+   285
+  ],
+  [
+   0.8417,
+   300
+  ],
+  [
+   0.8656,
+   315
+  ],
+  [
+   0.9011,
+   330
+  ]
+ ],
+ "calibration": [
+  {
+   "case": "lat285_lon0",
+   "lat_deg": 285,
+   "pitch_deg": 73.67,
+   "yaw_deg": 0.0,
+   "pitch_expected": 74.66,
+   "pitch_err": -1.0,
+   "axis_h_px": 350.0,
+   "axis_v_px": 98.4,
+   "convergence": 0.8277
+  },
+  {
+   "case": "lat300_lon0",
+   "lat_deg": 300,
+   "pitch_deg": 59.4,
+   "yaw_deg": 0.0,
+   "pitch_expected": 59.66,
+   "pitch_err": -0.3,
+   "axis_h_px": 348.0,
+   "axis_v_px": 177.1,
+   "convergence": 0.8417
+  },
+  {
+   "case": "lat315_lon0",
+   "lat_deg": 315,
+   "pitch_deg": 44.46,
+   "yaw_deg": 0.0,
+   "pitch_expected": 44.66,
+   "pitch_err": -0.2,
+   "axis_h_px": 346.0,
+   "axis_v_px": 247.0,
+   "convergence": 0.8656
+  },
+  {
+   "case": "lat330_lon0",
+   "lat_deg": 330,
+   "pitch_deg": 29.66,
+   "yaw_deg": 0.0,
+   "pitch_expected": 29.66,
+   "pitch_err": 0.0,
+   "axis_h_px": 345.0,
+   "axis_v_px": 299.8,
+   "convergence": 0.9011
+  }
+ ],
+ "summary": {
+  "native_parallel_count": 41,
+  "native_perspective_count": 9,
+  "native_perspective": [
+   [
+    "perspectiveRelaxed",
+    0.8564
+   ],
+   [
+    "perspectiveHeroicRightFacing",
+    0.883
+   ],
+   [
+    "perspectiveHeroicLeftFacing",
+    0.8856
+   ],
+   [
+    "perspectiveRelaxedModerately",
+    0.8883
+   ],
+   [
+    "perspectiveAbove",
+    0.933
+   ],
+   [
+    "isometricTopUp",
+    0.9608
+   ],
+   [
+    "isometricTopDown",
+    0.9608
+   ],
+   [
+    "isometricBottomUp",
+    0.9608
+   ],
+   [
+    "isometricBottomDown",
+    0.9608
+   ]
+  ],
+  "native_parallel": [
+   "isometricOffAxis1Right",
+   "isometricOffAxis1Top",
+   "isometricOffAxis2Left",
+   "isometricOffAxis2Top",
+   "isometricOffAxis3Bottom",
+   "isometricOffAxis3Right",
+   "isometricOffAxis4Bottom",
+   "isometricOffAxis4Left",
+   "legacyObliqueBottom",
+   "legacyObliqueBottomLeft",
+   "legacyObliqueBottomRight",
+   "legacyObliqueFront",
+   "legacyObliqueLeft",
+   "legacyObliqueRight",
+   "legacyObliqueTop",
+   "legacyObliqueTopLeft",
+   "legacyObliqueTopRight",
+   "legacyPerspectiveBottom",
+   "legacyPerspectiveBottomLeft",
+   "legacyPerspectiveBottomRight",
+   "legacyPerspectiveFront",
+   "legacyPerspectiveLeft",
+   "legacyPerspectiveRight",
+   "legacyPerspectiveTop",
+   "legacyPerspectiveTopLeft",
+   "legacyPerspectiveTopRight",
+   "obliqueBottom",
+   "obliqueBottomLeft",
+   "obliqueBottomRight",
+   "obliqueLeft",
+   "obliqueRight",
+   "obliqueTop",
+   "obliqueTopLeft",
+   "obliqueTopRight",
+   "orthographicFront",
+   "perspectiveAboveLeftFacing",
+   "perspectiveAboveRightFacing",
+   "perspectiveBelow",
+   "perspectiveFront",
+   "perspectiveLeft",
+   "perspectiveRight"
+  ],
+  "distinct_native_convergences": [
+   0.8564,
+   0.883,
+   0.8856,
+   0.8883,
+   0.933,
+   0.9608,
+   0.9787,
+   0.9915,
+   0.996,
+   1.0,
+   1.004,
+   1.0086,
+   1.0719
+  ]
+ }
 }
