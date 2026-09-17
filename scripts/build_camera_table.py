@@ -142,12 +142,21 @@ def probe_image(path):
     return path
 
 
-def make_probe_deck(path, scratch):
+def make_probe_deck(path, scratch, width_in=PROBE_W_IN, x_in=None, y_in=None):
+    """A white square on a dark ground, sized so its projection stays in frame.
+
+    Several presets carry such large built-in angles that the plane leaves the frame at
+    the default size -- they come out as tall narrow slivers running past the top and
+    bottom edges. Their angles are still recoverable, just not at this scale, so the
+    size is a parameter and measure_auto() shrinks it until the silhouette fits.
+    """
     from pptx import Presentation
     from pptx.util import Inches
     from pptx.dml.color import RGBColor
 
     pic = probe_image(os.path.join(scratch, "_probe.png"))
+    cx = x_in if x_in is not None else PROBE_X_IN
+    cy = y_in if y_in is not None else PROBE_Y_IN
     prs = Presentation()
     prs.slide_width = Inches(13.3333)
     prs.slide_height = Inches(7.5)
@@ -157,10 +166,15 @@ def make_probe_deck(path, scratch):
     bg.fill.fore_color.rgb = RGBColor(0x18, 0x18, 0x18)
     bg.line.fill.background()
     bg.shadow.inherit = False
-    sl.shapes.add_picture(pic, Inches(PROBE_X_IN), Inches(PROBE_Y_IN),
-                          width=Inches(PROBE_W_IN)).name = "PLANE"
+    sl.shapes.add_picture(pic, Inches(cx), Inches(cy),
+                          width=Inches(width_in)).name = "PLANE"
     prs.save(path)
     return path
+
+
+# Probe sizes to try, largest first. The default is used for almost everything; the
+# smaller ones exist for presets whose built-in angles throw the plane out of frame.
+PROBE_SIZES = (PROBE_W_IN, 2.6, 1.7, 1.1, 0.7)
 
 
 def write_camera(base, out, prst, lat=0, lon=0, rev=0, fov=None, zoom=None,
@@ -237,6 +251,35 @@ def axis_lengths(mask):
     y0, y1 = ys.min(), ys.max()
     return {"mk_x": (int(mk_x[0]), int(mk_x[1])), "mk_y": (int(mk_y[0]), int(mk_y[1])),
             "bbox": (int(x0), int(y0), int(x1), int(y1))}
+
+
+def measure_auto(base, tmp, tag, prst, lat=0, lon=0, rev=0, fov=None, zoom=None,
+                 emit_rot=True):
+    """Measure, shrinking the probe until the silhouette fits in frame.
+
+    Clipping is not a failure of the preset, it is a failure of the probe size: the
+    same preset projects to something containable if the source plane is smaller. So
+    instead of recording `clipped` and moving on, retry at the next size down. Only if
+    every size clips is the case reported unmeasurable.
+    """
+    last = None
+    for i, w in enumerate(PROBE_SIZES):
+        # keep the plane centred, since shrinking from the top-left would move it
+        cx = 4.75 + (PROBE_W_IN - w) / 2.0
+        cy = 3.30 + (PROBE_W_IN - w) / 2.0
+        deck = os.path.join(tmp, "b_%s_%d.pptx" % (tag, i))
+        make_probe_deck(deck, tmp, width_in=w, x_in=cx, y_in=cy)
+        write_camera(deck, deck, prst, lat=lat, lon=lon, rev=rev, fov=fov,
+                     zoom=zoom, emit_rot=emit_rot)
+        mm = measure(deck, os.path.join(tmp, "m_%s_%d.png" % (tag, i)))
+        if not mm.get("clipped"):
+            mm["probe_width_in"] = w
+            return mm
+        last = mm
+    if last is not None:
+        last["unmeasurable"] = ("silhouette leaves the frame at every probe size "
+                                "tried (%s in)" % ", ".join(str(s) for s in PROBE_SIZES))
+    return last
 
 
 def measure(pptx, png):
@@ -575,20 +618,14 @@ def main():
     print("\n[5] all %d presets, WITH a lat override (isolates the projection type)"
           % len(PRESET_NAMES))
     for name in PRESET_NAMES:
-        pptx = os.path.join(tmp, "p_%s.pptx" % name)
-        png = os.path.join(tmp, "p_%s.png" % name)
-        write_camera(base, pptx, name, lat=315 * DEG)
-        mm = measure(pptx, png)
+        mm = measure_auto(base, tmp, "p_" + name, name, lat=315 * DEG)
         mm["enum_value"] = PRESET_VALUE[name]
         table["presets"][name] = mm
 
     print("[6] all %d presets, WITHOUT a rot override (reveals the built-in angles)"
           % len(PRESET_NAMES))
     for name in PRESET_NAMES:
-        pptx = os.path.join(tmp, "q_%s.pptx" % name)
-        png = os.path.join(tmp, "q_%s.png" % name)
-        write_camera(base, pptx, name, emit_rot=False)
-        mm = measure(pptx, png)
+        mm = measure_auto(base, tmp, "q_" + name, name, emit_rot=False)
         mm["enum_value"] = PRESET_VALUE[name]
         mm["effective_lat_from_conv"] = lat_for_convergence(conv_map,
                                                             mm.get("convergence"))

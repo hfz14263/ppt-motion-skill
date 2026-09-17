@@ -122,17 +122,32 @@ ECMA-376 对 `@prst` 只说:
 
 **要判断投影类型,看 §3 那张表**(显式给了 `lat`,只留投影类型这一个变量)。
 
-### ⚠️ 12 个预设把平面转出了画面
+### 62 个预设全部测到(用自动缩放探针)
 
-`isometricLeftUp/Down`、`isometricRightUp/Down`、`isometricOffAxis1Left`、
-`OffAxis2Right`、`OffAxis3Left`、`OffAxis4Right`、
-`perspectiveContrastingLeftFacing/RightFacing`、
-`perspectiveHeroicExtremeLeftFacing/RightFacing`
+早期版本有 12 个预设**记录为 `clipped`(平面出画)**。**那不是预设的问题,是探针太大的问题** ——
+同一个预设,把源平面缩小就能容纳。现在脚本**检测到出画就自动换小一号探针重测**
+(3.83in → 2.6in → 1.7in → 1.1in → 0.7in)。
 
-这 12 个**自带的角度太大,平面直接转出取景框**,所以任何基于剪影的量测都失效。
-脚本把它们标成 `clipped` 并**拒绝给数**,而不是报一个看着像数据的值。
+那 12 个预设**全部在 2.6in 探针下测到了**,而且它们的角度分布很有规律:
 
-**用这些预设时要缩小图片或者放大 `fov`**,否则在幻灯片上也会被裁掉。
+| 预设 | 反推 pitch | 反推 yaw |
+| --- | --- | --- |
+| `isometricLeftUp` / `RightUp` | 0° | 7.3° |
+| `isometricLeftDown` / `RightDown` | 0° | 1.9° |
+| `isometricOffAxis1Left` / `3Left` / `4Right` | 0° | 56.9° |
+| `isometricOffAxis2Right` | 0° | 56.9° |
+| `perspectiveContrastingLeftFacing` / `RightFacing` | 0° | 42.3° / 41.9° |
+| `perspectiveHeroicExtremeLeftFacing` / `RightFacing` | 0° | **32.7°** |
+
+**关键规律:这 12 个全部 `pitch = 0`、靠 `yaw` 起作用** ——
+它们是**侧视/斜视**类(名字里的 `Left` / `Right` / `Facing`),不是俯视类。
+
+**用它们做"躺平的地面"是错的方向**:它们让平面**绕竖直轴转**(左右转),
+而地面需要**绕水平轴转**(俯视)。**要地面就用 `perspectiveAbove` 或直接给 `lat`。**
+
+> ⚠️ 有 4 个预设(62 分之 4)的 `pitch`/`yaw` 仍是 `null`:
+> `isometricOffAxis1Top`、`OffAxis2Top`、`OffAxis3Bottom`、`OffAxis4Bottom`。
+> 四个角点中有两个落到了同一个像素,角点提取判为退化。这四个的收敛比仍然有效。
 
 ---
 
@@ -230,7 +245,7 @@ ECMA-376 对 `@prst` 只说:
 看起来像"zoom 把投影变成平行"。实际是**板子放大到出画**,
 `near_w == far_w == 图像宽`。**同样的假象当时静默污染了整个 `fov` 扫描。**
 
-**所以脚本现在会检测剪影是否接触边缘,接触就标 `clipped` 并拒绝给数。**
+**所以脚本现在会检测剪影是否接触边缘,接触就标 `clipped` 并换小探针重测,全部尺寸都出画才拒绝给数。**
 
 **读表容差**:理想平行投影收敛比是 1.000,但像素级量测有噪声,
 实测正交相机落在 **0.85~1.00**。**判据是"接近 1"而不是"等于 1"。**
