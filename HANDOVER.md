@@ -232,6 +232,16 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
    `references/com-pitfalls.md` §29–30 与 `tests/test_fill_window.py`（28 条）。
    **结论：正确性是让 PowerPoint 自己写一遍对照出来的，不是推出来的。**
 
+4. **动效配方库（按原理，不按效果）** —— `references/recipe-library.md` +
+   `recipes.json`，6 条已实测原理（页间差异 / 动遮罩不动图 / 形状拼切整图 /
+   平面→立体是两页 / 手写中间帧 / 图×形状是设计层）。
+   每条带 `constraints`、**`breaks_how`（坏掉时的可见症状）**、`evidence`。
+   **为什么按原理**：按效果组织是学不完的路；原理有限，新素材从原理推导。
+   `scripts/verify_recipes.py` 校验结构，**并强制 `breaks_how` 写症状、`evidence`
+   指向真实文件** —— 防止库退化成效果清单或传闻集。
+   **下一步**：遇到新素材时按 `recipe-library.md` §3 的顺序做，加条目前先确认
+   它是不是已有原理的实例。
+
 **验证文化（请保持）**
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
 - 改分析器/判据后**必须**用已知答案样本对表

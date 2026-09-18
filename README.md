@@ -79,6 +79,7 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | [`references/com-pitfalls.md`](references/com-pitfalls.md) | 28 条 COM / OOXML 坑,含"静默失败"四类 |
 | [`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md) | **Morph(平滑)与 3D 相机的注入配方**:元素写法、命名空间、跨页匹配规则、实测对照、两个测量陷阱 |
 | [`references/template-patterns.md`](references/template-patterns.md) | 给"一个动画都没有"的现成模板从零设计动效 |
+| [`references/recipe-library.md`](references/recipe-library.md) | **动效配方库：按原理组织**（6 条已实测）。新素材从原理推导，而不是查效果清单 |
 | [`references/mso-primitives.md`](references/mso-primitives.md) | PowerPoint 原生效果与切换的原始语义 |
 | [`references/camera-reference.md`](references/camera-reference.md) | **3D 相机参数 → 实测结果**:62 个预设、lat/lon、fov、zoom 的实测对照表 |
 | [`references/ppt-studio-integration.md`](references/ppt-studio-integration.md) | 与 `dsh-ppt-studio`(`deck.yaml` + `elementId`)的对接契约 |

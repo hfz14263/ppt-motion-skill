@@ -1,0 +1,116 @@
+{
+ "version": 1,
+ "note": "按【原理】组织，不按【效果】组织。效果是无穷的，原理是有限的。新素材来了应当从原理推导，而不是检索一份效果清单。",
+ "verified_on": "PowerPoint 16.0 build 20228（LTSC 2024）；读回字段为 PowerPoint 自己报告的 EntryEffect / PresetCamera",
+ "entries": [
+  {
+   "id": "motion-lives-between-pages",
+   "principle": "动效来自页与页的差异，不是页内动画",
+   "one_line": "多页 + 切换 = 动效。页内 <p:timing> 动画是另一回事，而且本 skill 的验证过的配方都不用它。",
+   "mechanism": "复制第 1 页为第 2 页；保持形状 name/id 完全一致；只改要动的那几个数值；在【被进入的那页】加 Morph。Morph 按 name/id 跨页配对，补间差值。",
+   "constraints": [
+    "两页必须存在真实差异，否则什么都不动",
+    "形状 name 与 id 必须一致，否则配不上对，退化成淡入",
+    "Morph 写在被进入的那一页",
+    "CT_Slide 只允许一个 transition，且必须在 clrMapOvr 与 timing 之间"
+   ],
+   "breaks_how": [
+    "只改一页、另一页没动 → 没有补间，看起来是硬切",
+    "形状重命名或重新生成 → id 变了，配对失败",
+    "误以为需要写 <p:timing> → 本 skill 验证过的配方全部不需要"
+   ],
+   "evidence": "tests/test_morph.py 20 条断言；EntryEffect=3954=0xF72 读回确认；PowerPoint 保存后 p159:morph 仍在",
+   "verified_by": "tests/test_morph.py"
+  },
+  {
+   "id": "move-the-mask-not-the-image",
+   "principle": "动遮罩，不动图",
+   "one_line": "图固定（常在页面背景），形状是窗口，绕主体上的轴心旋转。补间的是窗口的角度，不是图的位置。",
+   "mechanism": "照片作为 <p:bg><p:bgPr><a:blipFill> 铺满页面且不移动；N 个 prstGeom=\"pie\" 扇形，尺寸与位置全部相同，各自 useBgFill=\"1\" 继承背景，加 a:innerShdw 让瓣边可见；第 1 页所有 rot=0（叠在一起），第 2 页每片转过一个增量。",
+   "constraints": [
+    "轴心必须落在主体上（花心 / 建筑主体）。轴心偏了，窗口只是换个角度裁同一块，看起来静止",
+    "形状尺寸要足够大，让弧线横跨页面",
+    "必须加内阴影，否则瓣边在照片上完全看不出来，N 片退化成一张平照片",
+    "张角是自由设计量（作者本人确认），但太小会让各片显示的内容几乎相同"
+   ],
+   "breaks_how": [
+    "让切片平移（朝不同方向飞）→ 读作【散架】，不是【绽开】",
+    "轴心不在主体上 → 视觉上静止",
+    "忘了内阴影 → 结构对了但看不出结构",
+    "图会动 → 失去【同一张图被展开】的读法"
+   ],
+   "evidence": "从用户的莲花 deck 读出：八片 pie 位置尺寸完全一致，唯一变量 rot 从 0 到 -15/-30/-45/-60/-75/-90/-105；reproduced in building/out/fan_final.pptx，EntryEffect=3954",
+   "verified_by": "building/qa/lotus_angles.py, building/qa/fan_fixed.py"
+  },
+  {
+   "id": "shapes-reconstruct-one-image",
+   "principle": "形状可以拼回整图，也可以切开整图",
+   "one_line": "给每个形状一个窗口内缩，N 个形状就能无缝拼回原图；改内缩就是【切】，不改就是【拼】。",
+   "mechanism": "<a:blipFill><a:blip r:embed/><a:stretch><a:fillRect l t r b/></a:stretch></a:blipFill>，内缩单位是【形状自身尺寸的千分之一百分比】，负值外扩。l = -(window.x - picture.x)/window.w*100000。",
+   "constraints": [
+    "内缩的竖直方向除以【形状的高】，不是宽",
+    "填充元素是 a:blipFill（drawingml），不是 p:blipFill",
+    "一个形状只能有一个填充（xsd:choice，取第一个）",
+    "<a:blip r:embed> 必须是真实存在的关系；编一个假 id 会画缺图占位符",
+    "元素顺序：xfrm → geom → fill → ln → effectLst"
+   ],
+   "breaks_how": [
+    "写成 p:blipFill → 未知元素，静默忽略，回落原填充",
+    "插在 <a:ln> 之后 → 顺序非法，静默丢弃",
+    "没删旧的 solidFill → 两个填充并存，文件损坏 0x80070570"
+   ],
+   "evidence": "八块板拼回原图，与源图平均差 6.29；三窗口分别显示红/绿/蓝三条不同色带",
+   "verified_by": "tests/test_fill_window.py 28 条；building/qa/check_bloom.py"
+  },
+  {
+   "id": "flat-then-3d-is-two-pages",
+   "principle": "「平面→立体」是两页之间的差异，不是页内把图拧一下",
+   "one_line": "在单页里扭一个平面，得到的是【一张歪掉的图】；平面一页 + 立体一页 + Morph，得到的才是【变成了另一个东西】。",
+   "mechanism": "第 1 页相机平视（lat 使其正对平面），第 2 页相机加俯角。scene3d 是【形状属性】，写在 spPr 里，不进时间轴。",
+   "constraints": [
+    "只有 prst=\"perspective*\" / \"legacyPerspective*\" 会产生透视；其余 47 个是平行投影，永远没有灭点",
+    "a:rot 的 lat/lon/rev 必须在 0..21599999；规范写的上界 21600000 会让整个文件损坏",
+    "给【铺满画面】的图加旋转会露出 20~64% 背景 —— 所以要么缩小成面板，要么别转"
+   ],
+   "breaks_how": [
+    "用 orthographicFront → 平行投影，角度怎么调都躺不下去",
+    "lat 写负数或 21600000 → 文件损坏 0x80070570",
+    "在全出血图上旋转 → 边角空出来，画面被破坏"
+   ],
+   "evidence": "视角实测对照表（62 预设、lat/lon/fov/zoom 扫描，89 组测量）；perspectiveFront lat=18900000 收敛比 0.866",
+   "verified_by": "tests/test_camera.py 30 条；scripts/camera_reference.json"
+  },
+  {
+   "id": "geometry-tween-by-hand",
+   "principle": "没有 Morph 时，可以手写中间帧",
+   "one_line": "把中间姿态逐页写出来，用页面推进当补间。代价是页数，收益是不依赖版本。",
+   "mechanism": "N 页，每页一个姿态；切换设成快而轻的 wipe/fade；页数增加则更顺。",
+   "constraints": [
+    "步长要递减（缓出），等距步长读起来像匀速平移",
+    "起始姿态要可见 —— 例如平面正侧对相机时厚度为零，那一页是空的"
+   ],
+   "breaks_how": [
+    "步长等距 → 像滑过去，不像倒下去",
+    "第一步不可见 → 观众以为坏了"
+   ],
+   "evidence": "6 页 tween：平面高度 364→444→496→532→550→560，步长 80/52/36/18/10 递减",
+   "verified_by": "building/out/render/s05 系列；template/立体版1/demo_no_morph.py"
+  },
+  {
+   "id": "image-x-shape-is-the-design-layer",
+   "principle": "图片 × 形状的联动，才是设计感所在",
+   "one_line": "形状决定【露出哪一块】，图片决定【露出什么】。两者分离，才既有结构又有内容。",
+   "mechanism": "形状既可以是窗口（blipFill 内缩），也可以是遮罩（useBgFill 继承背景），还可以是几何装饰。Morph 补间形状的位置/角度/尺寸。",
+   "constraints": [
+    "形状轮廓决定可见区域，所以轮廓的选择就是设计的全部",
+    "窗口内容与形状必须解耦：形状动、内容不动（背景）或内容随形状走（blipFill），两者读法不同"
+   ],
+   "breaks_how": [
+    "把内容固定在形状上又平移形状 → 读作【整体移动】，不是【揭示】",
+    "形状轮廓随意（矩形）→ 得到的是【切片】，不是【花瓣】"
+   ],
+   "evidence": "花瓣（pie + 背景）、切片（矩形 + blipFill）、立体（相机）三条都实测通过",
+   "verified_by": "见以上各条"
+  }
+ ]
+}
