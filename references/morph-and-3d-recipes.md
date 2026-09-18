@@ -145,16 +145,17 @@ powershell -NoProfile -File scripts/motion.ps1 -Pptx out.pptx -OutDir review
 transition: {type: morph, duration: 2.0, option: byObject}   # option: byObject / byWord / byChar
 ```
 
-**3D 相机还没有** —— 需要手写注入 `<a:scene3d>`（配方见上面第 2 节），
-或等 spec 扩展。
+**3D 相机已纳入 spec**（`cameras:`，度数为单位）；**窗口化图片填充已纳入 spec**
+（`fills:`，见 §8.3）。三者都是**形状属性**，与 `effects` 平级但各自独立。
 
 注入后仍要走三道闸：
 `motion.py apply --assert-geometry` → `verify_motion.py` → `motion.ps1 -Strict`。
-**几何指纹不变**这条对 morph 同样成立：morph 只写 `<p:transition>`，
-不动 `<p:spTree>` 的任何 `<a:xfrm>`。
+**几何指纹不变**这条对它们同样成立：morph 只写 `<p:transition>`；
+`fills` 只改 `<p:spPr>` 的**填充**（形状的 `<a:xfrm>` 不碰 —— 窗口是"露出图片哪一部分"，
+不是"改变形状位置"），所以上游门禁结论仍可继承。
 
-回归测试：`tests/test_morph.py`（20 条断言，覆盖元素名/命名空间/降级/时长/
-选项校验/置于 `<p:timing>` 之前/重复注入不累积/XML 合法性）。
+回归测试：`tests/test_morph.py`（20 条）、`tests/test_camera.py`（30 条）、
+`tests/test_fill_window.py`（28 条）。
 
 ---
 
@@ -325,19 +326,29 @@ $shape.Fill.UserPicture($img)     # 形状的填充变成图片，写出 <a:blip
 | **A 静止窗口 + 擦除** | 窗口位置固定，给窗口加 `wipe`（`dir: right`） | 该切片**从左向右**逐渐显现；多个窗口按 delay 依次擦出，形成扫描序列 |
 | **B 窗口移动** | 给窗口加**动作路径**（`pathRight`），窗口自身平移 | 可见区域**横扫**过图片，像取景框/放大镜扫过 |
 
-spec 写法（本 skill 已支持）：
+**窗口本身现在也入 spec 了**（`fills:`），不必再手写注入：
 
 ```yaml
-# 路线 A：三个切片依次从左向右擦出
+fills:
+  - {target: WIN1, window: [60, 150, 200, 300]}     # [x, y, w, h]，单位 pt
+  - {target: WIN2, window: [380, 150, 200, 300]}
+  - {target: WIN3, window: [700, 150, 200, 300]}
 effects:
   - {target: WIN1, effect: wipe, dir: right, duration: 0.8, trigger: after}
-  - {target: WIN2, effect: wipe, dir: right, duration: 0.8, trigger: after, delay: 0.2}
-  - {target: WIN3, effect: wipe, dir: right, duration: 0.8, trigger: after, delay: 0.2}
-
-# 路线 B：窗口沿路径横扫
-effects:
-  - {target: SWEEP, effect: pathRight, duration: 3.0, trigger: after}
+  - {target: WIN2, effect: wipe, dir: right, duration: 0.8, trigger: with}
+  - {target: WIN3, effect: wipe, dir: right, duration: 0.8, trigger: with}
 ```
+
+`fills` 和 `cameras` 一样是**形状属性，不进时间轴**，所以与 `effects` 分开写。
+`window` 缺省时 `picture` 取整个画布（全出血），也就是教程里的用法；
+要给**非全出血**的图片开窗就显式写 `picture: [x, y, w, h]`。
+负内缩由 `motion.window_insets()` 算，实测与 PowerPoint 自己写的**数值一致**。
+
+> 一个前提：`<a:blip r:embed>` 必须是**真实存在的关系**。手写一个假 id
+> 会让 PowerPoint 画「缺图占位符」，而那个占位符看起来和「内缩被忽略」一模一样 ——
+> 这条曾让诊断走偏。图片的嵌入属于媒体层，不在本函数职责内。
+
+回归：`tests/test_fill_window.py`（28 条断言）。
 
 ### 8.4 注意
 

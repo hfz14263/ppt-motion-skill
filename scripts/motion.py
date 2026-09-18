@@ -769,6 +769,168 @@ def insert_scene3d(xml, shape_id, fragment):
     return xml, "shape-not-found"
 
 
+def window_insets(window, picture, slide_w):
+    """Turn a window rectangle into the negative insets that make a fillRect a window.
+
+    THE POINT: `<a:fillRect/>` with no attributes means the picture is STRETCHED to fit
+    the shape -- a thumbnail, not a window. To make the shape reveal one part of a
+    larger picture, the fill rect must be pushed OUTWARD with negative insets. Units are
+    thousandths of a percent OF THE SHAPE's width, and the arithmetic is:
+
+        inset_l = -(window.x - picture.x) / window.w * 100000
+        inset_r = -(picture.x + picture.w - window.x - window.w) / window.w * 100000
+
+    In the common case the picture spans the whole slide, which reduces to
+    l = -(x / w) * 100000 and r = -((slideW - x - w) / w) * 100000 -- the form written
+    down in references/morph-and-3d-recipes.md section 8.2.
+
+    Taking the general form rather than hard-coding the slide-spanning case is
+    deliberate: a window onto a picture that is NOT full-bleed is just as useful, and
+    the special case is easy to get wrong silently (a wrong inset produces a squashed
+    thumbnail that still renders, so nothing errors).
+    """
+    x, y, w, h = [float(v) for v in window[:4]]
+    px, py, pw, ph = [float(v) for v in picture[:4]]
+    if w <= 0 or h <= 0:
+        raise ValueError("window must have positive width and height")
+    if pw <= 0 or ph <= 0:
+        raise ValueError("picture must have positive width and height")
+    # vertical insets use the SHAPE'S HEIGHT as the denominator, not its width
+    ins_l = -((x - px) / w) * 100000.0
+    ins_r = -((px + pw - x - w) / w) * 100000.0
+    ins_t = -((y - py) / h) * 100000.0
+    ins_b = -((py + ph - y - h) / h) * 100000.0
+    return (int(round(ins_l)), int(round(ins_t)),
+            int(round(ins_r)), int(round(ins_b)))
+
+
+def build_fill_window(spec_dict, slide_w=None, slide_h=None):
+    """<a:blipFill> fragment that makes a shape a WINDOW onto a picture."""
+    win = spec_dict.get("window") or spec_dict.get("bounds")
+    if not win or len(win) != 4:
+        raise ValueError("fillWindow needs window: [x, y, w, h]")
+    pic = spec_dict.get("picture")
+    if pic is None:
+        if slide_w is None or slide_h is None:
+            raise ValueError("fillWindow without 'picture' needs the slide size")
+        pic = [0, 0, slide_w, slide_h]
+    if len(pic) != 4:
+        raise ValueError("fillWindow 'picture' must be [x, y, w, h]")
+    l, t, r, b = window_insets(win, pic, slide_w)
+    rect = ""
+    if any((l, t, r, b)):
+        rect = '<a:fillRect l="%d" t="%d" r="%d" b="%d"/>' % (l, t, r, b)
+    else:
+        rect = "<a:fillRect/>"
+    return "<a:blipFill><a:blip/><a:stretch>%s</a:stretch></a:blipFill>" % rect
+
+
+def insert_blip_fill(xml, shape_id, fragment):
+    """Put a <a:blipFill> into one shape, by cNvPr id.
+
+    The parent differs by shape type, and this is the easy thing to get wrong:
+      * <p:pic>  is a sequence  nvPicPr, blipFill, spPr  -> blipFill is a CHILD of p:pic
+      * <p:sp>   is a sequence  nvSpPr, spPr, style?, txBody?  -> blipFill goes INSIDE
+                 spPr, whose own sequence is xfrm?, geom, fill, ln?, effectLst?, ...
+                 so it must land after the geometry and before <a:ln>/<a:effectLst>.
+
+    The `<a:blip/>` is left without r:embed on purpose. The picture part has to be added
+    to the package and related from the slide, which is a media-layer operation; what
+    this function guarantees is the WINDOW GEOMETRY, which is the part that cannot be
+    expressed any other way. An embed-less blip is the shape saying "I have a picture
+    fill whose window is this", which is exactly the declarative intent.
+
+    Returns (xml, status).
+    """
+    FILL_TAGS = ("a:noFill", "a:solidFill", "a:gradFill", "a:blipFill", "a:pattFill",
+                 "a:grpFill")
+    for tag in ("pic", "sp", "cxnSp"):
+        for s, e in element_spans(xml, tag):
+            blk = xml[s:e]
+            if not re.search(r'<p:cNvPr\b[^>]*\bid="%s"' % re.escape(str(shape_id)), blk):
+                continue
+            if "<a:blipFill" in blk:
+                return xml, "already-has-blipFill"
+            # A shape has AT MOST ONE fill. CT_ShapeProperties lists the fill choices
+            # in a <xsd:choice>, so writing blipFill beside an existing solidFill does
+            # not override it -- PowerPoint keeps the first and ignores ours. Measured:
+            # a window shape kept its original magenta fill and the picture never
+            # appeared, while the XML looked perfectly reasonable and every structural
+            # check passed. So the existing fill must be REMOVED, not merely preceded.
+            if tag == "pic":
+                sp = element_spans(blk, "spPr")
+                if not sp:
+                    return xml, "no-spPr"
+                at = sp[0][0]                     # blipFill precedes spPr in p:pic
+                return xml[:s] + blk[:at] + fragment + blk[at:] + xml[e:], "ok"
+            # p:sp / p:cxnSp: blipFill goes INSIDE spPr, and CT_ShapeProperties is a
+            # SEQUENCE:  xfrm?, geom?, fill?, ln?, effectLst?, effectDag?, scene3d?,
+            # sp3d?, extLst?
+            #
+            # So the fill must land AFTER the geometry and BEFORE <a:ln>. Anchoring on
+            # the first of `<a:ln / effectLst / scene3d / ...` and inserting BEFORE it
+            # is not enough on its own, because a shape that has a line but no
+            # geometry match still needs the fill after the geometry -- and a first
+            # attempt here produced `<a:prstGeom/><a:ln/><p:blipFill/>`, which
+            # PowerPoint IGNORES IN SILENCE (the fill simply does not paint; there is
+            # no repair prompt and no error). Same failure family as the slide-level
+            # `transition`-after-`timing` trap already recorded in com-pitfalls.
+            sp = element_spans(blk, "spPr")
+            if not sp:
+                return xml, "no-spPr"
+            ps, pe = sp[0]
+            inner = blk[ps:pe]
+
+            # drop any existing fill first
+            inner2 = inner
+            removed = False
+            for ft in FILL_TAGS:
+                m = re.search(r"<%s(?=[\s/>])" % re.escape(ft), inner2)
+                if not m:
+                    continue
+                close = inner2.find("</%s>" % ft, m.start())
+                if close > 0:
+                    end = close + len(ft) + 3
+                else:
+                    sl = inner2.find("/>", m.start())
+                    end = sl + 2 if sl > 0 else m.start()
+                inner2 = inner2[:m.start()] + inner2[end:]
+                removed = True
+                break
+
+            # index just past the last geometry element, or 0 if there is none
+            after_geom = 0
+            for geom in ("a:prstGeom", "a:custGeom"):
+                m = re.search(r"<%s(?=[\s/>])" % re.escape(geom), inner2)
+                if not m:
+                    continue
+                close = inner2.find("</%s>" % geom, m.start())
+                if close > 0:
+                    after_geom = max(after_geom, close + len(geom) + 3)
+                else:
+                    after_geom = max(after_geom, m.start())
+            # first element that must FOLLOW the fill
+            nxt = None
+            for later in ("a:ln", "a:effectLst", "a:effectDag", "a:scene3d",
+                          "a:sp3d", "a:extLst"):
+                m = re.search(r"<%s(?=[\s/>])" % re.escape(later), inner2)
+                if m and m.start() >= after_geom and (nxt is None or m.start() < nxt):
+                    nxt = m.start()
+            if nxt is not None:
+                pos = nxt
+            elif after_geom:
+                pos = after_geom
+            else:
+                pos = len(inner2) - len("</p:spPr>")
+            # inner2 is the spPr body INCLUDING its own opening and closing tags, so a
+            # single splice into it produces the whole replacement shape. Splicing into
+            # blk instead meant juggling two coordinate systems, which is how the first
+            # attempt ended up one offset away from correct.
+            body = inner2[:pos] + fragment + inner2[pos:]
+            return xml[:s] + blk[:ps] + body + blk[pe:] + xml[e:], "ok"
+    return xml, "shape-not-found"
+
+
 def ensure_content_type(ct_xml, ext):
     ext = (ext or "").lower()
     if not ext or 'Extension="%s"' % ext in ct_xml:
@@ -934,6 +1096,10 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
     by_name = {i.filename: d for i, d in infos}
     slide_names = sorted([n for n in by_name if SLIDE_RE.match(n)],
                          key=lambda n: int(SLIDE_RE.match(n).group(1)))
+    # Slide size in points, read once. Needed by windowed fills to default the picture
+    # rectangle to the full bleed; taking it from the package rather than assuming
+    # 960x540 keeps the inset arithmetic correct on other slide sizes.
+    sw, sh = slide_size(pptx_in)
 
     report = {
         "source": os.path.abspath(pptx_in),
@@ -1066,6 +1232,44 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
                         report["warnings"].append(
                             "slide %d: camera on id=%s -> %s" % (idx, sid, status))
                 sr["cameras_applied"] = sr.get("cameras_applied", 0) + len(ids)
+
+            # ---- windowed picture fills -------------------------------------
+            # Also a shape property rather than an animation, so it lives beside
+            # `cameras` and never enters the timing tree. This is what turns a shape
+            # into a WINDOW onto a picture instead of a stretched thumbnail; the
+            # animation that then scans it is a plain `wipe` / `pathRight` in
+            # `effects`, which the spec already supported.
+            for fw in (entry.get("fills") or []):
+                if not isinstance(fw, dict):
+                    report["errors"].append(
+                        "slide %d: each fills entry must be a mapping with "
+                        "target + window" % idx)
+                    continue
+                ids = resolve_targets(fw.get("target"), shapes)
+                if not ids:
+                    sr["unknownTargets"].append(str(fw.get("target")))
+                    report["errors"].append(
+                        "slide %d: fill target %r not found in spTree"
+                        % (idx, fw.get("target")))
+                    continue
+                try:
+                    frag = build_fill_window(fw, sw, sh)
+                except ValueError as exc:
+                    report["errors"].append("slide %d: %s" % (idx, exc))
+                    continue
+                for sid in ids:
+                    new_xml, status = insert_blip_fill(new_xml, sid, frag)
+                    sr.setdefault("fills", []).append({
+                        "target": fw.get("target"), "id": sid,
+                        "window": fw.get("window") or fw.get("bounds"),
+                        "insets": re.search(r'<a:fillRect\b([^/]*)/>', frag).group(1).strip()
+                                  if "<a:fillRect" in frag else "",
+                        "status": status,
+                    })
+                    if status != "ok":
+                        report["warnings"].append(
+                            "slide %d: fill on id=%s -> %s" % (idx, sid, status))
+                sr["fills_applied"] = sr.get("fills_applied", 0) + len(ids)
 
             for media in (entry.get("media") or []):
                 report["media_plan"].append({

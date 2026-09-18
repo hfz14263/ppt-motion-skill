@@ -32,6 +32,7 @@
 | 往返普查（PowerPoint 保存后效果没丢） | ✅ | `motion.ps1 -Strict` |
 | **Morph（平滑）切换** | ✅ | `tests/test_morph.py` 20 断言 |
 | **3D 相机（度数 + 半自动）** | ✅ | `tests/test_camera.py` 30 断言 |
+| **窗口化图片填充（`fills:`）** | ✅ | `tests/test_fill_window.py` 28 断言 |
 | 方向性擦除 `dir:` | ✅ | 上游 `selftest` |
 | 艺术效果（虚化 / 亮度，走 COM） | ✅ | 与 template1 的 XML 逐字节同构 |
 | 内嵌 MP4 / WAV | ✅ | `motion.ps1` 媒体层 |
@@ -39,7 +40,8 @@
 | 动效预览（HTML 重放） | ✅ | `motion.py player` |
 | 交付复核（含美感判据） | ✅ | `review_assist.py` + `review-checklist.md` |
 
-**测试总览**：`selftest 63` + `test_morph 20` + `test_camera 30` + `smoke` 三场景，全绿。
+**测试总览**：`selftest 63` + `test_morph 20` + `test_camera 30` +
+`test_fill_window 28` + `smoke` 三场景，全绿。
 
 ---
 
@@ -112,6 +114,7 @@ references/
 tests/
   test_morph.py               20 断言：Morph 注入
   test_camera.py              30 断言：3D 相机（度数换算/损坏值防护/插入位置）
+  test_fill_window.py         28 断言：窗口化填充（命名空间/兄弟顺序/单一填充/算术）
   smoke.py                    三场景端到端（pptd 导出 / PowerPoint 原生 / 真开）
   privacy_audit.py            隐私与泄漏审计（扫描内容 + git 历史）
   fixtures/                   回归样本
@@ -220,8 +223,14 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
    **§4 的页型剧本仍未执行化**（它需要知道每页的页型，spec 里没有这个信息）。
 2. **多 API 协作** —— 素材生成（尤其抠图/插画）接专门的图像生成 AI，
    替代 `grabCut` 这类兜底方案。
-3. **morph / 3D 之外的 spec 扩展** —— 目前 `cameras:` 与 `morph` 已入 spec，
-   单页内动画（形状切割）仍是手写注入。
+3. ~~**morph / 3D 之外的 spec 扩展**~~ ✅ **已做（`fills:`）** ——
+   单页内动画的"形状切割图片"不再需要手写注入：窗口几何入 spec，
+   扫描动画本来就是 `wipe` / `pathRight`（早已支持）。
+   **过程中一个函数里踩出四种静默失败**，全部产物都能正常打开、渲染却错：
+   命名空间写成 `p:blipFill`（应为 `a:`）、插在 `<a:ln>` 之后、没删旧填充（填充是
+   `xsd:choice`，取第一个）、`r:embed` 是编的 id 画占位符。详见
+   `references/com-pitfalls.md` §29–30 与 `tests/test_fill_window.py`（28 条）。
+   **结论：正确性是让 PowerPoint 自己写一遍对照出来的，不是推出来的。**
 
 **验证文化（请保持）**
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
