@@ -14,7 +14,9 @@ import sys
 import urllib.request
 
 RAW = "https://raw.githubusercontent.com/acnlie/open-kimi-ppt-skill/main/skills/open-kimi-ppt/reference"
-DEST = r"D:\idea\dsh-ppt-office-motion\references\design-system"
+# resolved relative to this script so the helper is portable
+DEST = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), '..', 'references', 'design-system'))
 
 # id, upstream relative path, category, one-line purpose (Chinese, used for matching)
 THEMES = [

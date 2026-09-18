@@ -8,7 +8,8 @@ without cloning the repo.
 import json
 import os
 
-DEST = r"D:\idea\dsh-ppt-office-motion\references\design-system"
+# this file lives IN the design-system directory
+DEST = os.path.dirname(os.path.abspath(__file__))
 RAW = ("https://raw.githubusercontent.com/acnlie/open-kimi-ppt-skill/main/"
        "skills/open-kimi-ppt/reference/design_system")
 

@@ -75,7 +75,8 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | [`SKILL.md`](SKILL.md) | **操作手册**:分层职责、S0–S7 流程、spec 全文、命令、九条坑 |
 | [`references/architecture.md`](references/architecture.md) | 为什么这样设计:OOXML / COM / 渲染行为的知识构成 |
 | [`references/authoring-rules.md`](references/authoring-rules.md) | 13 条硬约束,每条对应一次真实翻车 + 人眼清单 |
-| [`references/com-pitfalls.md`](references/com-pitfalls.md) | 18 条 COM / OOXML 坑,含"静默失败"四类 |
+| [`references/com-pitfalls.md`](references/com-pitfalls.md) | 28 条 COM / OOXML 坑,含"静默失败"四类 |
+| [`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md) | **Morph(平滑)与 3D 相机的注入配方**:元素写法、命名空间、跨页匹配规则、实测对照、两个测量陷阱 |
 | [`references/template-patterns.md`](references/template-patterns.md) | 给"一个动画都没有"的现成模板从零设计动效 |
 | [`references/mso-primitives.md`](references/mso-primitives.md) | PowerPoint 原生效果与切换的原始语义 |
 | [`references/camera-reference.md`](references/camera-reference.md) | **3D 相机参数 → 实测结果**:62 个预设、lat/lon、fov、zoom 的实测对照表 |

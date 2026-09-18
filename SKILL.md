@@ -99,12 +99,27 @@ slides:
 | `repeat` | 次数 | `repeatCount = 次数×1000` |
 | `autoReverse` | true/false | 往复播放 |
 | `smooth` | 0–1 | accel/decel |
-| `transition.type` | `fade` `push` `wipe` `cover` `split` `zoom` `dissolve` `strips` `pull` `randombar` `none` | 见 `references/mso-primitives.md` |
+| `transition.type` | `fade` `push` `wipe` `cover` `split` `zoom` `dissolve` `strips` `pull` `randombar` `morph` `none` | 见 `references/mso-primitives.md`；**`morph`（平滑）**需配 `option: byObject\|byWord\|byChar`，默认时长 2.0s |
 | `media.*` | src/bounds/loop/rewind/mute/volume/autoplay/elementId | 媒体必须走 COM 层 |
 
-### 3.0 3D 相机与旋转（本 skill **尚未**纳入 spec）
+### 3.0 Morph（平滑）
 
-`<a:scene3d>` 里的相机**不在 spec 字段里**。要做立体效果只能手写注入，
+```yaml
+transition: {type: morph, duration: 2.0, option: byObject}
+```
+
+morph **跨页配对同名形状**并补间差异，所以两页必须有真实差异、且形状名/id 一致。
+完整配方（含元素写法、命名空间、降级、验证）见
+[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md)，
+回归测试 `tests/test_morph.py`。
+
+> 历史：morph 曾被判为"本机不支持"，实为元素名写错（`p:morph` 应为 `p159:morph`）。
+> 详见 `references/com-pitfalls.md` §20。
+
+### 3.1 3D 相机与旋转（本 skill **尚未**纳入 spec）
+
+`<a:scene3d>` 里的相机**不在 spec 字段里**。要做立体效果只能手写注入（配方见
+[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md) §2），
 实测对照表见 [`references/camera-reference.md`](references/camera-reference.md)，
 测量脚本 `scripts/build_camera_table.py`。
 

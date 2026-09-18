@@ -1,6 +1,6 @@
 # Morph 与 3D 相机的注入配方
 
-来源：`D:\idea\material` 的两份真实 PowerPoint 文件（`template1` / `template2`），
+来源：两份真实 PowerPoint 文件（`template1` / `template2`，取自本次分析用的素材目录），
 外加本机实测复核。**这两份文件是 PowerPoint 自己写的**，所以它们的 XML 就是
 "官方写法"的地面真值 —— 比任何文档都可靠。
 
@@ -139,8 +139,19 @@ powershell -NoProfile -File scripts/motion.ps1 -Pptx out.pptx -OutDir review
 
 ## 5. 和 spec 的关系
 
-本 skill 的 motion spec 目前**没有** morph / 3D 字段 —— 这两项要么手写注入，
-要么等 spec 扩展。注入后仍要走三道闸：
+**Morph 已经纳入 spec**（`build_transition` 支持 `type: morph`）：
+
+```yaml
+transition: {type: morph, duration: 2.0, option: byObject}   # option: byObject / byWord / byChar
+```
+
+**3D 相机还没有** —— 需要手写注入 `<a:scene3d>`（配方见上面第 2 节），
+或等 spec 扩展。
+
+注入后仍要走三道闸：
 `motion.py apply --assert-geometry` → `verify_motion.py` → `motion.ps1 -Strict`。
 **几何指纹不变**这条对 morph 同样成立：morph 只写 `<p:transition>`，
 不动 `<p:spTree>` 的任何 `<a:xfrm>`。
+
+回归测试：`tests/test_morph.py`（20 条断言，覆盖元素名/命名空间/降级/时长/
+选项校验/置于 `<p:timing>` 之前/重复注入不累积/XML 合法性）。

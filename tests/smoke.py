@@ -35,7 +35,9 @@ PS = 'powershell.exe'
 
 
 def find_python():
-    for cand in (sys.executable, r'C:\Program Files\Python39\python.exe'):
+    # never hardcode an interpreter path: prefer the one running this script,
+    # then whatever is on PATH. Machine-specific paths do not belong in a repo.
+    for cand in (sys.executable, shutil.which('python'), shutil.which('python3')):
         if cand and os.path.exists(cand):
             return cand
     return 'python'
