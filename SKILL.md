@@ -36,14 +36,32 @@ S5  motion.ps1 -Pptx out.pptx -Spec m.yaml -OutDir review -ExportPdf -Strict
 S6  motion.py player --pptx out.pptx --spec m.yaml --outdir preview
                                               # 动效预览，浏览器打开 preview.html
 S7  read_image 看 review/render/*.png         # 视觉审阅（版面）
-S8  review_assist.py 自动复核 + references/review-checklist.md 人眼过一遍
+S8  review_assist.py 自动复核 + design_audit.py 动效规范审计
+    + references/review-checklist.md 人眼过一遍
 ```
 
-**S8 不可省。** `scripts/review_assist.py` 自动跑机器可判的部分，并**明确列出它判不了的**：
+**S8 不可省**，而且是**两条独立命令**，因为它们查的不是同一件事：
 
 ```bash
 python scripts/review_assist.py --pptx out.pptx --source in.pptx
+#   素材卫生 + 结构可信度
+
+python scripts/design_audit.py --pptx out.pptx --spec m.yaml
+#   motion-design-spec §6 的五条硬上限 + 时长/切换判据
 ```
+
+`design_audit.py` 把结果分成三类，**这个分法比任何单条判据都重要**：
+
+| 类别 | 含义 | 可信度 |
+| --- | --- | --- |
+| **FAIL** | 机械上限被突破 | 高，规则写在 §6 |
+| **ADVISE** | 启发式命中 | **低，可能正是你要的** |
+| **HUMAN** | 本工具**判不了** | 每次运行都打印，别当它已覆盖 |
+
+两个计数单位不要混（工具第一版混了，一次误报 14 页）：
+**reveals** = 揭示次数（逐个出现，节奏上限管的是这个）；
+**组** = 点击/自动推进边界（一串 `after` 只算一组）。
+一页可以只有 1 组却揭示 18 次，那仍然是"等动画"。
 
 `references/review-checklist.md` 是完整清单，含三样关键内容：
 

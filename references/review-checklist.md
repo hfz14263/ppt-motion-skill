@@ -94,6 +94,9 @@
 ## 4. 动效美感（人看 / 视觉）
 
 > 量化标准见 `references/motion-design-spec.md`。
+> **§6 的机械上限已做成命令**：`python scripts/design_audit.py --pptx out.pptx --spec m.yaml`
+> —— 它输出 FAIL（硬上限）/ ADVISE（启发式，可能正是你要的）/ HUMAN（判不了，只能人眼）
+> 三类，并**明说通过 ≠ 复核完成**。
 
 - [ ] **每处动画都能说出"它想把注意力引到哪里"**——说不出就是装饰，删掉
 - [ ] **删掉全部动画后，静态版面依然成立**（这条是动效的底线）
