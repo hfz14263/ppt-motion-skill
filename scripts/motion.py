@@ -663,6 +663,112 @@ def drop_alternate_content(xml):
         xml = xml[:m.start()] + xml[close + len("</mc:AlternateContent>"):]
 
 
+# ---------------------------------------------------------------------------
+# 3D camera (a:scene3d)
+#
+# Angles are exposed in DEGREES and converted to OOXML's 1/60000 unit here.
+# Two reasons the raw unit is a trap:
+#   * the spec's stated upper bound 21600000 makes PowerPoint report the whole
+#     file as corrupt (0x80070570); 360 deg normalises to 0 so we never emit it
+#   * PowerPoint normalises negative angles, so -70 deg is stored as 290 deg
+#     (17400000) -- accepting degrees means callers never have to know that
+# ---------------------------------------------------------------------------
+CAMERA_ANGLE_UNIT = 60000
+CAMERA_MAX_ANGLE = 21599999          # 21600000 corrupts the file
+# COM's ThreeD.RotationX/Y writes prst="orthographicFront", which is a PARALLEL
+# projection and therefore can never look "laid down". Default to a perspective
+# preset so the semi-automatic form actually produces depth.
+CAMERA_DEFAULT_PRESET = "perspectiveRelaxedModerately"
+CAMERA_PERSPECTIVE_PREFIXES = ("perspective", "legacyPerspective")
+
+
+def deg_to_angle(deg, field="angle"):
+    """Degrees -> OOXML 1/60000 deg, normalised into [0, 360) like PowerPoint."""
+    try:
+        v = float(deg)
+    except (TypeError, ValueError):
+        raise ValueError("%s must be a number in degrees, got %r" % (field, deg))
+    if abs(v) > 720:
+        raise ValueError(
+            "%s=%r looks like a raw OOXML angle (1/60000 deg). Pass DEGREES "
+            "(e.g. 290, or -70), not the raw value." % (field, deg))
+    v = v % 360.0
+    raw = int(round(v * CAMERA_ANGLE_UNIT))
+    if raw > CAMERA_MAX_ANGLE:
+        raise ValueError("%s=%r normalises to %d, past the safe maximum %d "
+                         "(21600000 corrupts the file)"
+                         % (field, deg, raw, CAMERA_MAX_ANGLE))
+    return raw
+
+
+def build_camera(spec_dict):
+    """Build an <a:scene3d> from a spec entry.
+
+    Semi-automatic form -- only an angle, everything else defaulted:
+        {target: HERO, tilt: 290}
+    Full form:
+        {target: HERO, prst: perspectiveRelaxed, lat: 290, lon: 0, rev: 0,
+         lightRig: threePt, lightDir: t}
+    """
+    if isinstance(spec_dict, (int, float)):
+        spec_dict = {"tilt": spec_dict}
+    if not isinstance(spec_dict, dict):
+        raise ValueError("camera entry must be a mapping or a number, got %r" % (spec_dict,))
+
+    prst = spec_dict.get("prst") or CAMERA_DEFAULT_PRESET
+    lat = spec_dict.get("lat", spec_dict.get("tilt", 0))
+    lon = spec_dict.get("lon", 0)
+    rev = spec_dict.get("rev", 0)
+
+    lat_a = deg_to_angle(lat, "lat/tilt")
+    lon_a = deg_to_angle(lon, "lon")
+    rev_a = deg_to_angle(rev, "rev")
+
+    return (
+        '<a:scene3d><a:camera prst="%s">'
+        '<a:rot lat="%d" lon="%d" rev="%d"/>'
+        '</a:camera><a:lightRig rig="%s" dir="%s"/></a:scene3d>'
+        % (xml_escape(str(prst)), lat_a, lon_a, rev_a,
+           xml_escape(str(spec_dict.get("lightRig", "threePt"))),
+           xml_escape(str(spec_dict.get("lightDir", "t"))))
+    )
+
+
+def camera_is_perspective(prst):
+    return str(prst or "").startswith(CAMERA_PERSPECTIVE_PREFIXES)
+
+
+def insert_scene3d(xml, shape_id, fragment):
+    """Put an <a:scene3d> into the spPr of one shape, by cNvPr id.
+
+    Position matters. CT_ShapeProperties is a SEQUENCE ending
+    ... effectLst?, scene3d?, sp3d?, extLst?. So:
+      * if the spPr has its own <a:extLst> (PowerPoint adds one holding
+        a14:hiddenLine as soon as a line is set), scene3d must go BEFORE it
+      * otherwise before </p:spPr> is correct
+
+    Do NOT instead search the whole <p:sp> for <a:extLst>: <p:cNvPr> carries one
+    too (a16:creationId), and scene3d inserted there is silently ignored.
+
+    Returns (xml, status).
+    """
+    for tag in ("sp", "pic", "graphicFrame", "cxnSp"):
+        for s, e in element_spans(xml, tag):
+            blk = xml[s:e]
+            if not re.search(r'<p:cNvPr\b[^>]*\bid="%s"' % re.escape(str(shape_id)), blk):
+                continue
+            if "<a:scene3d" in blk:
+                return xml, "already-has-scene3d"
+            sp = element_spans(blk, "spPr")
+            if not sp:
+                return xml, "no-spPr"
+            ps, pe = sp[0]
+            extl = re.search(r"<a:extLst(?=[\s/>])", blk[ps:pe])
+            at = ps + extl.start() if extl else pe - len("</p:spPr>")
+            return xml[:s] + blk[:at] + fragment + blk[at:] + xml[e:], "ok"
+    return xml, "shape-not-found"
+
+
 def ensure_content_type(ct_xml, ext):
     ext = (ext or "").lower()
     if not ext or 'Extension="%s"' % ext in ct_xml:
@@ -924,6 +1030,42 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
                     new_xml = replace_or_insert(new_xml, "transition", block)
                 sr["transition"] = trans.get("type", "fade")
                 report["transitioned"] += 1
+
+            # ---- 3D cameras ------------------------------------------------
+            # Not an animation: <a:scene3d> is a shape property, so it never
+            # enters the timing tree. Applied separately from `effects`.
+            for cam in (entry.get("cameras") or []):
+                if not isinstance(cam, dict):
+                    cam = {"target": cam}
+                ids = resolve_targets(cam.get("target"), shapes)
+                if not ids:
+                    sr["unknownTargets"].append(str(cam.get("target")))
+                    report["errors"].append(
+                        "slide %d: camera target %r not found in spTree"
+                        % (idx, cam.get("target")))
+                    continue
+                try:
+                    frag = build_camera(cam)
+                except ValueError as exc:
+                    report["errors"].append("slide %d: %s" % (idx, exc))
+                    continue
+                prst = cam.get("prst") or CAMERA_DEFAULT_PRESET
+                if not camera_is_perspective(prst):
+                    report["warnings"].append(
+                        "slide %d: camera prst=%s is a PARALLEL projection -- it "
+                        "will never show a vanishing point" % (idx, prst))
+                for sid in ids:
+                    new_xml, status = insert_scene3d(new_xml, sid, frag)
+                    sr.setdefault("cameras", []).append({
+                        "target": cam.get("target"), "id": sid,
+                        "prst": prst, "status": status,
+                        "tilt_deg": cam.get("lat", cam.get("tilt", 0)),
+                        "lon_deg": cam.get("lon", 0),
+                    })
+                    if status != "ok":
+                        report["warnings"].append(
+                            "slide %d: camera on id=%s -> %s" % (idx, sid, status))
+                sr["cameras_applied"] = sr.get("cameras_applied", 0) + len(ids)
 
             for media in (entry.get("media") or []):
                 report["media_plan"].append({

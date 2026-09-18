@@ -116,12 +116,40 @@ morph **跨页配对同名形状**并补间差异，所以两页必须有真实�
 > 历史：morph 曾被判为"本机不支持"，实为元素名写错（`p:morph` 应为 `p159:morph`）。
 > 详见 `references/com-pitfalls.md` §20。
 
-### 3.1 3D 相机与旋转（本 skill **尚未**纳入 spec）
+### 3.1 3D 相机（`cameras:`，角度用度数）
 
-`<a:scene3d>` 里的相机**不在 spec 字段里**。要做立体效果只能手写注入（配方见
-[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md) §2），
+相机**已纳入 spec**，与动画分开写（`<a:scene3d>` 是形状属性，不进时间轴）：
+
+```yaml
+slides:
+  - page: 2
+    cameras:
+      - {target: LAYER, tilt: 290}                    # 半自动：只给角度
+      - {target: HERO, prst: perspectiveRelaxed, lat: -70, lon: 10,
+         lightRig: threePt, lightDir: t}              # 全手动
+```
+
+| 字段 | 说明 |
+| --- | --- |
+| `target` | 同 `effects.target` |
+| `tilt` | **俯仰角，度数**，等价于 `lat`（做"平面翻倒"） |
+| `lat` / `lon` / `rev` | 度数；负数按 `% 360` 归一化（`-70` 与 `290` 等价） |
+| `prst` | 相机预设；**省略时自动用 `perspectiveRelaxedModerately`** |
+| `lightRig` / `lightDir` | 默认 `threePt` / `t` |
+
+**角度一律用度数**，内部换算成 OOXML 的 1/60000。两个坑已由换算层挡掉：
+
+- 规范写的上界 `21600000` 会让 PowerPoint 报**整个文件损坏**；`360` 归一化成 `0`，永不触及
+- 传原始值（如 `17400000`）会**明确报错**，不会静默变成 120°
+
+**半自动为什么必要**：COM 的 `ThreeD.RotationX/Y` 写出的是 `orthographicFront`，
+即**平行投影**，永远没有灭点。省略 `prst` 时默认给透视预设，避免踩这个坑。
+若显式指定了非透视预设，会打印警告。
+
 实测对照表见 [`references/camera-reference.md`](references/camera-reference.md)，
-测量脚本 `scripts/build_camera_table.py`。
+配方与两个测量陷阱见
+[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md)，
+回归测试 `tests/test_camera.py`。
 
 **三条最容易翻车的，先看这三条：**
 
