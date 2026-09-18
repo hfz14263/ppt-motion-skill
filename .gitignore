@@ -9,6 +9,14 @@ __pycache__/
 **/review/
 *.com.pptx
 
+# Calibration artifacts: make_calibration.ps1 rebuilds these on demand, and the
+# analyser's own report lands in tests/calib/analysis/.
+tests/calib/*.mp4
+tests/calib/*.pptx
+tests/calib/analysis/
+tests/calib/.office-tmp/
+probe-createvideo/
+
 # Editors / OS
 .vscode/
 .idea/

@@ -80,6 +80,9 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | [`references/mso-primitives.md`](references/mso-primitives.md) | PowerPoint 原生效果与切换的原始语义 |
 | [`references/camera-reference.md`](references/camera-reference.md) | **3D 相机参数 → 实测结果**:62 个预设、lat/lon、fov、zoom 的实测对照表 |
 | [`references/ppt-studio-integration.md`](references/ppt-studio-integration.md) | 与 `dsh-ppt-studio`(`deck.yaml` + `elementId`)的对接契约 |
+| [`references/motion-design-spec.md`](references/motion-design-spec.md) | **动效怎么设计**:动效闸门、时长阶梯 T0–T3、效果语义映射、7 类页型编排剧本、密度上限、自检清单 |
+| [`references/design-system/README.md`](references/design-system/README.md) | **静态版面**设计系统:内置 10 套(咨询/财务/汇报/推广/学术)+ 上游 34 套按需抓取 |
+| [`references/video-analysis-limits.md`](references/video-analysis-limits.md) | 从视频量动效的**实测能力边界**:起点 ±0.10s、时长 +0.02~+0.16s、哪些测不出 |
 
 ## 找参考素材时先跑一下 `inspect_pptx.py`
 
@@ -103,6 +106,21 @@ python scripts/inspect_pptx.py *.pptx --json      # 机器可读
 
 ```bash
 python scripts/selftest.py      # 63 passed, 0 failed
+```
+
+## 本机能力探测
+
+两项能力**随 Office 构建变化，不要套用别人的结论**:
+
+```powershell
+# CreateVideo 能否导出 MP4(上游不可用、另一台机器可用;quality 0 两边都失败)
+powershell -NoProfile -File scripts/probe_createvideo.ps1
+```
+
+```bash
+# 从视频量动效节奏(拿不到 pptx 时的兜底;先跑标定对表)
+python scripts/analyze_video.py --video clip.mp4 --json
+python scripts/analyze_video.py --video tests/calib/calib.mp4 --json   # 已知答案样本
 ```
 
 ## 许可

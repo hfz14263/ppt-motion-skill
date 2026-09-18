@@ -59,6 +59,10 @@ S3 的 `--assert-geometry`、S4 的 `verify_motion`、S5 的往返普查，
 **动手前先读 `references/authoring-rules.md`**（13 条硬约束，每条对应一次真实翻车）。
 它给出三个额外校验器：覆盖率、目标有效性、版面（溢出/越界/压页脚）。
 
+**动效怎么设计**（该不该加、节奏、效果选择、页型编排、密度）见
+`references/motion-design-spec.md`；**静态版面**设计系统见
+`references/design-system/README.md`（内置 10 套 + 34 套按需抓取）。
+
 特别是这两条最贵：
 
 - **A1**：spec 的形状 id **禁止手写**，必须由实测几何生成。deck 一改版式 id 就重排，
@@ -174,13 +178,31 @@ python scripts/motion.py player --pptx animated.pptx --spec m.yaml --outdir prev
 # Office COM 层：媒体内嵌 + 真渲染 + PDF（默认只读打开，绝不回写输入）
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/motion.ps1 `
            -Pptx out.pptx -Spec m.yaml -OutDir review -ExportPdf
+
+# 从视频里量动效节奏（拿不到 pptx 时的兜底；精度见 references/video-analysis-limits.md）
+python scripts/analyze_video.py --video clip.mp4 --out analysis [--json]
+python scripts/analyze_video.py --video clip.mp4 --fps 15     # 长视频降采样提速
+
+# 重建"已知答案"的标定样本（改分析器前先跑这个对表）
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/make_calibration.ps1
+
+# 探测本机能否导出 MP4（CreateVideo 可用性随 Office 构建变化，别套用结论）
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps1
 ```
 
-**`player` 是唯一能"看见动效"的手段。** 静态 PNG/PDF 看不出动画，而本机
-`Presentation.CreateVideo` 对所有参数组合都失败（导不出 MP4，见
-`references/com-pitfalls.md` §16），所以用它把动效按 spec 时序在网页里重放。
+**`player` 是把动效"看见"的手段。** 静态 PNG/PDF 看不出动画，所以用它把动效按 spec 时序在网页里重放。
 生成的 HTML 旁边会有一个同名 `stage/` 目录放图层 PNG，**两者要一起移动**。
 它只做数字 id 目标（`--pptx inspect --json` 查 id）。
+
+> **补充**：本机 `Presentation.CreateVideo` **可用**，但上游机器上**不可用** ——
+> 这项能力**取决于 Office 构建 / COM 驱动，不是普遍属性**，两边观察可以同时为真。
+> 本机实测（LTSC 2024，`16.0.17928.20148`）：480p=1.19MB / 720p=2.49MB / 1080p=4.11MB /
+> q1=0.54MB 全部成功，而 `quality 0` **两边都失败**（`E_INVALIDARG`）。
+> **换机器先跑 `scripts/probe_createvideo.ps1` 实测，不要套用任何一方的结论。**
+> 详见 `references/com-pitfalls.md` §16.4。
+>
+> 即便能导 MP4，`player` 的价值也不可替代：它做**逐形状图层 + 可控时序**，
+> 能暂停在任意时刻单看某一层 —— 这是 MP4 做不到的。
 
 `motion.ps1` 的关键开关：
 

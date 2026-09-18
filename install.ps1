@@ -116,8 +116,11 @@ if (Test-Path $catalog) {
 
 foreach ($f in 'scripts/motion.py', 'scripts/verify_motion.py', 'scripts/motion.ps1',
                'scripts/player.py', 'scripts/check_coverage.py', 'scripts/selftest.py',
+               'scripts/analyze_video.py', 'scripts/make_calibration.ps1',
                'references/com-pitfalls.md', 'references/template-patterns.md',
-               'references/authoring-rules.md') {
+               'references/authoring-rules.md',
+               'references/motion-design-spec.md', 'references/video-analysis-limits.md',
+               'references/design-system/README.md') {
   if (Test-Path (Join-Path $dest $f)) { Say "  $f : OK" } else { Say "  $f : MISSING"; $ok = $false }
 }
 
@@ -128,6 +131,10 @@ if ($py) {
   Say ("  python version: {0} (need 3.7+)" -f $ver)
   $deps = & $py.Source -c "import importlib.util as u;print(','.join(m for m in ('yaml','lxml') if u.find_spec(m)))" 2>$null
   if ($deps) { Say ("  python deps present: {0}" -f $deps) } else { Say "  python deps: none of yaml/lxml found (YAML specs and verify need them)" }
+  # video analysis is optional but needs cv2 + numpy
+  $cv = & $py.Source -c "import importlib.util as u;print(','.join(m for m in ('cv2','numpy') if u.find_spec(m)))" 2>$null
+  if ($cv -eq 'cv2,numpy') { Say "  video analysis deps: cv2 + numpy OK (analyze_video.py available)" }
+  else { Say "  video analysis deps: missing cv2/numpy (analyze_video.py unavailable; optional)" }
 } else { Say "  python: NOT FOUND (the OOXML engine needs it)"; $ok = $false }
 
 try {
