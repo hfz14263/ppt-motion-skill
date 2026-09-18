@@ -1,0 +1,14 @@
+﻿version: 1
+slides:
+  - page: 1
+    transition: {type: fade, duration: 0.8}
+    effects:
+      - {target: band, effect: fade, duration: 1.0, trigger: with}
+      - {target: title, effect: fly, duration: 0.7, trigger: after}
+      - {target: orb, effect: zoom, duration: 0.5, trigger: after}
+      - {target: orb, effect: spin, duration: 1.0, trigger: after, repeat: 2}
+      - {target: orb, effect: pathSineWave, duration: 3.0, trigger: after, autoReverse: true}
+  - page: 2
+    transition: {type: push, duration: 0.6}
+    effects:
+      - {target: page2, effect: fade, duration: 0.6, trigger: after}

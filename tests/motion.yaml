@@ -1,0 +1,56 @@
+# Regression spec for dsh-ppt-office-motion against a real dsh-ppt-studio export.
+# Every target is a deck.yaml elementId, so this exercises the integration contract
+# end to end: elementId -> cNvPr name -> injected timing node.
+version: 1
+
+slides:
+  - page: 1
+    transition: {type: fade, duration: 0.8}
+    effects:
+      # background band fades in with the first beat
+      - {target: band, effect: fade, duration: 1.0, trigger: with}
+      # decorative glow drifts in on a sine path, reversing
+      - {target: glow, effect: fade, duration: 0.6, trigger: after, delay: 0.2}
+      - {target: glow, effect: pathSineWave, duration: 3.0, trigger: after, autoReverse: true, smooth: 0.5}
+      # title flies in, subtitle follows, badge zooms with spin emphasis
+      - {target: title, effect: fly, duration: 0.7, trigger: after}
+      - {target: sub, effect: fade, duration: 0.5, trigger: after, delay: 0.1}
+      - {target: badge, effect: zoom, duration: 0.5, trigger: after}
+      - {target: badge, effect: spin, duration: 1.0, trigger: after, repeat: 2}
+      - {target: badge_t, effect: fade, duration: 0.4, trigger: with}
+
+  - page: 2
+    transition: {type: push, duration: 0.6}
+    effects:
+      - {target: panel, effect: fade, duration: 0.8, trigger: with}
+      - {target: box_a, effect: growTurn, duration: 0.6, trigger: after}
+      - {target: box_a_t, effect: wipe, duration: 0.5, trigger: after}
+      - {target: box_a_b, effect: fade, duration: 0.5, trigger: with}
+      - {target: box_b, effect: growTurn, duration: 0.6, trigger: after}
+      - {target: box_b_t, effect: wipe, duration: 0.5, trigger: after}
+      - {target: box_b_b, effect: fade, duration: 0.5, trigger: with}
+      - {target: arrow, effect: wipe, duration: 0.8, trigger: after}
+      - {target: foot, effect: fade, duration: 0.4, trigger: after}
+
+  - page: 4
+    # chart bars rise one after another: piece naming resolution is exercised here
+    transition: {type: wipe, duration: 0.7}
+    effects:
+      - {target: c_head, effect: fly, duration: 0.6, trigger: after}
+      - {target: "chart-d0-0", effect: stretch, duration: 0.5, trigger: after}
+      - {target: "chart-d1-0", effect: stretch, duration: 0.5, trigger: after, delay: 0.15}
+      - {target: "chart-d2-0", effect: stretch, duration: 0.5, trigger: after, delay: 0.3}
+      - {target: "chart-d3-0", effect: stretch, duration: 0.5, trigger: after, delay: 0.45}
+      - {target: key, effect: fade, duration: 0.6, trigger: after}
+      - {target: key_body, effect: fade, duration: 0.6, trigger: with}
+
+  - page: 5
+    transition: {type: fade, duration: 0.9}
+    effects:
+      - {target: tl_head, effect: fly, duration: 0.6, trigger: after}
+      - {target: st1, effect: zoom, duration: 0.5, trigger: after}
+      - {target: st1_t, effect: fade, duration: 0.4, trigger: with}
+      - {target: st2, effect: zoom, duration: 0.5, trigger: after}
+      - {target: st2_t, effect: fade, duration: 0.4, trigger: with}
+      - {target: st3, effect: zoom, duration: 0.5, trigger: after}
+      - {target: st3_t, effect: fade, duration: 0.4, trigger: with}
