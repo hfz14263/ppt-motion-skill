@@ -84,6 +84,7 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | [`references/motion-design-spec.md`](references/motion-design-spec.md) | **动效怎么设计**:动效闸门、时长阶梯 T0–T3、效果语义映射、7 类页型编排剧本、密度上限、自检清单 |
 | [`references/design-system/README.md`](references/design-system/README.md) | **静态版面**设计系统:内置 10 套(咨询/财务/汇报/推广/学术)+ 上游 34 套按需抓取 |
 | [`references/video-analysis-limits.md`](references/video-analysis-limits.md) | 从视频量动效的**实测能力边界**:起点 ±0.10s、时长 +0.02~+0.16s、哪些测不出 |
+| [`references/review-checklist.md`](references/review-checklist.md) | **交付复核清单**:判据可信度分级(哪条判据已知会骗人)、结构/素材卫生/版面/动效/一致性检查项、交叉验证规则 |
 
 ## 找参考素材时先跑一下 `inspect_pptx.py`
 
@@ -108,6 +109,21 @@ python scripts/inspect_pptx.py *.pptx --json      # 机器可读
 ```bash
 python scripts/selftest.py      # 63 passed, 0 failed
 ```
+
+## 交付前复核
+
+```bash
+python scripts/review_assist.py --pptx out.pptx --source in.pptx
+```
+
+它区分两类结论：**结构项**是机器可判、可信的；**素材卫生与版面项**是启发式信号，
+**必须人眼确认**。脚本还会列出**它判不了的**（视觉主角、留白、节奏、方向、是否好看…）。
+
+实测它能自动抓出真实事故：`material/template1` 的旋转图层是全屏截图，含 PowerPoint
+界面（69% 近白像素、547 行近白），以及 `image1.png` 被放大 1.47 倍显示。
+
+判据可信度分级与三条交叉验证规则见
+[`references/review-checklist.md`](references/review-checklist.md)。
 
 ## 本机能力探测
 

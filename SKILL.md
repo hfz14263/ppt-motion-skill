@@ -36,7 +36,20 @@ S5  motion.ps1 -Pptx out.pptx -Spec m.yaml -OutDir review -ExportPdf -Strict
 S6  motion.py player --pptx out.pptx --spec m.yaml --outdir preview
                                               # 动效预览，浏览器打开 preview.html
 S7  read_image 看 review/render/*.png         # 视觉审阅（版面）
+S8  review_assist.py 自动复核 + references/review-checklist.md 人眼过一遍
 ```
+
+**S8 不可省。** `scripts/review_assist.py` 自动跑机器可判的部分，并**明确列出它判不了的**：
+
+```bash
+python scripts/review_assist.py --pptx out.pptx --source in.pptx
+```
+
+`references/review-checklist.md` 是完整清单，含三样关键内容：
+
+- **判据可信度分级** —— 哪条判据能证明什么、**已知在哪失效**（本项目被自己的自动化判据骗过三次）
+- **美感评价项** —— 版面 / 素材卫生 / 动效 / 跨页一致性
+- **交叉验证规则** —— 结论强度 = 判据数量 × 判据独立性
 
 **S3 必须带 `--assert-geometry`**，S4 必须比对 `--source`。这两步是本 skill 的核心承诺，
 输出 `geometry: UNCHANGED` 才算通过；一旦报 CHANGED，说明注入了不该注入的东西，停下排查。
