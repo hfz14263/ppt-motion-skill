@@ -1,0 +1,53 @@
+{
+ "what": "符号层的索引：效果名 / 枚举 / presetID / 别名之间怎么对应。",
+ "rule": "本文件【不存数据】。真相在 canonical 指的文件里，这里只指明位置与跨源的规则。存副本会造出第二个真相，改一处漏一处 —— 那正是本次规范化要消掉的毛病。",
+ "sources": [
+  {
+   "id": "catalog",
+   "canonical_for": "137 个效果别名的 presetID / presetClass / presetSubtype / enumName / XML 模板",
+   "location": "scripts/motion_catalog.json",
+   "read_by": "scripts/motion.py",
+   "how_to_query": "python scripts/motion.py catalog",
+   "fields": ["enum", "enumName", "presetClass", "presetID", "presetSubtype",
+              "kind", "hasFilter", "hasMotionPath", "hasVisibilitySet",
+              "nodeIdCount", "template"]
+  },
+  {
+   "id": "com-pitfalls",
+   "canonical_for": "界面属性读回值与 XML 写出的值【为什么会不一致】",
+   "location": "references/com-pitfalls.md",
+   "note": "叙述与当时的误解在此；本节只记规则。"
+  }
+ ],
+ "rules": [
+  {
+   "id": "presetid-is-not-the-enum",
+   "statement": "presetID ≠ MsoAnimEffect 枚举值。它们只在【入场】类重合，强调类相差 +53，动作路径类相差 +85。",
+   "why_it_matters": "拿枚举值当 presetID 写进 XML，文件合法、PowerPoint 不报错，但动画不是你要的那个。",
+   "examples": [
+    {"alias": "spin", "presetID": 8, "enum": 61, "class": "强调"},
+    {"alias": "pathCircle", "presetID": 1, "enum": 86, "class": "动作路径"}
+   ],
+   "how_to_verify": "读 catalog 的 presetID，再用对象模型读回实际的 EntryEffect 比对",
+   "evidence": "scripts/motion_catalog.json；references/com-pitfalls.md"
+  },
+  {
+   "id": "presetclass-offsets",
+   "statement": "偏移量按 presetClass 分段：入场 +0、强调 +53、动作路径 +85。",
+   "caveat": "这是【实测规律】不是定义。用它反推前先抽两个样本核对。",
+   "evidence": "references/mso-primitives.md（表已删除，结论保留）"
+  },
+  {
+   "id": "element-name-lives-in-its-namespace",
+   "statement": "元素名前缀由它【定义在哪个 schema】决定，不由它出现在哪个元素内部决定。",
+   "why_it_matters": "写错前缀 = 另一个元素 = 静默丢弃。本项目因此栽过两次。",
+   "examples": [
+    {"written_wrong": "p:morph", "correct": "p159:morph",
+     "explains": "morph 不在 ECMA-376 的 CT_SlideTransition 里，是 Microsoft 的 p159 扩展"},
+    {"written_wrong": "p:blipFill", "correct": "a:blipFill",
+     "explains": "填充定义在 drawingml，不在 presentationml"}
+   ],
+   "evidence": "references/com-pitfalls.md §20（morph）、§29（blipFill）"
+  }
+ ]
+}

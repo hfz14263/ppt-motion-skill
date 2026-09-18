@@ -1,0 +1,974 @@
+# 故障症状索引
+
+**按现象查，不按发现顺序。** 遇到问题时你知道的是症状，不是根因 ——
+所以这一页按症状分栏，每节保留原文（含「当时为什么想错了」）。
+
+> 详细事实若与 [`facts/`](../facts/) 冲突，以 `facts/` 为准。本页负责**叙事与来龙去脉**，`facts/` 负责**可校验的结构化事实**。
+
+---
+
+## 文件打不开 / 报损坏
+
+PowerPoint 报 `0x80070570`「文件或目录已损坏」，而它**不会告诉你是哪个元素**，所以每次都要自己定位。**这一栏全部是结构非法**，不是内容错。有一条通用规则能防掉其中大部分：**一个序列型元素只能出现一次 —— 存在就替换，不存在才插入**（见 §31）。
+
+### §1 多余 preset 包装层 → PowerPoint 拒开（最致命）
+
+PowerPoint 自己写的动画节点长这样：外层 `<p:cTn presetID=… nodeType="afterEffect">` 包着
+`<p:set>` / `<p:animEffect>`：
+
+```xml
+<p:cTn id="5" presetID="10" presetClass="entr" presetSubtype="0" fill="hold"
+       grpId="0" nodeType="afterEffect">
+  <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+  <p:childTnLst>
+    <p:set>…style.visibility…</p:set>
+    <p:animEffect transition="in" filter="fade"><p:cBhvr><p:cTn id="7" dur="500"/>…</p:cBhvr></p:animEffect>
+  </p:childTnLst>
+</p:cTn>
+```
+
+**把这个结构原样嵌到骨架 `<p:cTn>` 下，PowerPoint 打开直接 `E_FAIL`**——连从 PowerPoint 自己
+文件里抠出来的原封节点也不行（已二分确认，不是模板被改坏）。
+
+必须改成**内联**：效果子节点直接作为骨架 cTn 的子节点，preset 属性合并到骨架 cTn 上。
+
+```xml
+<p:par><p:cTn id="4" fill="hold" presetID="10" presetClass="entr" presetSubtype="0"
+              grpId="0" nodeType="afterEffect">
+  <p:stCondLst><p:cond delay="0"/></p:stCondLst>
+  <p:childTnLst>
+    <p:set>…</p:set>
+    <p:animEffect …>…</p:animEffect>
+  </p:childTnLst>
+</p:cTn></p:par>
+```
+
+`motion.py` 的 `split_effect_template()` 就是做这件事；`build_timing()` 负责合并属性。
+实测结论：内联（带/不带 preset 属性、带/不带 `bldLst`）**全部可开**；包装层**全部拒开**。
+
+<p align="right"><sub>来源 com-pitfalls §1</sub></p>
+
+### §2 重复属性 → XML 非法
+
+模板的外层 cTn 自带 `id="5"`、`dur`、`fill`。合并属性到骨架 cTn 时如果不过滤，
+就会产生 `id="4" … id="5"` 这种**重复属性**，lxml 直接报
+`Attribute id redefined`。必须过滤 `id|dur|fill`。
+
+<p align="right"><sub>来源 com-pitfalls §2</sub></p>
+
+### §26 `a:rot` 的 `lat/lon` 必须是 0~21600000，负数会让**整个文件**损坏
+
+```xml
+<a:rot lat="-1800000" .../>     <!-- -30° -->
+```
+
+PowerPoint 打开报 **`0x80070570`（文件或目录损坏且无法读取）**——
+不是忽略这个元素，是**直接认为整个文件坏了**。
+
+**必须归一化到 0~360°**：`-30°` 要写成 `lat="18900000"`（330°）。
+
+**这是个很容易踩的坑**，因为同一个角度在别处（窗格、COM）**是可以写负数的**，
+只有进了 OOXML 的 `lat/lon` 才必须绕回正区间。
+
+```python
+def norm(deg):
+    v = int(round(deg * 60000)) % 21600000
+    return v + 21600000 if v < 0 else v
+```
+
+顺带记一下这个错误码：**`0x80070570` 在 OOXML 注入里几乎总是指
+"属性值越界或结构非法"**，不是文件真的坏了。遇到它先查数值范围。
+
+<p align="right"><sub>来源 com-pitfalls §26</sub></p>
+
+### §31 「往序列里插一个已经存在的元素」—— 本项目**所有**损坏文件都是这一个原因
+
+`0x80070570`（"文件或目录已损坏"）在这个项目里出现过 **六次**，每次都只修表面症状。
+回头数，**六次是同一个错误**：
+
+| # | 重复了什么 | 触发场景 |
+| --- | --- | --- |
+| 1 | `<p:transition>` ×2 | python-pptx 已经写过切换，我又插一个 |
+| 2 | `<a:solidFill>` + `<a:blipFill>` | 填充是 `xsd:choice`，**取第一个**，旧填充没删 |
+| 3 | `useBgFill="1"` 加到**文本框**上 | 全局替换命中不该改的形状 |
+| 4 | `<a:effectLst>` ×2 | 形状已有空的自闭合 `<a:effectLst/>`，我又插一个带阴影的 |
+| 5 | `<p:transition>` ×2（第二次） | 同 1 |
+| 6 | `<a:effectLst>` ×2（第二次） | 同 4 |
+
+**OOXML 的 schema 大多是 `xsd:sequence` + 可选成员，所以第二个副本不是"多余的"，
+而是让文档非法。** 而 PowerPoint **只报"已损坏"，不告诉你哪个元素有错**，
+所以每次都得从零开始猜。
+
+### 规则
+
+**永远不要写 `s.replace("</p:spPr>", X + "</p:spPr>")`。** 用
+`motion.set_singleton()` —— 存在就**替换**，不存在才插入。
+
+```python
+xml, status = motion.set_singleton(xml, "a:effectLst", new_block,
+                                   inside="spPr",          # 限定父元素
+                                   before=("a:scene3d", "a:extLst"))  # 插入时的顺序
+```
+
+### 加了一道闸
+
+```bash
+python scripts/verify_singletons.py --pptx out.pptx
+```
+
+它检查形状属性、幻灯片子元素、切换的重复，**并检查填充冲突**
+（两个不同名的填充并存也非法，只查同名重复是查不出来的）。
+
+### 造这道闸时又犯了三个错，值得单独记
+
+**判据不能自己骗自己 —— 一个"永远报 OK"的检查比没有检查更糟。**
+
+| 错 | 症状 |
+| --- | --- |
+| `motion.element_spans` **自己拼 `p:` 前缀**，要传裸名 `"spPr"`。我传 `"p:spPr"` | 拼成 `<p:p:spPr`，**匹配不到任何东西**，于是在损坏文件上报 OK |
+| 直接子元素判定写成 `depth == 1` | 但 spPr 的直接子元素在 **depth 0**，同样永远匹配不到 |
+| 用全局正则数 `<p:transition` | **把正确的 morph 当成重复** —— morph 本来就有两个 `transition`（`mc:Choice` 一个、`mc:Fallback` 一个） |
+
+前两个都属于同一类：**检查器悄悄匹配不到，然后报"没问题"。**
+所以这个工具的回归测试里，**专门断言"带前缀的名字匹配不到任何东西"** ——
+把陷阱本身写成测试。
+
+**另外 `element_spans` 只认成对标签** `<x>…</x>`，对自闭合 `<x/>` 返回空。
+于是 `set_singleton` 替换了自闭合那份，却看不见旁边的成对副本，重复照样留着。
+现在用 `singleton_spans()` 一次找两种形式。
+
+<p align="right"><sub>来源 com-pitfalls §31</sub></p>
+
+---
+
+## XML 里有，PowerPoint 不认（静默丢弃）
+
+最隐蔽的一类：文件能打开、不报错、不提示修复，**元素就在 XML 里，但被忽略**。字符串检查、结构检查、lxml 解析**全部会通过**。判据只有一个：**用 PowerPoint 读回**（对象模型 / 真渲染），不要看字符串。
+
+### §8 `p14:dur` 需要声明前缀
+
+想带毫秒时长要写 `p14:dur="800"`，但 pptd 导出的 slide 根元素**没有** `xmlns:p14`。
+必须自己补上，否则是未绑定前缀（非法 XML）：
+
+```xml
+<p:sld … xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main">
+```
+
+<p align="right"><sub>来源 com-pitfalls §8</sub></p>
+
+### §12 `<p:sld>` 子元素是 sequence，位置错了切换会被静默丢弃（最隐蔽）
+
+`<p:sld>` 的元素模型是 `xsd:sequence`：
+
+```
+cSld, clrMapOvr?, transition?, timing?, extLst?
+```
+
+`<p:transition>` 必须排在 `<p:timing>` **之前**。把它放在后面（比如直接追加到
+`</p:sld>` 前）会发生什么：
+
+| 现象 | 说明 |
+| --- | --- |
+| PowerPoint 打开**不报错** | 结构校验（lxml）也通过 |
+| `SlideShowTransition.EntryEffect` 读回 **0** | PowerPoint 根本没绑定这个元素 |
+| 再次 `Save()` 后切换**消失** | 被静默写没了 |
+
+一次 `apply` 里 `<p:timing>` 先插到 `</p:sld>` 前，切换插到"它前面"，结果切换就落进了
+timing 内部。修法是按 sequence 顺序插入（`motion.py` 的 `insert_in_slide_order()`）。
+实测（`engine2.pptx` → PowerPoint 往返）：修好后 `EntryEffect` 从 `0x0` 变成
+`0xF09/fade`、`0xF0F/push`、`0xB01/wipe`，`<p:fade/>` 原样保留。
+
+顺带一个读法问题：PowerPoint 自己保存时会把切换写成
+`mc:AlternateContent{ Choice(p14:dur) , Fallback(无 dur) }`，所以**一份健康的
+PowerPoint 文件里一个切换会有两个 `<p:transition>` 元素**。数元素个数会误报。
+`verify_motion.py` 因此只数"生效"的那个（`motion.active_transition_blocks()`）。
+
+<p align="right"><sub>来源 com-pitfalls §12</sub></p>
+
+### §13 `<p:cTn id>` 必须按文档顺序递增，否则强调动画会被静默丢弃
+
+`<p:cTn id>` 不只是主键：PowerPoint 靠它重建时间线，**每个节点必须比自己的祖先编号大**。
+如果先实例化效果的子节点、再分配外层骨架的两个 id，就会得到
+
+```
+..., 12, 13, 10, 11, 15, 16, 14
+```
+
+最后一个效果自己的动画节点（14）排在了它的父骨架（15,16）**前面**。PowerPoint 打开时
+照单全收（`MainSequence.Count` 是对的），但 `Save()` 后**这个效果直接消失**，没有任何
+提示。修法：`build_timing()` 先取外层两个 id，再实例化子节点。修好后整页 id 单调递增
+（`1,2,5,6,7,8,...,16`）。
+
+<p align="right"><sub>来源 com-pitfalls §13</sub></p>
+
+### §19 「静默丢弃」的第三种成因：元素放错了父节点
+
+§5 讲过"改完 OOXML 必须用 PowerPoint 真开一次"。这里补一个更隐蔽的变体：
+**元素写在了正确的文档里、正确的元素附近，但父节点不对，PowerPoint 不报错、直接丢掉。**
+
+实测样例（图片亮度 −40）：
+
+```xml
+错的：<a:blip r:embed="rId2"/><a:lum bright="-80000"/>
+      └──── 自闭合 ────┘  于是 <a:lum> 成了 <a:blip> 的「兄弟」
+
+对的：<a:blip r:embed="rId2"><a:lum bright="-80000"/></a:blip>
+                            └──── 必须在 <a:blip>「内部」 ────┘
+```
+
+**症状和"这个版本不支持该功能"一模一样**：打开正常、保存后元素消失。
+所以很容易误诊成版本问题，然后放弃一个其实能做的功能。
+
+### 排查方法：让 PowerPoint 自己写一遍
+
+不要读 schema 猜，也不要只试一种写法。**让 PowerPoint 用它自己的对象模型设一次，
+再把它写出来的 XML 读回来对比。** 这是唯一能把"我写错了"和"它不支持"分开的办法：
+
+```powershell
+$pf = $sh.PictureFormat
+$pf.Brightness = 0.1                 # COM 侧：0.0~1.0，0.5 = 0%
+$pres.SaveAs("out.pptx")             # 然后读 out.pptx 里它写了什么
+```
+
+对比时**逐字符看父节点的开闭**，不要只看元素本身在不在。
+
+### 顺带记住两个数值口径
+
+| 界面 | COM `PictureFormat.Brightness` | OOXML `a:lum/@bright` |
+| --- | --- | --- |
+| 0% | 0.5 | 省略 |
+| −40% | 0.1 | `-80000` |
+| +20% | 0.6 | `20000` |
+
+换算：`bright = (COM值 − 0.5) × 200000`。
+
+**别在两个口径之间混用**：COM 传 `-0.4` 会得到"参数无效"，
+而按界面百分比猜 XML 会写成 `-40000`（少一倍）。两个错叠加起来，
+看起来就像"这个功能根本不存在"。
+
+<p align="right"><sub>来源 com-pitfalls §19</sub></p>
+
+### §20 Morph（平滑）**可以注入** —— 旧结论是写法错误，不是版本限制
+
+上游曾把 Morph 判为"本机不可用"，并据此推论"依赖 Morph 补间的效果无法用注入复现"。
+**那个结论是错的。** 复核后确认：三条"证据"里第一条就是根因。
+
+### 20.1 根因：元素名写错了
+
+旧写法是
+
+```xml
+<p:transition><p:morph/></p:transition>     <!-- 错 -->
+```
+
+**`p:` 命名空间里根本没有 `morph` 元素**。它不在 ECMA-376 的
+`CT_SlideTransition` 里；morph 是 Microsoft 的 p159 扩展。所以 PowerPoint
+打开时当作未知元素**静默丢弃**，`SaveAs` 之后连 `<p:transition>` 都不剩 ——
+看起来就像"这个版本不支持"。
+
+### 20.2 正确写法（取自 `material/template1` 与 `template2` 的真实文件）
+
+```xml
+<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+  <mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" Requires="p159">
+    <p:transition spd="slow" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" p14:dur="2000">
+      <p159:morph option="byObject"/>
+    </p:transition>
+  </mc:Choice>
+  <mc:Fallback>
+    <p:transition spd="slow"><p:fade/></p:transition>
+  </mc:Fallback>
+</mc:AlternateContent>
+```
+
+要点：
+
+| 项 | 值 |
+| --- | --- |
+| 元素 | `p159:morph`（**不是** `p:morph`） |
+| 命名空间 | `http://schemas.microsoft.com/office/powerpoint/2015/09/main`（**2015/09**，不是 2019） |
+| 必需包裹 | `mc:AlternateContent` + `mc:Choice Requires="p159"` |
+| 降级 | `mc:Fallback` 里放 `<p:fade/>`，旧版按淡入处理 |
+| 选项 | `option="byObject"`（默认，按对象匹配并补间） |
+| 时长 | `p14:dur`（毫秒），需 `xmlns:p14` 声明 |
+| 位置 | `<p:sld>` 的 `sequence` 里，与其他切换同位置 |
+
+### 20.3 实测证据（Office LTSC 2024，16.0.17928.20148）
+
+| 检查 | 结果 |
+| --- | --- |
+| PowerPoint 打开 | 正常，无修复提示 |
+| `SlideShowTransition.EntryEffect` 读回 | **`0xF72`（3842）** —— 它认得 |
+| `SaveCopyAs` 往返后 | slide XML 里 `p159:morph` **仍在** |
+| 两页间的形状差异 | 位置/尺寸/3D 角度不同 → 有可补间的差值 |
+
+所以第 2、3 条旧"证据"也解释通了：
+
+- **"对象模型里没有它"** —— 对，`SlideShowTransition` 只暴露旧式成员，
+  **但这不影响注入**。注入是写 XML，不是设属性。
+- **"按名字设 `EntryEffect = "ppEffectMorph"` 失败"** —— 因为 morph 不是一个
+  可赋值的枚举成员。但**读**得回来：正确写入后 PowerPoint 报 `0xF72`。
+  **可读 ≠ 可写**，旧结论把这两件事混为一谈了。
+
+### 20.4 Morph 的匹配规则（来自两份 material 模板）
+
+morph 跨两页配对形状，**按形状名/id 匹配**，然后补间差异。所以做动效的方式是：
+
+1. 把第 1 页整页复制成第 2 页（形状名与 id 保持一致）；
+2. 在第 2 页改动形状的 **位置 / 尺寸 / 旋转 / 3D 相机角度**；
+3. 给**第 2 页**（被进入的那页）加 `p159:morph`。
+
+`material/template1` 就是这么做的：同一个 `图片 8`，
+第 1 页 `camera lat="0"`、第 2 页 `camera lat="17400000"`（290°），
+其余不变 —— 播放时平面平滑"翻倒"。
+
+### 20.5 仍需注意
+
+- 从 `material/template2` 实测：五个矩形组在第 1 页位于 `left=-180.8pt`（画板外），
+  第 2 页铺开 —— **两页确实不同，morph 补间出"矩形从左侧滑入"的效果**，
+  是可直接运行的真实范例。
+- ⚠️ 但读这些坐标时要注意**分组**：形状在 `<p:grpSp>` 里，用正则按
+  `<p:sp>` 切分 spTree 会读到组变换而不是子形状的 `<a:off>`，结论会完全错。
+  本 skill 的 `geometry_fingerprint` 不受影响（它两个 `grpSp` 与子 `sp` 都取）。
+  **做 morph 必须保证两页之间存在真实差异**，否则什么都不会动。
+- `mc:Fallback` 不能省：WPS / 旧版 PowerPoint / 部分在线预览只认 fallback，
+  没有它时这些环境可能整页切换失效。
+
+<p align="right"><sub>来源 com-pitfalls §20</sub></p>
+
+### §22 判断"不支持"之前，先排除"我写错了"
+
+§19 和 §20 是同一个教训的两面，值得单独留一条。
+**而 §20 后来被证明正是这个坑的实例** —— 它把"元素名写错"（`p:morph`
+应为 `p159:morph`）判成了版本不支持，直到拿到 PowerPoint 自己写的 morph 文件
+（`material/template1`、`template2`）才纠正。**所以这一条不是抽象原则，是踩过的。**
+
+遇到「元素写进去、保存后消失」，**不要立刻下结论说是版本不支持**。
+两个成因的症状完全一样，但处理方式相反：
+
+| 成因 | 判据 | 处理 |
+| --- | --- | --- |
+| **我写错了**（父节点 / 属性 / 值域） | **让 PowerPoint 自己写一遍**，对比它写的 XML —— 它能写出来，就说明它支持 | 照它写的形式改注入 |
+| **确实不支持** | 用它自己的对象模型也**设不上**，或它自己保存后**也不写**这个元素 | 换路线 |
+
+**顺序很重要。** §19 那个亮度问题，我一开始跳过了这一步，直接判成"未攻克"，
+结果它只是父节点写错——**一个本来能做的功能差点被我放弃。**
+
+**说"不支持"要三条同时成立**：
+
+1. 手写能正常打开，但保存后元素消失；
+2. 对象模型里**没有**对应成员；
+3. 按名字设**也失败**，且让 PowerPoint 自己保存后，它**也不写**这个元素。
+
+只满足第 1 条，多半是 §19 那个坑。
+
+⚠️ **§20（Morph）就是一次误判**：它当时声称三条都满足，但复查发现
+第 1 条的真正原因是元素名写错（`p:morph` 应为 `p159:morph`），
+第 2、3 条只说明"属性模型里没有"，**并不能推出"注入也不行"**。
+所以这个三条件清单还要补一条前提：**第 2、3 条只对"用对象模型写"有效，
+对"直接写 XML"不成立** —— 判断注入能力必须用第 1 条的做法
+（让 PowerPoint 自己写一遍来对比）。
+
+<p align="right"><sub>来源 com-pitfalls §22</sub></p>
+
+### §29 窗口化图片填充：**一个函数里踩出四种静默失败**
+
+做"用形状切割图片"（配方 §8）时，`<a:blipFill>` 的注入连着错了四次。**四次都产出了
+能打开、不报错、不提示修复、但渲染结果错误的文件**，而且字符串检查和结构检查全部通过。
+只有渲染才暴露。
+
+| # | 错误 | 现象 | 为什么静默 |
+| --- | --- | --- | --- |
+| **A** | 写成 `<p:blipFill>` | 回落到形状原有的填充色 | `blipFill` 属于 **drawingml `a:`**，`p:blipFill` 是未知元素，直接忽略 |
+| **B** | 插在 `<a:ln>` **之后** | 同上 | `CT_ShapeProperties` 是 sequence，顺序非法就丢弃 |
+| **C** | 没有删掉原有的 `<a:solidFill>` | **保留原色**（品红），图片不出现 | 填充是 `xsd:choice`，**只能有一个，且取第一个** |
+| **D** | `<a:blip r:embed="rId9">` 是编的 id | 画**缺图占位符** | 关系不存在，但你看到的只是一个颜色 |
+
+### 最该记住的两条
+
+**A 是 `p:morph` vs `p159:morph` 的同一类错。** 前缀不是一个可以随便选的装饰 ——
+它决定元素属于哪个命名空间，写错就是不同的元素。**判断依据应当是"这个元素定义在哪个
+schema 里"，不是"它出现在 `p:` 元素内部"。**
+
+**C 违反了"填充只有一个"这条**，而且症状具有欺骗性：形状照常渲染、只是颜色不对，
+看起来像"主题色没改"，不像"注入失败"。
+
+### D 差点让诊断走偏
+
+早期测出三个窗口显示**同一个颜色 `(120,164,232)`**，我判成"PowerPoint 的缺图占位符"，
+于是去找关系问题。**但那张测试图（红绿蓝三带 + 白）的平均色恰好接近那个蓝**
+（实测平均 `(103,96,116)`，但仍接近），所以**"图片缺失"和"图片存在但被极度放大到只剩
+一片平色"这两种截然不同的情况，在这个判据下无法区分**。
+
+**对策**：不要用"颜色像不像占位符"当判据。用**差分**——
+同一形状给不同内缩值，若渲染结果**完全相同**，才是真的没生效。
+
+### 正确性怎么确立的
+
+不再推理，而是**让 PowerPoint 自己写一遍**：COM 的 `Shape.Fill.UserPicture("图")`
+会生成官方写法，读回来对照即可。它写的是：
+
+```xml
+<p:spPr>…<a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+  <a:blipFill><a:blip r:embed="rId2"/><a:stretch><a:fillRect/></a:stretch></a:blipFill>
+</p:spPr>
+```
+
+**与实测的差值只有那个 `p:` / `a:`。** 改成 `a:blipFill` 后三个窗口立刻分别显示
+红/绿/蓝三条不同色带 —— 既证明了填充生效，也顺带证明了窗口位置正确。
+
+> 这与 §20 的教训是同一条：**"我的写法不生效" ≠ "这个功能不支持"。**
+> 先让 PowerPoint 写一遍，比自己读文档或推理都快。
+
+<p align="right"><sub>来源 com-pitfalls §29</sub></p>
+
+---
+
+## 值越界 / 写错值
+
+越界**不是被忽略，是让文件损坏**。而且规范给的值域不一定合法 —— 本项目实测的上界与规范不同，见下文。
+
+---
+
+## 文件正常但结果不对
+
+文件合法、PowerPoint 采纳了，**但渲染出来的不是你要的**。这一栏只能靠**真渲染**发现，任何结构检查都查不出来。共同教训：**把「参数 → 渲染结果」当待测对象，不要当待查文档。**
+
+### §5 静态预览：为什么要 `preview`（实测修正）
+
+原先这里写的是"带入场动画的形状在 PNG/PDF 里是隐藏的"。**本机实测不成立**：本 skill 的
+`fly`/`fade` 模板用的是把 `style.visibility` 设为 `visible` 的 `<p:set>`，从不写隐藏，
+所以 `Slide.Export` 直接把形状画出来了（自测 deck 的 animated 版与 preview 版首屏 PNG
+逐字节相同）。
+
+那 `preview` 还有什么用：
+
+- **去掉切换**：否则导出的"静态副本"其实还带着翻页效果；
+- **让静态导出与播放顺序解耦**：动画链不再影响导出时机，结果可复现；
+- 需要"动画开始前"那一帧时，只有 preview 版本是确定的状态。
+
+所以 §5 的正确说法是：`preview` 产出的是一份**无 timing、无 transition** 的干净副本，
+用它可以得到确定性的截图/PDF；而不是"不 preview 就看不到形状"。
+
+```bash
+python scripts/motion.py preview --pptx animated.pptx --out static.pptx
+# 再对 static.pptx 走 motion.ps1 -NoSave -ExportPdf
+```
+
+<p align="right"><sub>来源 com-pitfalls §5</sub></p>
+
+### §6 颜色是 BGR，且不能用算术表达式生成
+
+- `Shape.Fill.ForeColor.RGB = 0x0B1020`（想要深蓝）→ XML 里存成 `20100B`（红蓝互换）。
+  想显示 `#FFD24A` 必须传 `0x4AD2FF`。
+- `0x30 * $i * 65536 + …` 这类算术，PowerPoint 收到 Double 会**截断**：
+  `#14304F` 被存成 `#13304F`（红通道 −1）。用常量 + `[int]` 强转。
+
+```powershell
+function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
+  $r = $displayRGB -band 0xFF; $g = ($displayRGB -shr 8) -band 0xFF; $b = ($displayRGB -shr 16) -band 0xFF
+  return [int](($r -shl 16) -bor ($g -shl 8) -bor $b)
+}
+```
+
+<p align="right"><sub>来源 com-pitfalls §6</sub></p>
+
+### §17 动画的**中间态**在本机不可观测
+
+想验证 `wipe(left)` 到底往哪个方向擦，必须看到动画跑到一半的样子。三条路都试过，
+**全部不通**，记在这里省得重走：
+
+| 探针 | 结果 |
+| --- | --- |
+| `SlideShowView.Export` | 这个 build **没有这个成员**：调用报 `<unknown>.Export` |
+| `Slide.Export` / `Shape.Export` | 导出的是**终态**，完全无视实时 `Visible` 与 filter 状态。实测：6 秒的 wipe 在 2.4 秒采样，八个方向**全部 100% 不透明** |
+| 截屏 `ImageGrab` / `PrintWindow` | 需要桌面真的在渲染。实测抓到的整屏 97% 接近纯黑、只有 0.55% 亮于灰 200，即屏幕没有输出（休眠/锁定）。`PrintWindow(hwnd, dc, PW_RENDERFULLCONTENT)` 返回的是**桌面 DC**，不是窗口自身内容 |
+
+§16.2 说 `Shape.Export` 认 `Visible`——那指的是**静态**的 `Shape.Visible` 属性，
+不是动画运行中的可见性状态。两者是两回事，实测以终态为准。
+
+**推论**：方向性擦除（`dir`）的效果只能靠**人眼看一次**确认；
+`showcase/qa/calib_wipe.py` 只验证能得到证的部分（`dir` 确实写进了 `filter=`、
+几何字节不变、给无方向效果写 `dir` 会报错）。
+
+<p align="right"><sub>来源 com-pitfalls §17</sub></p>
+
+### §23 「三维旋转」的界面角度 ≠ OOXML 的 `lat/lon`
+
+PowerPoint 格式窗格里填的是 **RotationX / RotationY**，而 OOXML 存的是
+`<a:camera><a:rot lat lon rev>`，**两者不是同一组数字，轴也不对应**。
+
+实测映射（让 PowerPoint 自己设角度、读回它写的 XML 得到）：
+
+```
+窗格 RotationX = -32, RotationY = -20
+   ↓ PowerPoint 写出
+<a:camera prst="orthographicFront">
+  <a:rot lat="20400000" lon="1200000" rev="0"/>     ← 340° / 20°，单位 1/60000 度
+</a:camera>
+
+lon = |RotationX|
+lat = 360 - |RotationY|        （RotationY 为负时）
+投影 = orthographicFront，即平行投影，不是透视
+```
+
+### 两个会静默产生错误结果的写法
+
+| 写法 | 得到什么 |
+| --- | --- |
+| 把窗格角度**直接写进 lat/lon** | **竖起来的菱形**，不是躺平的板——轴不对应 |
+| 用 `<a:xfrm rot="...">` 代替 | **水平错切**的平行四边形——那是**平面内**旋转，不是 3D |
+
+**两种写法都结构合法、PowerPoint 都正常打开**，所以什么都不会报错。
+只有**渲染出来看**才能发现。
+
+### 正确做法
+
+**让 PowerPoint 写，不要自己推。**
+
+```powershell
+$sh.ThreeD.RotationX = -32
+$sh.ThreeD.RotationY = -20
+$pres.SaveAs("out.pptx")        # 它自己会转成合法的 lat/lon
+```
+
+它的输出就是权威；`lat/lon` 只用于**读**和**校核**，不用于猜。
+
+### 而且角度值要**扫**出来，不要算
+
+预设相机表里那些角度（LibreOffice `scene3dhelper.cxx` 有一份整理）**与渲染结果
+对不上**（§21 记过：单位换算差约 725 倍）。所以确定姿态的办法是：
+**扫一组候选 → 各渲一帧 → 跟参考图比**。我最后用的 `RotationX -32 / RotationY -20`
+就是这么定的，不是算出来的。
+
+跟目标图比对时，看三个特征最快：**近边是否比远边宽**（有无透视）、
+**左右竖边是否向上收敛**（俯角方向）、**板面是否被压扁**（倾角大小）。
+
+<p align="right"><sub>来源 com-pitfalls §23</sub></p>
+
+### §24 造场景图时，图的"结构"决定效果成不成立
+
+立体页要求那个平面能**读成地面**。这取决于图片自己有没有**地平线**和**前景纵深**，
+不取决于 3D 角度调得多准。
+
+实测：同一组角度下，
+- 用**带山脊 + 麦田**的图 → 一眼就是躺平的地面
+- 用**纯网格标定图** → 只看到一个倾斜的方块，读不出"地面"
+
+**所以这类效果里，素材的结构比参数更关键。** 换成纯色或图形素材，
+再多迭代角度也出不来那个感觉。
+
+**推论**：做立体页之前先问「这张图有没有地平线」。没有的话，
+要么换图，要么先给图加一条。
+
+<p align="right"><sub>来源 com-pitfalls §24</sub></p>
+
+### §25 `ThreeD.RotationX/Y` 写出的是**平行投影**，永远做不出"躺平的地面"
+
+这是"立体版"那个效果真正卡住的地方，比 §23 的角度映射更根本。
+
+**PowerPoint 的对象模型**：
+
+```powershell
+$sh.ThreeD.RotationX = -32
+$sh.ThreeD.RotationY = -20
+# 它写出：
+# <a:camera prst="orthographicFront"><a:rot lat="340" lon="20" rev="0"/>
+```
+
+**`orthographicFront` 是平行投影，没有灭点。** 实测（白板 + 深色底，按阈值分割剪影，
+量远边宽度 / 近边宽度）：
+
+| 相机 | 收敛比（远/近） |
+| --- | --- |
+| `orthographicFront`（COM 的默认） | **1.000** —— 每一个角度都是 1.000 |
+| `perspectiveFront` / `perspectiveRelaxed` / `perspectiveAbove` … | **0.784 ~ 0.880** |
+
+**所以只调 RotationX/Y 是得不到透视的**：它们默认走平行投影，远边和近边永远等宽。（补充：COM 其实有开关，见 §27——ThreeD.Perspective = -1。我这次漏测了它，因为成员列表输出被截断。）
+平面看起来就是"立着但被压扁"，不是"躺下"。
+
+**正确做法：手写 `prst`，用透视预设。**
+
+```xml
+<a:scene3d>
+  <a:camera prst="perspectiveFront">
+    <a:rot lat="18900000" lon="0" rev="0"/>    <!-- lat 315° = 相机俯角 -45° -->
+  </a:camera>
+  <a:lightRig rig="threePt" dir="t"/>
+</a:scene3d>
+```
+
+`lat` 就是俯角，实测：
+
+| lat | 收敛比 | 压扁程度 |
+| --- | --- | --- |
+| 330°（−30°） | 0.880 | 0.485 |
+| **315°（−45°）** | **0.839** | **0.396** |
+| 300°（−60°） | 0.805 | 0.280 |
+| 285°（−75°） | 0.784 | 0.144 |
+
+**315° 是平衡点**：收敛明显，但没压扁到看不出是一块面。
+
+**怎么判断"躺下了没有"**：不要看"像不像平行四边形"。
+**量远边是不是明显比近边窄。** 等宽就是没躺下。
+
+<p align="right"><sub>来源 com-pitfalls §25</sub></p>
+
+### §27 `ThreeD.Perspective` 是**开关**，不是强度——而且 `0` 和 `1` 等价
+
+§25 说"COM 只能出平行投影"，**那一半是错的**。错因是我那次的成员列表输出被截断，
+漏掉了 `PresetCamera / Perspective / FieldOfView` 三个成员，于是我漏测了它们。
+
+完整测下来（白板 + 深色底，剪影分割，量远近边比）：
+
+| `ThreeD.Perspective` | 写出的 `prst` | 收敛比 |
+| --- | --- | --- |
+| `0` | `legacyObliqueFront` | **1.000**（平行） |
+| `1` | `legacyObliqueFront` | **1.000**（平行，与 0 完全等价） |
+| `-1` | `legacyPerspectiveFront` | **透视** |
+
+`Perspective = -1` 且 `RotationX = -45` 时，**收敛比 0.543** —— 真的产生了灭点。
+
+**三个反直觉点：**
+
+1. **它是开关，不是强度。** 名字叫 Perspective，看着像"透视强度 0~100"，
+   实际只接受 `{-3, -1, 0, 1}`，而且 **`0` 和 `1` 都表示关闭**。
+2. **要开透视得写 `-1`。** 按名字和直觉都会先试 `1`，那正好是关。
+3. **`FieldOfView` 默认 45，但它不控制投影类型**，只影响透视的强度感。
+
+所以「界面能直接做出透视」是成立的 —— 走 `ThreeD.Perspective = -1`。
+§25 的结论要按这条修正：**"必须手写 XML"不成立；手写只是更可控**（可以直接选
+`perspectiveFront` 等现代预设，而不是被限制在 `legacyPerspectiveFront`）。
+
+<p align="right"><sub>来源 com-pitfalls §27</sub></p>
+
+### §28 把"参数 → 渲染结果"当作待测对象，而不是待查文档
+
+这一整轮 3D 效果踩的坑，可以归成一类，值得当成方法论写下来：
+
+**参数被接受 ≠ 参数有效 ≠ 结果如你所想。**
+
+实测到的四种脱节，每一种都让"读文档 → 写参数"的做法失效：
+
+| 类型 | 实例 |
+| --- | --- |
+| **参数变了，结果没变** | `PresetThreeDFormat` 接受值，但写出的投影不变；五个透视预设渲染完全相同 |
+| **参数名和语义相反** | `Perspective = 0` 与 `= 1` 都是"关"，`-1` 才是"开" |
+| **两个参数系统轴不对应** | 窗格 `RotationX/Y` 与 OOXML `lat/lon` 不是同一组数（§23） |
+| **值域不合法时不是忽略，是拒绝** | `lat="-1800000"` 让 PowerPoint 判整个文件损坏（§26） |
+
+**所以顺序应该是：**
+
+1. **先扫参数空间**，把每个值渲染出来
+2. **量一个可测的特征**（不是"看着像"）
+3. **建立"参数 → 实测特征"的表**，需要时再回填文档里的语义
+
+**关键在于第二步要选可量化的特征。** 这一轮用过的：
+
+| 特征 | 量什么 | 判什么 |
+| --- | --- | --- |
+| **收敛比** = 远边宽 / 近边宽 | 剪影上下沿宽度 | 是否透视（1.000 = 平行） |
+| **压扁度** = 高 / 中宽 | 剪影包围盒 | 倾角大小 |
+| **错切方向** | 左右竖边长度差 | 深度往哪边退 |
+
+**反面教材是我自己**：我先用"像不像平行四边形"挑姿态，而平行投影的矩形**在任何角度
+都像平行四边形**，所以这个判据零区分力，直接导致选中了一个根本没躺下的姿态。
+**换成"量远边是不是更窄"之后，一次就选中了。**
+
+<p align="right"><sub>来源 com-pitfalls §28</sub></p>
+
+### §30 内缩公式：独立推导 + 实测吻合，但**资料里的简化式不可照抄**
+
+`<a:fillRect/>` 空着 = 图片被**拉伸**塞进形状（缩略图，不是窗口）。
+要做窗口必须给**负内缩**，单位是**形状自身尺寸的千分之一百分比**。
+
+通用式（本 skill 实现）：
+
+```
+l = -(window.x - picture.x) / window.w * 100000
+r = -(picture.x + picture.w - window.x - window.w) / window.w * 100000
+t = -(window.y - picture.y) / window.h * 100000      # 竖直方向除以「高」
+b = -(picture.y + picture.h - window.y - window.h) / window.h * 100000
+```
+
+**`materials` 里记的简化式 `l = -(x/w)*100000` 只在"图片铺满整张画布"时成立**
+（此时 `picture.x=0`、`picture.w=slideW`，通用式退化到它）。给**非全出血**的图片开窗时，
+简化式会给错值 —— 而错值**照样渲染**，只是露出的部位不对。
+
+**实测验证**：窗口 x=60/380/700、宽 200，画布 960；算出的内缩分别为
+`l=-30000/-190000/-350000`，渲染后三个窗口恰好显示**红/绿/蓝**三条不同色带 ——
+**位置与部位同时正确**。公式的独立推导也已与 PowerPoint 自己写的数值对齐
+（对照见 `tests/test_fill_window.py`）。
+
+<p align="right"><sub>来源 com-pitfalls §30</sub></p>
+
+---
+
+## 往返后效果被吃掉
+
+注入时好好的，**PowerPoint 打开再保存之后就没了** —— 因为 PowerPoint 会按自己的理解重写 XML。判据：`motion.ps1 -Strict` 往返普查。
+
+### §14 同一形状上"入场 + 强调"不兼容 PowerPoint 往返（实测限制，未解决）
+
+这是本机实测的硬限制，**不是本 skill 的 bug**，但必须知道：
+
+| spec | 引擎写出的 preset | PowerPoint `Save()` 之后 |
+| --- | --- | --- |
+| 单效果 `spin` | 1 个 | **保留** |
+| `fly` + `growShrink`（同形状） | 2 个 | 只剩 `fly` |
+| `fly` + `spin`（同形状，after / with 都试过） | 2 个 | 只剩 `fly` |
+| `fly` + `fade` + `spin`（spin 与 fly 同形状） | 3 个 | 只剩 `fly`、`fade` |
+
+即：**同一形状上叠加"入场 + 强调"时，强调必定丢失**。不同形状之间不受影响。
+
+因此 `motion.ps1` 加了往返普查（effect census）：打开前数文件里的
+`<p:cTn presetID=…>`，`SaveCopyAs` 之后再数一次，少了就报 `LOSS`。
+`-Strict` 时以非零退出。**注意两个数不能跨口径比较**：PowerPoint 的
+`MainSequence.Count` 会把一个入场拆成"可见性 set + 动画"两项，通常大于 preset 数
+（自测 deck 是 11 vs 6），只有"文件 vs 文件"的往返比较才有意义。
+
+<p align="right"><sub>来源 com-pitfalls §14</sub></p>
+
+### §18 Round-trip 会以第二种方式咬"一个形状多个效果"
+
+§14 讲的是"入场+强调"被丢掉。还有第二种成因不同、症状相似的情况：
+
+**逐段揭示**（by-paragraph build）在 PowerPoint 里就是同一形状挂多个效果。你写进
+spec，`motion.py apply` 老实写成多个 `<p:par>`，`--assert-geometry`、
+`verify_motion`、`motion.py check` 全过，然后 `motion.ps1 -Strict` 报 `LOSS`：
+
+```
+round-trip census: 153 effect(s) written back, 155 were in the input
+```
+
+**实测**：两个逐段块各多一个效果，正好丢 2 个。PowerPoint 重新读时间轴时把重复形状
+**折叠成一行**，多出来的效果被丢掉。
+
+**判断方法**：`LOSS` 的数字正好等于 `逐段块数 × (段数-1)`，不是任意数字。
+看到这个规律就别去查"入场+强调"了。
+
+**修法是改版面，不是改 spec**：一行一个文本框，各自独立 shape id、各自一个效果，
+什么都折叠不了，版面看起来完全一样。见 `references/authoring-rules.md` §J。
+
+<p align="right"><sub>来源 com-pitfalls §18</sub></p>
+
+### §21 3D 相机（`scene3d`）可以被注入，且角度原样保留
+
+3D 相机**可以注入**，角度也能往返保留。
+
+> 注意：§20 与本节分别在**两台不同机器**上验证过（§20 及
+> `morph-and-3d-recipes.md` 是本机的 Office LTSC 2024，`16.0.17928.20148`；
+> 本节的原始观察来自上游机器的 build 20228）。**能力判定请以本机实测为准。**
+
+```xml
+<a:scene3d>
+  <a:camera prst="perspectiveRelaxedModerately">
+    <a:rot lat="17400000" lon="0" rev="0"/>   <!-- 1/60000 度；17400000 = 290° -->
+  </a:camera>
+  <a:lightRig rig="threePt" dir="t"/>
+</a:scene3d>
+```
+
+放进 `<p:spPr>` 内、**追加在 `</p:spPr>` 之前**。`SaveAs` 往返后角度**一位不差**。
+
+⚠️ **轴不能放错**：`lat` 是俯仰（做"平面翻倒"），`lon` 是水平自转。
+上例放 `lat` 才是 template1 那种"躺下"效果；把 290° 写进 `lon` 会得到水平自转，
+**结构完全合法、PowerPoint 正常打开，但效果完全不同**。界面角度与 `lat/lon`
+的换算见 §23。
+
+**要点**：
+
+- 「三维旋转」调的是**相机**，不是物体转。物体在平面内转是 `<a:xfrm/@rot>`，
+  两者完全不同，别混。
+- `perspectiveRelaxedModerately` 是 OOXML **62 个标准预设相机之一**（中文界面叫
+  「适度宽松」）；同族的还有 `perspectiveRelaxed` / `perspectiveFront` /
+  `perspectiveAbove` 等。
+- 预设名**不要自己编**。完整的 62 个预设名和它们的实测角度值，LibreOffice 有一份
+  整理好的表：`oox/source/drawingml/scene3dhelper.cxx`
+  （注释注明是 experimental 实测所得）。
+  ⚠️ 但那份表里**角度数值的单位换算我核对不上**（`perspectiveRelaxedModerately`
+  的值与其单位注释差约 725 倍，原因未查明），**所以角度以实测为准，不要照抄那份数**。
+
+<p align="right"><sub>来源 com-pitfalls §21</sub></p>
+
+---
+
+## 工具与环境
+
+与 PowerPoint 无关，是**工具链本身**的坑：编码、解析、断言口径、COM 约束、以及「默认只读」这类安全设计。
+
+### §3 lxml 不能直接 parse 带编码声明的 str
+
+```python
+ET.fromstring(z.read(part).decode('utf-8'))        # ValueError
+ET.fromstring(z.read(part))                        # bytes，正常
+```
+
+<p align="right"><sub>来源 com-pitfalls §3</sub></p>
+
+### §4 结构校验通过 ≠ PowerPoint 能打开
+
+lxml 只保证 well-formed。实例：v3（自建 timing）结构校验 OK，PowerPoint `E_FAIL`。
+**任何 OOXML 手改都必须过一遍 `motion.ps1` 真开**。
+
+<p align="right"><sub>来源 com-pitfalls §4</sub></p>
+
+### §7 切换的旧式枚举几乎不可用
+
+本机实测（`SlideShowTransition.EntryEffect`）：
+
+| 枚举 | 实际写出的元素 |
+| --- | --- |
+| `0x0A01`（以为 fade） | `<p:strips/>` |
+| `0x0901` | `<p:randomBar/>` |
+| `0x0801` | `<p:pull/>` |
+| `0x0C01` | `<p:zoom/>` |
+| `0x1701`（以为 zoom） | **非法枚举，报错** |
+
+所以**以写出的 `<p:transition>` 元素为准**，COM 属性只用于复核读数。实测 PowerPoint 会按我们
+写的元素（如 `<p:fade/>`）保存。
+
+<p align="right"><sub>来源 com-pitfalls §7</sub></p>
+
+### §9 Office COM 的几个约束
+
+- 媒体插入（`AddMediaObject2`）依赖 PowerPoint 自己的转码管线；MP4/WAV 可用，
+  **未压缩 AVI 会因缺解码器失败**。手写 OOXML 做不了这件事，必须走 COM。
+- 受限沙箱下媒体插入会统一报 "cannot insert the file you specified"；放宽权限后立刻成功。
+  这是权限问题，不是格式问题。
+- `Presentations.Open(path, ReadOnly, Untitled, WithWindow)` 的 `WithWindow` 传 0 在本机
+  **打不开**，必须传 1（会闪一下窗口，正常）。
+- 失败的自动化会残留 `POWERPNT` 进程并锁住 pptx（再报 "could not open the file"）。
+  先 `Stop-Process POWERPNT -Force`。
+- 自动化会在 `%TEMP%` 残留 `*- OProcSessId.dat` 与 `*.tmp`，可清理。
+- **PowerPoint 会原样保留注入的动画**：注入 31 个 effect → PowerPoint 打开读到 31 个 →
+  `Save()` 后仍是 31 个（已实测）。所以 COM 往返不会吃掉动画。
+
+<p align="right"><sub>来源 com-pitfalls §9</sub></p>
+
+### §10 Windows PowerShell 5.1 的编码坑
+
+- 无 BOM 的 `.ps1` 里写中文会被按 ANSI 读成乱码，**甚至引发语法错误**（中文注释吃掉引号）。
+  脚本一律纯 ASCII，中文用 `[char]0xXXXX` 拼。
+- 用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 调用。**不要假定 `pwsh` 存在**：
+  Windows PowerShell 5.1 是 Windows 自带的，PowerShell 7（`pwsh`）是另装的，
+  很多机器上只有前者。脚本按 5.1 的语法子集写，别用 7 才有的东西。
+- 解压/打包优先用 .NET 的 `ZipFile` 而不是外部 `tar`：`tar` 在受限环境里可能被策略拦住，
+  而 `ZipFile` 不依赖任何外部进程。
+
+<p align="right"><sub>来源 com-pitfalls §10</sub></p>
+
+### §11 颜色/几何断言要按"布局帧"口径
+
+不要把整份 slide XML 做哈希——`<p:timing>` 本来就会变。只哈希
+**spTree 内每个形状的 `tag + cNvPr/@id + @name + xfrm(x,y,cx,cy,rot)` 序列**，
+这样"动画注入不改版面"才能被机器证明。
+
+<p align="right"><sub>来源 com-pitfalls §11</sub></p>
+
+### §15 `motion.ps1` 默认只读，绝不回写输入（旧版会毁掉源文件）
+
+COM 层是**复核**层，`Presentations.Open(..., ReadOnly=msoTrue, ...)` 打开：
+- 它不会再覆盖你传给它的 pptx（旧版用 `$pres.Save()` 就地保存，把 OOXML 引擎写好的
+  切换换成了枚举写出的 `<p:strips/>`，并且直接改写了输入文件）；
+- 需要持久化的东西（内嵌媒体）写到 `OutDir` 下的 `*.com.pptx`；
+- 切换默认**不**走 COM 枚举（那反而会覆盖正确结果，见 §7）；要探测属性模型用
+  `-SyncTransitions` 显式开启。
+
+另外 `Slide.Export` 是 COM 调用，**相对路径会按 PowerPoint 自己的工作目录解析**
+（不是 PowerShell 的当前目录），于是报"找不到 <你要求的路径>"。`OutDir` 必须绝对化。
+
+<p align="right"><sub>来源 com-pitfalls §15</sub></p>
+
+### §16 静态导出与逐形状导出（做"动效预览"必需）
+
+### 16.1 `Slide.Export` 无视 `Shape.Visible`
+
+```
+shape.Visible = 0        # msoFalse
+slide.Export(path,...)   # 形状照样画出来
+```
+
+所以**不能**靠隐藏其它形状来单独导出一个形状。
+（另注意 `msoTrue = -1`，不是 `1`；写 `1` 是无效值。）
+
+### 16.2 `Shape.Export` 才认 `Visible`，且给真 alpha
+
+```python
+shape.Export(path, 2)     # 2 = ppShapeFormatPNG -> RGBA，带透明
+```
+
+- 第二个参数是**数字枚举**；传 `"PNG"` 抛 `invalid literal for int() with base 10: 'PNG'`。
+- 宽高可省略，省了就按 `Shape.ScaleWidth/ScaleHeight` 默认导出（实测 1.45× 形状尺寸，够清晰）。
+- 带 alpha 是它能当图层用的前提。
+
+### 16.3 背景要"先导图层、再删形状、最后导整页"
+
+想让"形状逐个浮现"可看，需要 base + 每形状一层。base 必须是**删掉这些形状之后**的整页：
+
+```python
+for sid in wanted: shape.Export(...)      # 1. 先导图层
+for sid in wanted: shape.Delete()         # 2. 再删掉它们
+slide.Export(base, ...)                   # 3. 剩下的当背景
+```
+
+顺序反了就会重影：base 里已经烘焙了一份，图层淡入到位后正好叠在自己的副本上。
+
+### 16.4 `Presentation.CreateVideo`：**取决于 Office 构建，必须本机实测**
+
+上游在它的机器上观察到**所有参数组合都失败**：
+
+| Quality | 上游观察 |
+| --- | --- |
+| 0 | 返回成功码但**不产文件** |
+| 1 / 2 | `E_INVALIDARG` |
+| VertResolution 480/540/720/1080 | 均失败 |
+| ReadOnly / ReadWrite 打开 | 均失败 |
+
+**但另一台机器上完全可用**（Office LTSC 2024 ProPlus Retail x64，构建
+`16.0.17928.20148`，POWERPNT.exe 同版本）：
+
+| 参数 | 实测结果 |
+| --- | --- |
+| 480p / 720p / 1080p @30fps, q85 | 成功，**1.19 MB / 2.49 MB / 4.11 MB**（同一 busy deck） |
+| 720p @30fps, quality 1 | 成功，0.54 MB |
+| 720p @15fps, q85 | 成功，1.86 MB |
+| `WithWindow` = 0 或 1 | **都能导出** |
+| `CreateVideoStatus` | 轮询到 `3`（done）即完成，1–9 秒 |
+
+所以**分辨率、质量、帧率参数确实生效**（文件大小随参数单调变化）。
+
+**两边观察有交叉也有冲突，这本身就是关键线索：**
+
+| 参数 | 上游 | 本机（LTSC 2024, 16.0.17928.20148） |
+| --- | --- | --- |
+| quality 0 | 返回成功码但**不产文件** | **也失败**：`E_INVALIDARG` |
+| quality 1 / 2 | `E_INVALIDARG` | **成功**（q1 = 0.54 MB） |
+| 480 / 720 / 1080p | 均失败 | **均成功**（1.19 / 2.49 / 4.11 MB） |
+| ReadOnly / ReadWrite | 均失败 | **均成功** |
+
+`quality 0` 两边都坏 —— 说明这不是随机的，而是**某个参数值本身有问题**；
+其余参数本机可用而上游不可用，指向**构建 / COM 驱动差异**。
+
+**结论（环境限定）**：`CreateVideo` 的可用性**不是 Office 的普遍属性**。差异可能来自
+Office 版本、位数、COM 驱动或媒体子系统状态 —— 具体原因未定论，两边观察可以同时为真，
+所以**不要用任何一方的结论去推断另一台机器**。
+
+**因此：不要假定，先探测。** 用 `scripts/probe_createvideo.ps1` 在**你自己的机器**上跑一遍：
+
+```powershell
+powershell -NoProfile -File scripts/probe_createvideo.ps1
+```
+
+它打印本机 Office 构建指纹，并逐个参数组合尝试导出，报告哪些成功。
+- 有任一组合成功 → 可以导 MP4 复核动效
+- 全部失败 → 用 §16.1–§16.3 的图层方案，或 `motion.py player`
+
+无论哪种情况，`player` 都仍有独立价值：它做**逐形状图层 + 可控时序**，
+能暂停在任意时刻单看某一层，这是 MP4 做不到的。
+
+（`CreateVideo` 本身是异步的：即使调用成功也要轮询文件/状态，不能只等返回值。）
+
+<p align="right"><sub>来源 com-pitfalls §16</sub></p>
+
+---

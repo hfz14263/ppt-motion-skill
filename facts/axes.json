@@ -1,0 +1,73 @@
+{
+ "what": "坐标轴／角度层的索引：同一件事在【界面】、【OOXML】、【渲染结果】里的三套数值怎么对应。",
+ "rule": "本文件【不存数据】。参数实测表在 canonical 里，这里只记【跨两套坐标系的换算规则】和【哪些量不能算只能扫】。",
+ "sources": [
+  {
+   "id": "camera-reference",
+   "canonical_for": "62 个相机预设、lat/lon/rev、fov、zoom 的实测对照表",
+   "location": "references/camera-reference.md",
+   "machine_readable": "scripts/camera_reference.json",
+   "regenerate_with": "python scripts/build_camera_table.py",
+   "measured_on": "PowerPoint 16.0 build 20228"
+  }
+ ],
+ "axes": [
+  {
+   "id": "pane-angle-vs-latlon",
+   "statement": "窗格里的「三维旋转」角度 ≠ OOXML 的 lat/lon。它们不是同一组数。",
+   "mapping": {
+    "lon": "|RotationX|",
+    "lat": "360 − |RotationY|",
+    "unit": "1/60000 度",
+    "example": "窗格 RotationX=-32, RotationY=-20 → lat=340×60000, lon=20×60000"
+   },
+   "how_to_verify": "让 PowerPoint 自己写一遍（COM 设 RotationX/Y 后读回 XML），不要按文档推",
+   "evidence": "references/com-pitfalls.md §23"
+  },
+  {
+   "id": "valid-range-is-narrower-than-the-spec",
+   "statement": "a:rot 的 lat/lon/rev 必须落在 0..21599999。",
+   "the_trap": "ECMA-376 写的是 0..21600000，而写 21600000（规范自己的上界）会让 PowerPoint 判【整个文件损坏】0x80070570。负数同样。",
+   "fix": "归一化：-45° 写成 18900000，不要写 -2700000",
+   "evidence": "references/com-pitfalls.md §26"
+  },
+  {
+   "id": "parallel-vs-perspective",
+   "statement": "只有 prst=\"perspective*\" / \"legacyPerspective*\" 会产生透视。其余 47 个预设是平行投影，永远没有灭点。",
+   "measured": "平行投影的收敛比恒为 1.000（噪声下 0.85~1.00）；perspective 类 0.74~0.92",
+   "why_it_matters": "「让平面躺下」必须选 perspective 类，否则角度怎么调都没用",
+   "evidence": "references/camera-reference.md §3"
+  },
+  {
+   "id": "convergence-is-the-test",
+   "statement": "判断「有没有躺下」要量【远边宽 / 近边宽】。1.000 = 平行，明显小于 1 = 透视。",
+   "the_trap": "不要用「像不像平行四边形」当判据 —— 平行投影的矩形在任何角度都像平行四边形，这个判据零区分力。",
+   "tolerance": "像素级量测有噪声，实测平行落在 0.85~1.00，判据是「接近 1」不是「等于 1」",
+   "evidence": "references/camera-reference.md §9"
+  },
+  {
+   "id": "free-parameters-are-swept-not-computed",
+   "statement": "张角、步长、轴心这类【设计自由量】不要算，要扫出来看。",
+   "examples": [
+    {"quantity": "扇形张角", "note": "作者本人确认是随手取的；它是设计决定"},
+    {"quantity": "逐页补间的步长", "note": "要递减（缓出）；等距读起来像匀速平移"}
+   ],
+   "how_to_verify": "渲染成对照图并排看，不要靠推",
+   "evidence": "references/recipe-library.md §3"
+  }
+ ],
+ "measurement_validity": [
+  {
+   "id": "clipping-invalidates-measurement",
+   "statement": "剪影一旦触及画面边缘，量出来的就不是形状，是画面边界。",
+   "symptom": "收敛比读出 1.000，看起来像「参数没生效」",
+   "fix": "测量前先检测是否触边；触边就拒绝出数，不要给一个无意义的数字",
+   "evidence": "references/camera-reference.md §9；scripts/build_camera_table.py 的 measure()"
+  },
+  {
+   "id": "dark-pixels-are-not-background",
+   "statement": "不能用「暗像素占比」判断背景露出 —— 夜景照片本身就有大片暗部，这个判据会把照片自己算成背景。",
+   "evidence": "building/qa/size_tilt.py 的误判"
+  }
+ ]
+}

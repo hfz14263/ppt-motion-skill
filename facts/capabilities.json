@@ -1,0 +1,93 @@
+{
+ "what": "能力层索引：哪些事只有 COM 能做、哪些 COM 做不到、哪些「查不到」其实只是写法错。",
+ "rule": "本文件的每一格都必须有实测证据。「查不到」与「不支持」是两件事，本文件的存在就是为了不让前者被当成后者。",
+ "sources": [
+  {
+   "id": "com-pitfalls",
+   "canonical_for": "COM 行为、静默失败、往返丢失的叙述与当时的误解",
+   "location": "references/com-pitfalls.md",
+   "indexed_by_symptom": "reference/symptoms.md"
+  },
+  {
+   "id": "morph-recipes",
+   "canonical_for": "Morph / 3D / 艺术效果 / 形状切割的注入写法",
+   "location": "references/morph-and-3d-recipes.md"
+  }
+ ],
+ "capability_matrix": [
+  {
+   "capability": "体量转移 / 平滑（Morph）",
+   "com_readback": false,
+   "injectable": true,
+   "verdict": "能注入。**对象模型里查不到**（没有 morph 成员），但确实生效，EntryEffect=0xF72。",
+   "the_misjudgement": "曾据「COM 枚举里没有」判为「本机不支持」。真相是元素名写错（p:morph 应为 p159:morph），而且【注入是写 XML，与读属性是两条路】。",
+   "evidence": "references/com-pitfalls.md §20；tests/test_morph.py"
+  },
+  {
+   "capability": "3D 相机（scene3d）",
+   "com_readback": true,
+   "injectable": true,
+   "verdict": "两条路都通。COM 的 ThreeD 属性可设（但只能出 legacy 预设），XML 可直接写现代预设。",
+   "trap": "COM 的 ThreeD.RotationX/Y 写出的是 orthographicFront（平行投影），永远躺不下去；要透视必须 XML 写 prst=\"perspectiveFront\"，或 COM 设 ThreeD.Perspective=-1。",
+   "evidence": "references/com-pitfalls.md §25/§27；tests/test_camera.py"
+  },
+  {
+   "capability": "艺术效果（虚化 / 亮度）",
+   "com_readback": true,
+   "injectable": "手写很难",
+   "verdict": "**走 COM**：Shape.Fill.PictureEffects.Insert(...) 会自己生成 a14:imgLayer + .wdp。",
+   "why_not_handwrite": "渲染结果被另存为 JPEG XR（.wdp），PIL 读写不了。",
+   "evidence": "references/morph-and-3d-recipes.md §6"
+  },
+  {
+   "capability": "窗口化图片填充（形状当窗口）",
+   "com_readback": true,
+   "injectable": true,
+   "verdict": "纯 XML：a:blipFill + a:fillRect 负内缩。已进 spec（fills:）。",
+   "evidence": "tests/test_fill_window.py；scripts/motion.py 的 window_insets()"
+  },
+  {
+   "capability": "内嵌音视频",
+   "com_readback": true,
+   "injectable": "部分",
+   "verdict": "走 COM 的 AddMediaObject2。",
+   "evidence": "scripts/motion.ps1 媒体层"
+  },
+  {
+   "capability": "导出 MP4（CreateVideo）",
+   "com_readback": true,
+   "injectable": false,
+   "verdict": "本机对**所有参数组合**均失败。",
+   "caveat": "结论限定在观察到的 Office 构建上（16.0.17928.20148）—— Office 版本间行为有差异，不要外推。",
+   "evidence": "references/com-pitfalls.md §16.4；scripts/probe_createvideo.ps1"
+  },
+  {
+   "capability": "观察动画中间态",
+   "com_readback": false,
+   "injectable": false,
+   "verdict": "本机不可观测。没有 SlideShowView.Export，Slide/Shape.Export 渲的是终态。",
+   "workaround": "用 motion.py player 重放，或从视频里量（见 video-analysis-limits.md）",
+   "evidence": "references/com-pitfalls.md §17"
+  }
+ ],
+ "meta_rules": [
+  {
+   "id": "absence-of-a-member-is-not-absence-of-capability",
+   "statement": "「对象模型里没有」≠「做不到」。注入是写 XML，读属性是走 COM —— 两条路，一条失败不能证明另一条。",
+   "how_to_avoid": "怀疑「不支持」之前，先让 PowerPoint 自己写一遍再对照；或先检查命名空间是否写错。",
+   "evidence": "references/com-pitfalls.md §20 / §22"
+  },
+  {
+   "id": "require-three-evidences-before-declaring-unsupported",
+   "statement": "判「不支持」需要三条独立证据：① PowerPoint 打开后保存时元素被丢弃；② 对象模型里没有该能力；③ 不能按名设置、且 PowerPoint 自己保存也不写出。",
+   "why": "只凭一条就下结论，本项目已经错了三次。",
+   "evidence": "references/com-pitfalls.md §22"
+  },
+  {
+   "id": "version-scope-every-verdict",
+   "statement": "每条能力结论都要写明测试的 Office 构建号。",
+   "why": "CreateVideo 的可用性、字体回退、导出色差都可能随版本变。",
+   "evidence": "references/com-pitfalls.md §16.4 的限定写法"
+  }
+ ]
+}
