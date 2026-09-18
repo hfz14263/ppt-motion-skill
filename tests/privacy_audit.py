@@ -39,7 +39,11 @@ ALLOW = [
     re.compile(r'LICENSE-upstream'),                   # vendored licence file
     re.compile(r'material/'),                          # referenced as external input
     re.compile(r'summerai|skills\.summerai\.cc'),      # cited source
-    re.compile(r'zhuchencheng@stu\.hfuu\.edu\.cn'),    # already in upstream history
+    # GitHub's noreply address exists precisely so it CAN be public. Allowing it
+    # keeps the rule sharp for real addresses -- note the personal address that
+    # used to be exempt here is NOT allowed any more, so if it ever comes back the
+    # audit will flag it.
+    re.compile(r'@users\.noreply\.github\.com', re.I),
     re.compile(r'Copyright \(c\) 2026 Binaryify Zhuang'),
 ]
 

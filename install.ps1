@@ -77,7 +77,8 @@ if ((Test-Path $dest) -and -not $Force) {
 } else {
   if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
   New-Item -ItemType Directory -Force -Path $dest | Out-Null
-  foreach ($item in 'SKILL.md', 'scripts', 'references', 'examples', 'install.ps1', 'requirements.txt') {
+  foreach ($item in 'SKILL.md', 'HANDOVER.md', 'README.md', 'LICENSE',
+                  'scripts', 'references', 'examples', 'install.ps1', 'requirements.txt') {
     $s = Join-Path $src $item
     if (Test-Path $s) { Copy-Item $s -Destination $dest -Recurse -Force }
   }
@@ -149,7 +150,8 @@ if (Test-Path $catalog) {
   else { Say "  catalogue sanity: OK (paths have animMotion, entrances have visibility)" }
 } else { Say "  motion_catalog.json: MISSING"; $ok = $false }
 
-foreach ($f in 'scripts/motion.py', 'scripts/verify_motion.py', 'scripts/motion.ps1',
+foreach ($f in 'HANDOVER.md', 'README.md',
+               'scripts/motion.py', 'scripts/verify_motion.py', 'scripts/motion.ps1',
                'scripts/player.py', 'scripts/check_coverage.py', 'scripts/selftest.py',
                'scripts/analyze_video.py', 'scripts/make_calibration.ps1',
                'references/com-pitfalls.md', 'references/template-patterns.md',
