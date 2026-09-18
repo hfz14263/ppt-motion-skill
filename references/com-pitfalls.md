@@ -392,23 +392,87 @@ $pres.SaveAs("out.pptx")             # 然后读 out.pptx 里它写了什么
 而按界面百分比猜 XML 会写成 `-40000`（少一倍）。两个错叠加起来，
 看起来就像"这个功能根本不存在"。
 
-## 20. Morph（平滑）在这台机器上不可用
+## 20. Morph（平滑）**可以注入** —— 旧结论是写法错误，不是版本限制
 
-需要明确区分**版本能力**和**写法错误**。Morph 属于前者，三条独立证据：
+上游曾把 Morph 判为"本机不可用"，并据此推论"依赖 Morph 补间的效果无法用注入复现"。
+**那个结论是错的。** 复核后确认：三条"证据"里第一条就是根因。
 
-1. **打开不报错，保存就没了。** 手写 `<p:transition><p:morph/></p:transition>`
-   能正常打开（不弹修复），但 `SaveAs` 之后 slide XML 里**连 `<p:transition>`
-   都不存在**。
-2. **对象模型里没有它。** `SlideShowTransition` 的成员只有
-   `AdvanceOnClick / AdvanceOnTime / AdvanceTime / Duration / EntryEffect / Hidden /
-   LoopSoundUntilNext / SoundEffect / Speed`——全是旧式那一套。
-3. **按名字设也失败。** `EntryEffect = "ppEffectMorph"`（含 `ByWord`/`ByObject`）
-   全部报错；让 PowerPoint 自己 SaveAs，写出的 slide 没有 transition。
+### 20.1 根因：元素名写错了
 
-**推论**：任何**依赖 Morph 补间**的效果（例如"同一个平面在不同 3D 相机角度之间
-平滑翻倒"）在本机**无法用注入复现**。3D 相机本身能存（见下），但**没有东西去补间它**。
+旧写法是
 
-**替代路线**：自己算中间帧 → 合成视频 → 内嵌。这样绕开了对 PowerPoint 补间能力的依赖。
+```xml
+<p:transition><p:morph/></p:transition>     <!-- 错 -->
+```
+
+**`p:` 命名空间里根本没有 `morph` 元素**。它不在 ECMA-376 的
+`CT_SlideTransition` 里；morph 是 Microsoft 的 p159 扩展。所以 PowerPoint
+打开时当作未知元素**静默丢弃**，`SaveAs` 之后连 `<p:transition>` 都不剩 ——
+看起来就像"这个版本不支持"。
+
+### 20.2 正确写法（取自 `material/template1` 与 `template2` 的真实文件）
+
+```xml
+<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">
+  <mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" Requires="p159">
+    <p:transition spd="slow" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" p14:dur="2000">
+      <p159:morph option="byObject"/>
+    </p:transition>
+  </mc:Choice>
+  <mc:Fallback>
+    <p:transition spd="slow"><p:fade/></p:transition>
+  </mc:Fallback>
+</mc:AlternateContent>
+```
+
+要点：
+
+| 项 | 值 |
+| --- | --- |
+| 元素 | `p159:morph`（**不是** `p:morph`） |
+| 命名空间 | `http://schemas.microsoft.com/office/powerpoint/2015/09/main`（**2015/09**，不是 2019） |
+| 必需包裹 | `mc:AlternateContent` + `mc:Choice Requires="p159"` |
+| 降级 | `mc:Fallback` 里放 `<p:fade/>`，旧版按淡入处理 |
+| 选项 | `option="byObject"`（默认，按对象匹配并补间） |
+| 时长 | `p14:dur`（毫秒），需 `xmlns:p14` 声明 |
+| 位置 | `<p:sld>` 的 `sequence` 里，与其他切换同位置 |
+
+### 20.3 实测证据（Office LTSC 2024，16.0.17928.20148）
+
+| 检查 | 结果 |
+| --- | --- |
+| PowerPoint 打开 | 正常，无修复提示 |
+| `SlideShowTransition.EntryEffect` 读回 | **`0xF72`（3842）** —— 它认得 |
+| `SaveCopyAs` 往返后 | slide XML 里 `p159:morph` **仍在** |
+| 两页间的形状差异 | 位置/尺寸/3D 角度不同 → 有可补间的差值 |
+
+所以第 2、3 条旧"证据"也解释通了：
+
+- **"对象模型里没有它"** —— 对，`SlideShowTransition` 只暴露旧式成员，
+  **但这不影响注入**。注入是写 XML，不是设属性。
+- **"按名字设 `EntryEffect = "ppEffectMorph"` 失败"** —— 因为 morph 不是一个
+  可赋值的枚举成员。但**读**得回来：正确写入后 PowerPoint 报 `0xF72`。
+  **可读 ≠ 可写**，旧结论把这两件事混为一谈了。
+
+### 20.4 Morph 的匹配规则（来自两份 material 模板）
+
+morph 跨两页配对形状，**按形状名/id 匹配**，然后补间差异。所以做动效的方式是：
+
+1. 把第 1 页整页复制成第 2 页（形状名与 id 保持一致）；
+2. 在第 2 页改动形状的 **位置 / 尺寸 / 旋转 / 3D 相机角度**；
+3. 给**第 2 页**（被进入的那页）加 `p159:morph`。
+
+`material/template1` 就是这么做的：同一个 `图片 8`，
+第 1 页 `camera lat="0"`、第 2 页 `camera lat="17400000"`（290°），
+其余不变 —— 播放时平面平滑"翻倒"。
+
+### 20.5 仍需注意
+
+- 从 `material/template2` 实测：它的**两页形状几何完全相同**，所以那份文件
+  本身不产生任何补间 —— 它是一份"设计理念说明"，不是可运行范例。
+  **做 morph 必须保证两页之间存在真实差异**，否则什么都不会动。
+- `mc:Fallback` 不能省：WPS / 旧版 PowerPoint / 部分在线预览只认 fallback，
+  没有它时这些环境可能整页切换失效。
 
 ## 21. 3D 相机（`scene3d`）可以被注入，且角度原样保留
 
@@ -440,7 +504,10 @@ $pres.SaveAs("out.pptx")             # 然后读 out.pptx 里它写了什么
 
 ## 22. 判断"不支持"之前，先排除"我写错了"
 
-§19 和 §20 是同一个教训的两面，值得单独留一条：
+§19 和 §20 是同一个教训的两面，值得单独留一条。
+**而 §20 后来被证明正是这个坑的实例** —— 它把"元素名写错"（`p:morph`
+应为 `p159:morph`）判成了版本不支持，直到拿到 PowerPoint 自己写的 morph 文件
+（`material/template1`、`template2`）才纠正。**所以这一条不是抽象原则，是踩过的。**
 
 遇到「元素写进去、保存后消失」，**不要立刻下结论说是版本不支持**。
 两个成因的症状完全一样，但处理方式相反：

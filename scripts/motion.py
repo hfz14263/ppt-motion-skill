@@ -589,10 +589,46 @@ def add_root_namespace(xml, prefix, uri):
     return xml[:head.start()] + new_tag + xml[head.end():]
 
 
-def build_transition(name, duration=None, advance_after=None, on_click=None):
+# Morph (平滑) is NOT a simple <p:transition> child: it lives in the p159
+# extension namespace and must be wrapped in mc:AlternateContent with an
+# mc:Fallback, otherwise PowerPoint treats it as an unknown element and silently
+# drops it -- which is exactly how it was once misdiagnosed as "unsupported".
+# p14 is declared locally here so no root-namespace fixup is needed.
+MORPH_TEMPLATE = (
+    '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
+    '<mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" '
+    'xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main" Requires="p159">'
+    '<p:transition spd="{spd}" p14:dur="{dur}"{extra}>'
+    '<p159:morph option="{option}"/>'
+    '</p:transition>'
+    '</mc:Choice>'
+    '<mc:Fallback><p:transition spd="{spd}"><p:fade/></p:transition></mc:Fallback>'
+    '</mc:AlternateContent>'
+)
+MORPH_OPTIONS = ("byobject", "byword", "bychar")
+MORPH_SPEEDS = {"slow": "slow", "med": "med", "fast": "fast"}
+
+
+def build_transition(name, duration=None, advance_after=None, on_click=None,
+                     option=None, speed=None):
     key = str(name or "none").strip().lower()
+
+    if key == "morph":
+        opt = str(option or "byObject").strip()
+        if opt.lower() not in MORPH_OPTIONS:
+            raise ValueError("morph option must be one of byObject/byWord/byChar, got %r" % option)
+        opt = {"byobject": "byObject", "byword": "byWord", "bychar": "byChar"}[opt.lower()]
+        ms = int(round(float(duration if duration is not None else 2.0) * 1000))
+        spd = MORPH_SPEEDS.get(str(speed or "slow").lower(), "slow")
+        extra = ""
+        if advance_after:
+            extra += ' advTm="%d"' % int(round(float(advance_after) * 1000))
+        if on_click is False:
+            extra += ' advClick="0"'
+        return MORPH_TEMPLATE.format(dur=ms, option=opt, spd=spd, extra=extra)
+
     if key not in TRANSITIONS:
-        raise ValueError("unknown transition %r; known: %s" % (name, sorted(TRANSITIONS)))
+        raise ValueError("unknown transition %r; known: %s, morph" % (name, sorted(TRANSITIONS)))
     block = TRANSITIONS[key]
     if not block:
         return ""
@@ -607,6 +643,24 @@ def build_transition(name, duration=None, advance_after=None, on_click=None):
     if extra:
         block = block.replace("<p:transition", "<p:transition" + extra, 1)
     return block
+
+
+def drop_alternate_content(xml):
+    """Remove every mc:AlternateContent block (used before re-writing morph)."""
+    while True:
+        m = re.search(r"<mc:AlternateContent(?=[\s/>])", xml)
+        if not m:
+            return xml
+        gt = xml.find(">", m.end())
+        if gt == -1:
+            return xml
+        if xml[gt - 1] == "/":
+            xml = xml[:m.start()] + xml[gt + 1:]
+            continue
+        close = xml.find("</mc:AlternateContent>", gt)
+        if close == -1:
+            return xml
+        xml = xml[:m.start()] + xml[close + len("</mc:AlternateContent>"):]
 
 
 def ensure_content_type(ct_xml, ext):
@@ -843,9 +897,11 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
             if trans is not None:
                 if isinstance(trans, str):
                     trans = {"type": trans}
+                is_morph = str(trans.get("type", "")).strip().lower() == "morph"
                 block = build_transition(trans.get("type", "fade"), trans.get("duration"),
-                                         trans.get("advanceAfter"), trans.get("onClick"))
-                if block and "p14:" in block:
+                                         trans.get("advanceAfter"), trans.get("onClick"),
+                                         trans.get("option"), trans.get("speed"))
+                if block and "p14:" in block and not is_morph:
                     # p14:dur needs the prefix bound on the slide ROOT. Declare it
                     # when we can, else fall back to the pre-2010 transition form
                     # (spd only, no millisecond duration) which every version opens.
@@ -860,6 +916,11 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
                             "transition duration omitted" % idx)
                 new_xml = remove_elements(new_xml, "transition")
                 if block:
+                    if is_morph:
+                        # morph is wrapped in mc:AlternateContent. Drop the whole
+                        # wrapper first, then insert with the "transition" tag so
+                        # SLIDE_CHILD_ORDER still places it before <p:timing>.
+                        new_xml = drop_alternate_content(new_xml)
                     new_xml = replace_or_insert(new_xml, "transition", block)
                 sr["transition"] = trans.get("type", "fade")
                 report["transitioned"] += 1
