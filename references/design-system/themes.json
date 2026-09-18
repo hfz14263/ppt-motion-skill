@@ -1,0 +1,87 @@
+{
+ "source": "https://github.com/acnlie/open-kimi-ppt-skill",
+ "license": "MIT (c) 2026 Binaryify Zhuang",
+ "note": "static layout only; motion governed by references/motion-design-spec.md",
+ "themes": [
+  {
+   "id": "pine-green-strategy",
+   "category": "consulting",
+   "purpose": "深绿科技题头带 + 薄荷强调；战略咨询、尽调、高管汇报，高信息密度",
+   "file": "pine-green-strategy.md",
+   "upstream": "design_system/consulting/pine-green-strategy/design.md",
+   "bytes": 15858
+  },
+  {
+   "id": "indigo-due-diligence",
+   "category": "consulting",
+   "purpose": "靛蓝尽调风；麦肯锡式信息密度与框架图",
+   "file": "indigo-due-diligence.md",
+   "upstream": "design_system/consulting/indigo-due-diligence/design.md",
+   "bytes": 12494
+  },
+  {
+   "id": "black-gold-ledger",
+   "category": "finance",
+   "purpose": "黑金台账风；机构级投研报告、年报",
+   "file": "black-gold-ledger.md",
+   "upstream": "design_system/finance/black-gold-ledger/design.md",
+   "bytes": 16043
+  },
+  {
+   "id": "rice-paper-annual",
+   "category": "finance",
+   "purpose": "宣纸年报风；米白纸感大标题编辑风",
+   "file": "rice-paper-annual.md",
+   "upstream": "design_system/finance/rice-paper-annual/design.md",
+   "bytes": 11761
+  },
+  {
+   "id": "blue-flame-brand",
+   "category": "work",
+   "purpose": "蓝焰品牌风；结论先行的业务复盘、经营汇报",
+   "file": "blue-flame-brand.md",
+   "upstream": "design_system/work/blue-flame-brand/design.md",
+   "bytes": 15410
+  },
+  {
+   "id": "moon-white-imagery",
+   "category": "work",
+   "purpose": "月白影像风；大图叙事 + 经营结论",
+   "file": "moon-white-imagery.md",
+   "upstream": "design_system/work/moon-white-imagery/design.md",
+   "bytes": 14263
+  },
+  {
+   "id": "silk-yellow-magazine",
+   "category": "promotion",
+   "purpose": "丝黄杂志风；高密度杂志编辑排版、品牌刊",
+   "file": "silk-yellow-magazine.md",
+   "upstream": "design_system/promotion/silk-yellow-magazine/design.md",
+   "bytes": 14015
+  },
+  {
+   "id": "silver-gray-luxury-magazine",
+   "category": "promotion",
+   "purpose": "银灰奢华杂志风；高端品牌刊感",
+   "file": "silver-gray-luxury-magazine.md",
+   "upstream": "design_system/promotion/silver-gray-luxury-magazine/design.md",
+   "bytes": 14615
+  },
+  {
+   "id": "paper-white-courseware",
+   "category": "academic",
+   "purpose": "纸白课件风；论文答辩级排版",
+   "file": "paper-white-courseware.md",
+   "upstream": "design_system/academic/paper-white-courseware/design.md",
+   "bytes": 14748
+  },
+  {
+   "id": "wine-red-data",
+   "category": "academic",
+   "purpose": "酒红数据风；学术数据可视化",
+   "file": "wine-red-data.md",
+   "upstream": "design_system/academic/wine-red-data/design.md",
+   "bytes": 14934
+  }
+ ]
+}
