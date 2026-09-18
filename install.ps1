@@ -96,8 +96,43 @@ $ok = $true
 $skillMd = Join-Path $dest 'SKILL.md'
 if (Test-Path $skillMd) {
   $head = Get-Content $skillMd -TotalCount 6
-  if (($head -join "`n") -match 'name:\s*ppt-office-motion') { Say "  SKILL.md frontmatter: OK" }
+  if (($head -join "`n") -match 'name:\s*ppt-office-motion') { Say "  SKILL.md frontmatter: name OK" }
   else { Say "  SKILL.md frontmatter: MISSING name"; $ok = $false }
+
+  # A single unquoted ": " inside a plain scalar breaks the whole frontmatter and
+  # the skill silently disappears from the catalog. That is exactly what happened
+  # once when the description contained "dir: " -- so validate the YAML itself,
+  # not just the presence of the name.
+  $yamlOk = $false
+  $pyForYaml = Get-Command python -ErrorAction SilentlyContinue
+  if ($pyForYaml) {
+    $probe = & $pyForYaml.Source -c @"
+import io, re, sys
+try:
+    import yaml
+except ImportError:
+    print('SKIP'); sys.exit(0)
+raw = io.open(r'$skillMd', encoding='utf-8').read()
+m = re.match(r'^---\r?\n(.*?)\r?\n---', raw, re.S)
+if not m:
+    print('NOFRONT'); sys.exit(0)
+try:
+    d = yaml.safe_load(m.group(1)) or {}
+except Exception as e:
+    print('BAD:' + str(e).replace('\n', ' ')[:160]); sys.exit(0)
+miss = [k for k in ('name', 'description', 'whenToUse') if not d.get(k)]
+print('BAD:missing ' + ','.join(miss) if miss else 'OK')
+"@ 2>$null
+    switch -Regex ($probe) {
+      '^OK'       { Say "  SKILL.md frontmatter: YAML valid, name/description/whenToUse present"; $yamlOk = $true }
+      '^SKIP'     { Say "  SKILL.md frontmatter: YAML check skipped (PyYAML absent)"; $yamlOk = $true }
+      '^NOFRONT'  { Say "  SKILL.md frontmatter: NO --- block found"; $ok = $false }
+      default     { Say ("  SKILL.md frontmatter: {0}" -f $probe); $ok = $false }
+    }
+  } else {
+    Say "  SKILL.md frontmatter: YAML check skipped (no python)"
+    $yamlOk = $true
+  }
 } else { Say "  SKILL.md: MISSING"; $ok = $false }
 
 $catalog = Join-Path $dest 'scripts/motion_catalog.json'
