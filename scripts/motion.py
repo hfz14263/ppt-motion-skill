@@ -291,6 +291,169 @@ def remove_elements(xml, tag):
     return xml
 
 
+# ---------------------------------------------------------------------------
+# singletons: elements that may appear at most once inside their parent
+# ---------------------------------------------------------------------------
+# Every corruption in this project's history has the same shape: an element was
+# INSERTED into a position that already held it. OOXML schema types are largely
+# xsd:sequence with optional members, so a second copy is not "extra" -- it makes the
+# document invalid and PowerPoint refuses to open the file at all (0x80070570, "file or
+# directory is corrupt"), with no hint about which element is at fault.
+#
+# Recorded instances, all found only by opening the file in PowerPoint:
+#   * <p:transition> twice, because python-pptx had written one
+#   * <a:solidFill> beside <a:blipFill>, and fill is an xsd:choice so the FIRST wins
+#   * <a:effectLst/> (empty, self-closing) plus a second one carrying the shadow
+#   * a:rot lat/lon out of range -- a sibling problem, same silent-then-fatal pattern
+#
+# So the rule is: never `s.replace("</p:spPr>", X + "</p:spPr>")`. Use set_singleton,
+# which replaces when the element exists and inserts only when it does not. The
+# helpers below exist because ad-hoc insertion kept looking correct in the XML and
+# failing in PowerPoint.
+def set_singleton(xml, tag, new_block, inside=None, before=()):
+    """Make `tag` appear exactly once, replacing any existing instance.
+
+    Returns (xml, status) with status in {replaced, inserted, no-<parent>}.
+
+    Insert-or-replace, never plain insert: appending to a position that already holds
+    the element makes the document invalid and PowerPoint refuses to open the file,
+    reporting only "file or directory is corrupt". Every corrupted file in this
+    project's history came from that one mistake.
+
+    `inside` scopes the operation to one parent element's span, which matters because a
+    tag such as a:effectLst also occurs in contexts that must not be touched.
+
+    `before` lists the tags this one must precede when it has to be INSERTED. It is only
+    consulted then; an existing element is replaced where it already sits, so its
+    position is never disturbed.
+    """
+    if inside is not None:
+        spans = element_spans(xml, inside)
+        if not spans:
+            return xml, "no-%s" % inside
+        s, e = spans[0]
+        body, status = set_singleton(xml[s:e], tag, new_block, inside=None,
+                                     before=before)
+        return xml[:s] + body + xml[e:], status
+
+    spans = singleton_spans(xml, tag)
+    if spans:
+        s, e = spans[0]
+        out = xml[:s] + new_block + xml[e:]
+        # drop any FURTHER copies: leaving one behind is the entire bug. Removed
+        # back-to-front so the earlier offsets stay valid.
+        for s2, e2 in reversed(spans[1:]):
+            out = out[:s2] + out[e2:]
+        return out, "replaced"
+
+    # absent: place it before the first tag it must precede, else before the closing tag
+    # of THIS element. Falling back to the last "</" in the whole string put the element
+    # at the wrong nesting level, which is silently invalid.
+    at = None
+    for later in before:
+        lm = re.search(r"<%s(?=[\s/>])" % re.escape(later), xml)
+        if lm and (at is None or lm.start() < at):
+            at = lm.start()
+    if at is None:
+        head = re.match(r"<[A-Za-z0-9:]+(?=[\s/>])[^>]*>", xml)
+        if not head:
+            return xml, "no-anchor"
+        close = xml.rfind("</", head.end())
+        at = close if close > 0 else len(xml)
+    return xml[:at] + new_block + xml[at:], "inserted"
+
+
+def singleton_spans(xml, tag):
+    """Spans of a tag in BOTH forms: `<x/>` and `<x>...</x>`.
+
+    element_spans only reports paired forms, so a self-closing `<a:effectLst/>` was
+    invisible to it. That mattered: set_singleton replaced the self-closing copy through
+    its fallback branch and never saw the paired duplicate sitting beside it, so the
+    result still carried two effectLst and PowerPoint still refused the file. Both forms
+    have to be found in one pass or the duplicate survives.
+    """
+    pat = re.compile(r"<%s(?=[\s/>])[^>]*?(/?)>" % re.escape(tag))
+    out = []
+    for m in pat.finditer(xml):
+        if m.group(1) == "/":
+            out.append((m.start(), m.end()))
+            continue
+        close = xml.find("</%s>" % tag, m.end())
+        if close > 0:
+            out.append((m.start(), close + len(tag) + 3))
+    return out
+
+
+def direct_children(body):
+    """Top-level child tag names of one element, ignoring everything nested."""
+    out = []
+    scan = re.compile(r"<(/?)([A-Za-z0-9:]+)([^>]*?)(/?)>")
+    i = body.index(">") + 1
+    end = body.rindex("<")
+    depth = 0
+    while i < end:
+        m = scan.search(body, i)
+        if not m or m.start() >= end:
+            break
+        closing, t, _a, selfclose = m.groups()
+        if closing:
+            depth -= 1
+        elif depth == 0:
+            out.append(t)
+            if not selfclose:
+                depth += 1
+        else:
+            if not selfclose:
+                depth += 1
+        i = m.end()
+    return out
+
+
+# Fill elements are an xsd:choice, not a repeated element: two of them coexisting is
+# invalid even when they have DIFFERENT names, and the first one silently wins. A
+# same-name duplicate check cannot see that, which is how <a:solidFill/> beside
+# <a:blipFill/> survived a "clean" report.
+FILL_GROUP = ("a:noFill", "a:solidFill", "a:gradFill", "a:blipFill", "a:pattFill",
+              "a:grpFill")
+
+
+def find_duplicate_singletons(xml, parent="spPr", tags=None):
+    """Report sequence members that appear more than once, and fill conflicts.
+
+    A structural check for the class of bug that produced every corrupted file here.
+
+    Three mistakes were made getting this right, all recorded because a validator that
+    cannot fail is worse than none:
+      * depth was tracked wrong and the scan checked `depth == 1` for a direct child.
+        Inside spPr the direct children sit at depth 0, so it matched nothing and
+        reported OK on a file PowerPoint rejected.
+      * counting `<p:transition` with a global regex flagged a CORRECT morph as a
+        duplicate, because morph carries two transitions by design -- one in mc:Choice,
+        one in mc:Fallback. Only direct children of p:sld count.
+      * only same-name duplicates were looked for, so two DIFFERENT fills passed. Fills
+        are a choice, so any two of them conflicting is the fault.
+    """
+    if tags is None:
+        tags = ("a:effectLst", "a:effectDag", "a:ln", "a:blipFill", "a:solidFill",
+                "a:noFill", "a:gradFill", "a:pattFill", "a:grpFill", "a:scene3d",
+                "a:sp3d", "a:xfrm")
+    out = []
+    for s, e in element_spans(xml, parent):
+        kids = direct_children(xml[s:e])
+        seen = {}
+        for t in kids:
+            if t in tags:
+                seen[t] = seen.get(t, 0) + 1
+        for t, n in seen.items():
+            if n > 1:
+                out.append((t, n))
+        fills = [t for t in kids if t in FILL_GROUP]
+        if len(fills) > 1:
+            for t in dict.fromkeys(fills):
+                out.append((t, fills.count(t)))
+    return out
+
+
 def sp_tree_block(slide_xml):
     spans = element_spans(slide_xml, "spTree")
     if not spans:
@@ -881,22 +1044,52 @@ def insert_blip_fill(xml, shape_id, fragment):
             ps, pe = sp[0]
             inner = blk[ps:pe]
 
-            # drop any existing fill first
+            # Drop the shape's own fill -- and ONLY its own.
+            #
+            # The obvious implementation scans spPr for the first tag in FILL_TAGS and
+            # cuts it. That is wrong, and it corrupted a deck: `<a:ln>` contains its own
+            # <a:noFill/> for a no-line shape, and `a:noFill` sorts before `a:solidFill`
+            # in the tag list, so the scan removed the LINE's fill and left the shape's
+            # solidFill in place. Two fills in one spPr is an invalid xsd:choice, and
+            # PowerPoint reports the whole file as corrupt (0x80070570).
+            #
+            # The unit test missed it because its fixture had an empty <a:ln></a:ln>.
+            # A test whose input differs from reality in exactly the place the code
+            # looks is not a test.
+            #
+            # So: find fills that are DIRECT children of spPr. The scan starts inside
+            # spPr, so its direct children sit at depth 0 and anything nested goes
+            # positive.
             inner2 = inner
-            removed = False
-            for ft in FILL_TAGS:
-                m = re.search(r"<%s(?=[\s/>])" % re.escape(ft), inner2)
-                if not m:
-                    continue
-                close = inner2.find("</%s>" % ft, m.start())
-                if close > 0:
-                    end = close + len(ft) + 3
+            scan = re.compile(r"<(/?)([A-Za-z0-9:]+)([^>]*?)(/?)>")
+            depth = 0
+            i2 = inner.index(">") + 1
+            end2 = inner.rindex("<")
+            cut = None
+            while i2 < end2:
+                m = scan.search(inner, i2)
+                if not m or m.start() >= end2:
+                    break
+                closing, tag, _a, selfclose = m.groups()
+                if closing:
+                    depth -= 1
+                elif depth == 0:
+                    if tag in FILL_TAGS:
+                        if selfclose:
+                            cut = (m.start(), m.end())
+                        else:
+                            close = inner.find("</%s>" % tag, m.end())
+                            cut = (m.start(), close + len(tag) + 3 if close > 0
+                                   else m.end())
+                        break
+                    if not selfclose:
+                        depth += 1
                 else:
-                    sl = inner2.find("/>", m.start())
-                    end = sl + 2 if sl > 0 else m.start()
-                inner2 = inner2[:m.start()] + inner2[end:]
-                removed = True
-                break
+                    if not selfclose:
+                        depth += 1
+                i2 = m.end()
+            if cut:
+                inner2 = inner[:cut[0]] + inner[cut[1]:]
 
             # index just past the last geometry element, or 0 if there is none
             after_geom = 0

@@ -816,3 +816,59 @@ b = -(picture.y + picture.h - window.y - window.h) / window.h * 100000
 `l=-30000/-190000/-350000`，渲染后三个窗口恰好显示**红/绿/蓝**三条不同色带 ——
 **位置与部位同时正确**。公式的独立推导也已与 PowerPoint 自己写的数值对齐
 （对照见 `tests/test_fill_window.py`）。
+
+## 31. 「往序列里插一个已经存在的元素」—— 本项目**所有**损坏文件都是这一个原因
+
+`0x80070570`（"文件或目录已损坏"）在这个项目里出现过 **六次**，每次都只修表面症状。
+回头数，**六次是同一个错误**：
+
+| # | 重复了什么 | 触发场景 |
+| --- | --- | --- |
+| 1 | `<p:transition>` ×2 | python-pptx 已经写过切换，我又插一个 |
+| 2 | `<a:solidFill>` + `<a:blipFill>` | 填充是 `xsd:choice`，**取第一个**，旧填充没删 |
+| 3 | `useBgFill="1"` 加到**文本框**上 | 全局替换命中不该改的形状 |
+| 4 | `<a:effectLst>` ×2 | 形状已有空的自闭合 `<a:effectLst/>`，我又插一个带阴影的 |
+| 5 | `<p:transition>` ×2（第二次） | 同 1 |
+| 6 | `<a:effectLst>` ×2（第二次） | 同 4 |
+
+**OOXML 的 schema 大多是 `xsd:sequence` + 可选成员，所以第二个副本不是"多余的"，
+而是让文档非法。** 而 PowerPoint **只报"已损坏"，不告诉你哪个元素有错**，
+所以每次都得从零开始猜。
+
+### 规则
+
+**永远不要写 `s.replace("</p:spPr>", X + "</p:spPr>")`。** 用
+`motion.set_singleton()` —— 存在就**替换**，不存在才插入。
+
+```python
+xml, status = motion.set_singleton(xml, "a:effectLst", new_block,
+                                   inside="spPr",          # 限定父元素
+                                   before=("a:scene3d", "a:extLst"))  # 插入时的顺序
+```
+
+### 加了一道闸
+
+```bash
+python scripts/verify_singletons.py --pptx out.pptx
+```
+
+它检查形状属性、幻灯片子元素、切换的重复，**并检查填充冲突**
+（两个不同名的填充并存也非法，只查同名重复是查不出来的）。
+
+### 造这道闸时又犯了三个错，值得单独记
+
+**判据不能自己骗自己 —— 一个"永远报 OK"的检查比没有检查更糟。**
+
+| 错 | 症状 |
+| --- | --- |
+| `motion.element_spans` **自己拼 `p:` 前缀**，要传裸名 `"spPr"`。我传 `"p:spPr"` | 拼成 `<p:p:spPr`，**匹配不到任何东西**，于是在损坏文件上报 OK |
+| 直接子元素判定写成 `depth == 1` | 但 spPr 的直接子元素在 **depth 0**，同样永远匹配不到 |
+| 用全局正则数 `<p:transition` | **把正确的 morph 当成重复** —— morph 本来就有两个 `transition`（`mc:Choice` 一个、`mc:Fallback` 一个） |
+
+前两个都属于同一类：**检查器悄悄匹配不到，然后报"没问题"。**
+所以这个工具的回归测试里，**专门断言"带前缀的名字匹配不到任何东西"** ——
+把陷阱本身写成测试。
+
+**另外 `element_spans` 只认成对标签** `<x>…</x>`，对自闭合 `<x/>` 返回空。
+于是 `set_singleton` 替换了自闭合那份，却看不见旁边的成对副本，重复照样留着。
+现在用 `singleton_spans()` 一次找两种形式。

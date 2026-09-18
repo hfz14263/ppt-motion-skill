@@ -48,7 +48,18 @@ python scripts/review_assist.py --pptx out.pptx --source in.pptx
 
 python scripts/design_audit.py --pptx out.pptx --spec m.yaml
 #   motion-design-spec §6 的五条硬上限 + 时长/切换判据
+
+python scripts/verify_singletons.py --pptx out.pptx
+#   重复的单例元素 —— 本项目**所有**损坏文件都是这一个原因
 ```
+
+**`verify_singletons.py` 为什么必须有**：OOXML 的 schema 大多是 `xsd:sequence` +
+可选成员，往一个已经有该元素的位置再插一个，PowerPoint **只报"文件已损坏"
+（`0x80070570`），不告诉你哪个元素有错**。这类错误在本项目出现过六次，每次都从零猜。
+
+写注入代码时，**不要用 `s.replace("</p:spPr>", X + "</p:spPr>")`** —— 用
+`motion.set_singleton(xml, tag, block, inside="spPr", before=(...))`：
+存在就替换，不存在才插入。
 
 `design_audit.py` 把结果分成三类，**这个分法比任何单条判据都重要**：
 
