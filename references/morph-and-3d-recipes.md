@@ -155,3 +155,65 @@ transition: {type: morph, duration: 2.0, option: byObject}   # option: byObject 
 
 回归测试：`tests/test_morph.py`（20 条断言，覆盖元素名/命名空间/降级/时长/
 选项校验/置于 `<p:timing>` 之前/重复注入不累积/XML 合法性）。
+
+---
+
+## 6. 艺术效果（虚化 / 亮度）—— 也能通过 COM 做
+
+template1 的背景不是一张模糊好的图，而是**图片 + 艺术效果**。它存在
+`<a:blip>` 的扩展里：
+
+```xml
+<a:blip r:embed="rId2">                     <!-- 原始图 -->
+  <a:extLst><a:ext uri="{BEBA8EAE-…}">
+    <a14:imgProps><a14:imgLayer r:embed="rId3">   <!-- 渲染结果（JPEG XR） -->
+      <a14:imgEffect><a14:artisticBlur radius="8"/></a14:imgEffect>
+      <a14:imgEffect><a14:brightnessContrast bright="-40000"/></a14:imgEffect>
+    </a14:imgLayer></a14:imgProps>
+  </a:ext></a:extLst>
+</a:blip>
+```
+
+要点：
+
+- **效果参数在 XML 里**（`radius`、`bright`），但**渲染结果被另存**成一个
+  `.wdp`（JPEG XR）文件，用 `.../2007/relationships/hdphoto` 关系引用。
+  显示的是那个 `.wdp`，原始图保持不动。
+- `bright="-40000"` 是**千分之一百分比**，即 −40%。
+- PIL **读写不了 `.wdp`**（JPEG XR），所以想手写这一层很难。
+
+### 但 COM 能做，不用手写
+
+`Shape.Fill.PictureEffects` **是可用的**，PowerPoint 会自己生成
+`a14:imgLayer` + `.wdp`：
+
+```powershell
+$fx = $shape.Fill.PictureEffects.Insert(2)        # 2 = msoEffectBlur
+for ($i = 1; $i -le $fx.EffectParameters.Count; $i++) {
+  $ep = $fx.EffectParameters.Item($i)
+  if ($ep.Name -eq 'Radius') { $ep.Value = 8 }    # 对应 artisticBlur radius="8"
+}
+$fx2 = $shape.Fill.PictureEffects.Insert(3)       # 3 = msoEffectBrightnessContrast
+for ($i = 1; $i -le $fx2.EffectParameters.Count; $i++) {
+  $ep = $fx2.EffectParameters.Item($i)
+  if ($ep.Name -eq 'Brightness') { $ep.Value = -0.4 }   # 对应 bright="-40000"
+}
+```
+
+实测：写出的 XML 与 template1 **逐字节同构**（同样两个 `imgEffect`、
+同样 `radius="8"` / `bright="-40000"`、同样 `hdphoto` 关系）。
+
+`Insert` 的类型号：`2`=模糊，`3`=亮度/对比度，`4`=混凝土，`5`=粉笔素描。
+参数用**名字**取，不要按下标写死。
+
+### 复现时踩到的两个坑（都会让结果偏离）
+
+1. **别拿 deck 里那张已压暗的图当底图。** template1 存的 `image1.png`
+   平均 RGB 是 `(120,107,71)`，而原图 `template1.PNG` 是 `(209,191,133)` ——
+   前者已经是 −40% 亮度版（`209×0.57≈119`）。再叠一次 −40% 会变成近黑。
+   **要用原图，让效果只作用一次。**
+2. **背景色要跟原件一致。** template1 的 slide **没有 `<p:bg>`**，继承版式的
+   白底；如果自作主张设成黑底，导出会整体偏暗。
+
+改掉这两点后，复现结果与原件**逐像素一致**（平均差 0.08–0.14，
+差异像素 0.03%–0.05%，即渲染噪声级别）。
