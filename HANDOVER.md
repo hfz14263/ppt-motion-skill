@@ -262,7 +262,8 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
 - 改分析器/判据后**必须**用已知答案样本对表
   （`make_calibration.ps1` 生成标定视频；`tests/` 里有回归样本）
-- 提交前跑：`selftest` + `test_morph` + `test_camera` + `smoke` + `privacy_audit`
+- 提交前跑：`selftest` + `test_morph` + `test_camera` + `test_dual_photo` + `smoke` + `privacy_audit`
+  （`test_dual_photo` 是版式校验器「同图双版本」的回归，自带正负对照，不需要 PowerPoint）
 
 ---
 

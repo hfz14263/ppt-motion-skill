@@ -74,6 +74,7 @@ motion-design-spec*，这里沿用。
 | 动效规范审计（机器可判的那半） | `scripts/design_audit.py` |
 | 重复单例检查（**所有损坏的根因**） | `scripts/verify_singletons.py` |
 | 结构 + 几何自证 | `scripts/verify_motion.py` |
+| 「同图双版本」版式校验（底图/前景是否同图、前景是否被拉伸） | `scripts/verify_dual_photo.py` |
 | 从视频量动效的**能力边界** | [`video-analysis-limits.md`](references/video-analysis-limits.md) |
 
 ---
@@ -87,6 +88,7 @@ motion-design-spec*，这里沿用。
 | --- | --- |
 | 挑哪一套风格 | [`design-system/README.md`](references/design-system/README.md) |
 | 让设计系统**可执行**（解析调色板生成页面） | `scripts/design_compose.py` |
+| 造「同图双版本」样例（含故意拉胖的负对照） | `scripts/build_dual_photo.py` |
 | 与 `dsh-ppt-studio` 的对接契约 | [`ppt-studio-integration.md`](references/ppt-studio-integration.md) |
 | 为什么这样分层 | [`architecture.md`](references/architecture.md) |
 
