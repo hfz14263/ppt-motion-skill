@@ -9,13 +9,21 @@ Looks for things that should not ship:
   * third-party vendored content (licence compliance)
   * the user's private material files
 
+Two passes, because the plain text scan cannot see into binaries:
+  * content scan  -- tracked text files
+  * container scan -- decompresses .pptx entries and reads PNG text chunks, so an
+    author name in docProps/core.xml is caught instead of hiding behind SKIP_EXT
+
 Run from anywhere:  python privacy_audit.py [--repo <path>]
 """
 import argparse
 import os
 import re
+import struct
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+import zipfile
 
 # patterns worth flagging in file CONTENT
 CONTENT_RULES = [
@@ -52,6 +60,129 @@ SKIP_EXT = {'.pptx', '.png', '.jpg', '.jpeg', '.mp4', '.gif', '.zip', '.pyc'}
 # This file necessarily contains the very patterns it searches for, so it would
 # always flag itself. Skip it rather than weakening the rules.
 SKIP_FILES = {'privacy_audit.py'}
+
+# --------------------------------------------------------------- containers
+# SKIP_EXT above keeps the *plain text* scan out of binaries -- but that also
+# makes the two places an identity actually hides invisible:
+#
+#   * a .pptx is a ZIP, so an author name in docProps/core.xml is
+#     DEFLATE-compressed and a grep over the file finds NOTHING. It is plainly
+#     visible to anyone who opens the deck in PowerPoint.
+#   * a PNG's pixels are compressed too, so a raw byte search either misses real
+#     text or "finds" random 3-byte coincidences inside IDAT.
+#
+# So containers get their own pass: decompress OOXML entries, and read only the
+# PNG chunks that can genuinely hold text.
+OOXML_EXT = {'.pptx', '.docx', '.xlsx', '.potx', '.ppsx'}
+IMAGE_EXT = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+PNG_TEXT_CHUNKS = {b'tEXt', b'iTXt', b'zTXt', b'eXIf', b'tIME'}
+AUTHOR_TAGS = (
+    '{http://purl.org/dc/elements/1.1/}creator',
+    '{http://schemas.openxmlformats.org/package/2006/metadata/core-properties}lastModifiedBy',
+)
+# Values that legitimately live in docProps and name a *tool*, not a person. Kept
+# separate from ALLOW so that exempting them here cannot weaken the general rules.
+AUTHOR_ALLOW = (
+    re.compile(r'^dsh-ppt-studio$'),
+    re.compile(r'@users\.noreply\.github\.com', re.I),
+)
+
+
+def png_text_chunks(data):
+    """Only the chunks that can hold text. IHDR/gAMA/sRGB/pHYs/IDAT cannot, and
+    scanning IDAT is what produces 'the name appears in my PNG' false alarms."""
+    if data[:8] != b'\x89PNG\r\n\x1a\n':
+        return []
+    out = []
+    off = 8
+    while off + 8 <= len(data):
+        ln = struct.unpack('>I', data[off:off + 4])[0]
+        cname = data[off + 4:off + 8]
+        if cname in PNG_TEXT_CHUNKS:
+            out.append((cname.decode('latin-1'), data[off + 8:off + 8 + ln]))
+        off += 12 + ln
+        if cname == b'IEND':
+            break
+    return out
+
+
+def scan_text(text):
+    """Apply CONTENT_RULES to a chunk of text, honouring ALLOW."""
+    out = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        for label, rx in CONTENT_RULES:
+            if not rx.search(line):
+                continue
+            if any(a.search(line) for a in ALLOW):
+                continue
+            out.append((lineno, label, line.strip()[:110]))
+    return out
+
+
+def author_metadata(rel, text):
+    """A shipped document that names its author.
+
+    Not regex-detectable in general -- a personal name has no shape -- so we read
+    the exact two fields that carry it instead of guessing."""
+    out = []
+    try:
+        root = ET.fromstring(text)
+    except Exception:
+        return out
+    for tag in AUTHOR_TAGS:
+        el = root.find(tag)
+        val = (el.text or '').strip() if el is not None else ''
+        if not val or any(a.search(val) for a in AUTHOR_ALLOW):
+            continue
+        out.append((rel, 0, 'ooxml author metadata', '%s = %s' % (tag.split('}')[-1], val)))
+    return out
+
+
+def iter_container_files(root):
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for fn in filenames:
+            if os.path.splitext(fn)[1].lower() in (OOXML_EXT | IMAGE_EXT):
+                yield os.path.join(dirpath, fn)
+
+
+def audit_containers(root):
+    findings = []
+    for path in iter_container_files(root):
+        ext = os.path.splitext(path)[1].lower()
+        rel = os.path.relpath(path, root).replace('\\', '/')
+        try:
+            blob = open(path, 'rb').read()
+        except Exception:
+            continue
+        if ext in IMAGE_EXT:
+            if ext == '.png':
+                for cname, payload in png_text_chunks(blob):
+                    for ln, label, snip in scan_text(payload.decode('utf-8', 'replace')):
+                        findings.append((rel, ln, 'png %s / %s' % (cname, label), snip))
+            continue
+        try:
+            z = zipfile.ZipFile(path)
+        except Exception as e:
+            findings.append((rel, 0, 'unreadable container', str(e)[:80]))
+            continue
+        for name in z.namelist():
+            try:
+                data = z.read(name)
+            except Exception:
+                continue
+            low = name.lower()
+            if low.endswith('.png'):
+                for cname, payload in png_text_chunks(data):
+                    for ln, label, snip in scan_text(payload.decode('utf-8', 'replace')):
+                        findings.append((rel, ln, 'png %s / %s' % (cname, label), snip))
+            elif low.endswith(('.xml', '.rels')):
+                text = data.decode('utf-8', 'replace')
+                for ln, label, snip in scan_text(text):
+                    findings.append((rel, ln, label, snip))
+                if low == 'docprops/core.xml':
+                    findings += author_metadata(rel, text)
+    return findings
 
 
 def iter_files(root):
@@ -97,9 +228,16 @@ def audit_git(root):
 
         r = subprocess.run(['git', '-C', root, 'log', '--format=%s%n%b'],
                            capture_output=True, text=True, encoding='utf-8', errors='replace')
+        text = r.stdout or ''
         for label, rx in CONTENT_RULES:
-            for m in rx.finditer(r.stdout or ''):
-                line = (r.stdout or '')[:m.start()].split('\n')[-1]
+            for m in rx.finditer(text):
+                # Take the WHOLE line, not just the part before the match: taking
+                # the prefix means the snippet never contains the matched domain,
+                # so no ALLOW pattern can ever match it. That bug made the
+                # noreply-address exemption dead code and reported it as a leak.
+                start = text.rfind('\n', 0, m.start()) + 1
+                end = text.find('\n', m.end())
+                line = text[start:end if end != -1 else len(text)]
                 if not any(a.search(line) for a in ALLOW):
                     out['msg_leaks'].append((label, line.strip()[:100]))
     except Exception as e:
@@ -155,6 +293,18 @@ def main():
             print('        %s' % snip)
     print()
 
+    print('-- container scan (inside .pptx, and PNG text chunks) --')
+    c = audit_containers(root)
+    if not c:
+        print('   CLEAN -- no author metadata, no text chunk carrying an identity')
+        print('   (a byte grep cannot see in here: .pptx is a ZIP, and PNG pixels')
+        print('    are compressed -- this pass decompresses and reads the fields)')
+    else:
+        for path, ln, label, snip in c:
+            print('   [%s] %s' % (label, path))
+            print('        %s' % snip)
+    print()
+
     print('-- git history --')
     g = audit_git(root)
     print('   authors:')
@@ -185,7 +335,7 @@ def main():
             print('   %s: %s' % (os.path.relpath(path, root), m.group(0)))
     print()
 
-    ok = not f and not leaks
+    ok = not f and not leaks and not c
     print('=' * 78)
     print('VERDICT: %s' % ('no leaks found in content' if ok else 'REVIEW THE ITEMS ABOVE'))
     print('=' * 78)

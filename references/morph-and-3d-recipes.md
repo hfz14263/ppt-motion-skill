@@ -123,6 +123,9 @@ powershell -NoProfile -File scripts/motion.ps1 -Pptx out.pptx -OutDir review
 
 ## 4. 从两份 material 模板提取的手法
 
+两份模板**就在仓库里**：`examples/material/`（含当时的逐步作业笔记
+`description1.txt` / `description2.txt`）。下面是反推结果，可以直接对着原文核对。
+
 | 模板 | 手法 | 拆解 |
 | --- | --- | --- |
 | `template1` | 图片 3D 翻倒 | 同一张图两页；第 1 页 `camera lat=0`，第 2 页 `lat=17400000`；两页都加 morph。另含"虚化+亮度校正做背景层、抠人物做前景层"的图层技巧 |
@@ -139,10 +142,14 @@ powershell -NoProfile -File scripts/motion.ps1 -Pptx out.pptx -OutDir review
 
 ## 5. 和 spec 的关系
 
-**Morph 已经纳入 spec**（`build_transition` 支持 `type: morph`）：
+**Morph 和 3D 相机都已纳入 spec。** 两者都是声明式的，不需要手写注入：
 
 ```yaml
 transition: {type: morph, duration: 2.0, option: byObject}   # option: byObject / byWord / byChar
+
+cameras:
+  - {target: LAYER, tilt: 290}                                 # 半自动：只给角度
+  - {target: HERO, prst: perspectiveRelaxed, lat: -70, lon: 10} # 全手动
 ```
 
 **3D 相机已纳入 spec**（`cameras:`，度数为单位）；**窗口化图片填充已纳入 spec**

@@ -72,7 +72,7 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 
 | 文件 | 讲什么 |
 | --- | --- |
-| [`HANDOVER.md`](HANDOVER.md) | **交接文档**:当前能力状态、架构四层、目录地图、三次真实误判、环境依赖与待办 |
+| [`HANDOVER.md`](HANDOVER.md) | **交接文档**:当前能力状态、架构四层、目录地图、四次真实误判、环境依赖与待办 |
 | [`SKILL.md`](SKILL.md) | **操作手册**:分层职责、S0–S8 流程、spec 全文、命令、九条坑 |
 | [`references/architecture.md`](references/architecture.md) | 为什么这样设计:OOXML / COM / 渲染行为的知识构成 |
 | [`references/authoring-rules.md`](references/authoring-rules.md) | 13 条硬约束,每条对应一次真实翻车 + 人眼清单 |
@@ -87,6 +87,7 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | [`references/design-system/README.md`](references/design-system/README.md) | **静态版面**设计系统:内置 10 套(咨询/财务/汇报/推广/学术)+ 上游 34 套按需抓取 |
 | [`references/video-analysis-limits.md`](references/video-analysis-limits.md) | 从视频量动效的**实测能力边界**:起点 ±0.10s、时长 +0.02~+0.16s、哪些测不出 |
 | [`references/review-checklist.md`](references/review-checklist.md) | **交付复核清单**:判据可信度分级(哪条判据已知会骗人)、结构/素材卫生/版面/动效/一致性检查项、交叉验证规则 |
+| [`examples/material/README.md`](examples/material/README.md) | **原始素材**:两份参考模板 + 当时的作业笔记。上面那些结论的推导来源,可用来重新核对 |
 
 ## 找参考素材时先跑一下 `inspect_pptx.py`
 
