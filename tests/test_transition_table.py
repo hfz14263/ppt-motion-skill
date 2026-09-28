@@ -374,6 +374,29 @@ def main():
             check("证据 deck 与形态文档无漂移（数字/方向同源）",
                   not drift, "; ".join(drift[:5]))
 
+        # ⚠️ 这一条是被用户当场骂出来的：
+        #   第一版 deck 贴的是【静态抽帧】，用户说"压根是静态的，看不到动效"。
+        #   抽帧只能证明"某一刻有什么"，证明不了"怎么动" —— 而形态层判的就是运动。
+        #   现在必须真的嵌入 GIF，且 GIF 必须真的在动。
+        check("证据 deck 用循环 GIF（不再贴静态帧）",
+              hasattr(E, "make_gif") and hasattr(E, "gif_motion"),
+              "缺少 GIF 生成/检测函数")
+        check("证据 deck 不再有抽帧函数（grab_frames 已移除）",
+              not hasattr(E, "grab_frames"),
+              "grab_frames 还在，说明回退成了静态版")
+        # 帧数多 ≠ 看得见 —— 必须有可见性阈值，否则又会作出"有 21 帧但不动"的 deck
+        check("证据 deck 有可见性阈值（防止再交静态动画）",
+              isinstance(getattr(E, "MIN_VISIBLE", None), float)
+              and E.MIN_VISIBLE > 0,
+              "MIN_VISIBLE=%s" % getattr(E, "MIN_VISIBLE", None))
+        # 两个 deck 的分工必须写死在代码里，否则 deck1 看不出的效果会又被静音
+        check("证据 deck 知道哪些效果要换 deck2",
+              set(E.DECK2_ONLY) & {"wipe", "fade", "split", "random"},
+              "DECK2_ONLY=%s" % (E.DECK2_ONLY,))
+        bad2 = [s for s in E.DECK2_ONLY
+                if s not in {h["spec"] for h in B.HYPOTHESES}]
+        check("DECK2_ONLY 都是真实 spec", not bad2, str(bad2))
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))

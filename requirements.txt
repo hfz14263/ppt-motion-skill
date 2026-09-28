@@ -13,3 +13,17 @@ PyYAML>=5.1
 # Both degrade gracefully when lxml is absent, but you lose the safety net that
 # catches "well-formed enough for no viewer, but PowerPoint refuses to open".
 lxml>=4.6
+
+# ---- 以下是【证据/测量脚本】才需要的，跑 motion.py 本身不用装 ----
+#
+# python-pptx / Pillow / opencv：build_shape_evidence.py 等生成与读回用。
+#   Pillow 尤其关键 —— 它既把 GIF 交出去，也用来反读"这条动画到底动没动"。
+# opencv-python：逐帧分析（相位相关、质心轨迹），是形态测量的核心仪器。
+python-pptx>=0.6.21
+Pillow>=9.0
+opencv-python>=4.5
+
+# imageio-ffmpeg 只为【生成 GIF】而引入。它自带一份 ffmpeg 二进制，
+# 不依赖系统是否装过 ffmpeg —— 这是选它而不是要求用户先装 ffmpeg 的原因。
+# 缺了它，证据 deck 仍然能生成，只是那几页变成没有动画的空壳。
+imageio-ffmpeg>=0.4
