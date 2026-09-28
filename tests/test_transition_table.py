@@ -345,6 +345,35 @@ def main():
            if s not in {h["spec"] for h in B.HYPOTHESES}]
     check("DECK2_SPECS 都是真实 spec", not bad, "假 spec: %s" % bad)
 
+    # ---- 10. 证据 deck 的断言必须与形态文档同源 ----------------------------
+    # 为什么需要这一组：证据 deck 是给人做"判定 vs 实物"对照用的。如果它引用的
+    # 数字/方向与 reference/transition-shapes.md 对不上，那用户核对的就是一份
+    # 与真正发货内容不同的东西 —— 比不做还糟（用户会以为已核过）。
+    ev = os.path.join(ROOT, "scripts", "build_shape_evidence.py")
+    check("证据 deck 生成器存在", os.path.exists(ev))
+    if os.path.exists(ev):
+        import build_shape_evidence as E
+        check("证据 deck 至少覆盖 6 个族",
+              len({c["family"] for c in E.CLAIMS}) >= 6,
+              "族=%s" % sorted({c["family"] for c in E.CLAIMS}))
+        bad_spec = [c["spec"] for c in E.CLAIMS
+                    if c["spec"] not in {h["spec"] for h in B.HYPOTHESES}]
+        check("证据 deck 的 spec 都是真实效果", not bad_spec, str(bad_spec))
+        if os.path.exists(shapes_doc):
+            text = io.open(shapes_doc, encoding="utf-8").read()
+            drift = []
+            for c in E.CLAIMS:
+                # 断言里出现的每个小数必须逐字出现在文档里
+                for num in re.findall(r"-?\d+\.\d+", c["claim"]):
+                    if num not in text:
+                        drift.append("%s 的数字 %s 文档里没有" % (c["spec"], num))
+                # 方向符号必须同源（用同一套记号，否则读者无法互校）
+                for arrow in ("l→r", "r→l", "t→b", "b→t"):
+                    if arrow in c["claim"] and arrow not in text:
+                        drift.append("%s 的 %s 文档里没有" % (c["spec"], arrow))
+            check("证据 deck 与形态文档无漂移（数字/方向同源）",
+                  not drift, "; ".join(drift[:5]))
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))
