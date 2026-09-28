@@ -281,8 +281,17 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
 - 改分析器/判据后**必须**用已知答案样本对表
   （`make_calibration.ps1` 生成标定视频；`tests/` 里有回归样本）
-- 提交前跑：`selftest` + `test_morph` + `test_camera` + `test_dual_photo` + `smoke` + `privacy_audit`
+- 提交前跑：`selftest` + `test_morph` + `test_camera` + `test_dual_photo` + `smoke`
+  + `privacy_audit` + **`verify_docs`** + **`test_install_manifest`**
   （`test_dual_photo` 是版式校验器「同图双版本」的回归，自带正负对照，不需要 PowerPoint）
+- 后两个是 2026-09-28 复验时才补的，补它们是因为**前六个一项都没报错、问题却真的存在**：
+  - `verify_docs` 新增第 5 条规则：**旧目录名不得作为路径存活**（旧名是复数拼写）。
+    markdown 链接检查看不见 `os.path.join(ROOT, <目录名>, ...)` 这种裸字符串写法 ——
+    2026-09-28 的目录统一就漏了 6 处，只有真跑脚本才暴露
+    （`verify_recipes` 直接 FileNotFoundError）。
+  - `test_install_manifest` 守 `install.ps1` 的复制清单：三层结构后的 `INDEX.md`
+    与 `facts/` **从来没进过清单**，装出去的技能包没有入口页也没有唯一真相源。
+- **教训**：改路径之后，光 grep `旧名/` 不够 —— 要 grep 裸字符串，更要**跑一遍所有脚本**。
 
 ---
 

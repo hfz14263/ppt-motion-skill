@@ -22,8 +22,12 @@ the properties that keep it fixed:
      needs scrolling and paging, it has stopped being an entry point.
   4. FACTS ARE NOT DUPLICATED. A fact is declared canonical in `facts/*.json` via its
      `sources`; a second copy elsewhere is the disease this reorganisation treats.
+  5. NO STALE DIRECTORY NAME. The old plural spelling of `reference/` must not survive
+     as a path. Rule 1 only resolves markdown links; it cannot see
+     `os.path.join(ROOT, "references", "recipes.json")`, which broke on 2026-09-28 and
+     was found only by running the scripts. Both spellings of the path are checked.
 
-Rules 1-3 are mechanical. Rule 4 is reported as ADVISE, not failure: prose legitimately
+Rules 1-3 and 5 are mechanical. Rule 4 is reported as ADVISE, not failure: prose legitimately
 mentions a number while explaining it, and a check that cannot tell a definition from a
 mention would fail on every well-written document. Naming what it cannot decide is the
 point -- see reference/review-checklist.md section 0.
@@ -47,12 +51,24 @@ INDEX_BUDGET = 6000          # characters; ~3500 tokens. Beyond this it stops be
                              # readable in a single pass, which is its whole purpose.
 
 # Directories that are entry-point reachable material and must be linked from INDEX.
-# "references" (plural) was the old name; the 2026-09-28 reorganisation settled on the
+# The plural spelling was the old name; the 2026-09-28 reorganisation settled on the
 # singular. The plural is gone from disk, so listing it would only hide a regression:
-# a file written back into references/ would be silently treated as reachable.
+# a file written back into the plural directory would be silently treated as reachable.
 SCAN_DIRS = ("reference", "facts")
 SKIP_FILES = {"reference/design-system/README.md"}   # linked via its own directory entry
 UPSTREAM = re.compile(r"vendored from|upstream content", re.I)
+
+# Rule 5 (below) greps for these. The plural survives in the wild only as a *path*, and
+# a path can be written two ways: `references/foo.md` (with the slash) or
+# os.path.join(ROOT, "references", "foo.md") (bare, no slash). A rename-by-sed that
+# handles only the first form leaves the second silently broken -- which is exactly what
+# happened on 2026-09-28, and no markdown link check can see it.
+OLD_DIR = re.compile(r"""references/          # with the slash
+                        | ['\"]references['\"]  # bare, as an argument""",
+                     re.X)
+SCAN_EXTS = (".py", ".ps1", ".json", ".md", ".yaml", ".txt")
+# This file has to spell the pattern to detect it, so it would report itself.
+OLD_DIR_SKIP = {"scripts/verify_docs.py"}
 
 
 def read(p):
@@ -128,6 +144,22 @@ def main(argv=None):
                 continue
             advises.append({"rule": "orphan", "file": rel,
                             "note": "INDEX.md 到不了，也没被它链到的文档引用"})
+
+    # ---- 2b. old directory name must not survive as a path ------------------
+    # Python constants like os.path.join(ROOT, "references", "recipes.json") are
+    # invisible to a markdown link checker, so they need their own rule.
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", ".workbuddy")]
+        for f in files:
+            if not f.endswith(SCAN_EXTS):
+                continue
+            rel = os.path.relpath(os.path.join(base, f), ROOT).replace("\\", "/")
+            if rel in OLD_DIR_SKIP:
+                continue
+            for i, line in enumerate(read(rel).splitlines(), 1):
+                if OLD_DIR.search(line):
+                    fails.append({"rule": "old-dir-name", "file": rel, "line": i,
+                                  "text": line.strip()[:80]})
 
     # ---- 3. index size budget ----------------------------------------------
     if len(idx) > INDEX_BUDGET:
