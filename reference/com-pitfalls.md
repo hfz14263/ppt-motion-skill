@@ -1265,3 +1265,83 @@ pptx 的 y 轴**向下增长**：
 我把"把它拉暖"理解成"往上叠暖色"，于是叠加层数越多越好、
 不透明度越高越好。**但暖色叠加是"减法"——它在减去原图的信息。**
 正确做法是**提高源素材里暖色面积占比**（放大取局部），而不是盖一层暖色。
+
+---
+
+## 40. 切换的候选必须**一个一份 deck** —— 合并起来探就没有结论可言
+
+**症状**：把 48 个切换候选合并成一份 97 页的 deck 去探，PowerPoint 报
+`could not open the file`，**一个结论都拿不到**。
+
+**根因**：一个非法的 `<p:transition>` 子元素会让 PowerPoint 拒开**整份文件**
+（同 §26）。48 个候选里只要有一个坏，整份就开不了 —— 而"开不了"不会告诉你
+是哪一个坏的。
+
+**修法**：每个候选一份 2 页 deck，逐份开合。**"PowerPoint 拒开这份"是一等公民的
+结论**，不是要吞掉的异常。
+
+**这条还有第二层**：第一批探测里 48 个**全部**被拒开，包括最普通的 `<p:fade/>`。
+全部拒开就意味着问题**不在候选**，而在构建器 —— 一查是我们自己把 `xmlns:a`
+在 `<p:sld>` 上声明了两次（python-pptx 已经声明过 a/p/r），part 不合法。
+
+> **症状的"粒度"本身就是信息**：一个拒开 = 那个候选有问题；
+> 全部拒开 = 生成它们的那份代码有问题。
+
+---
+
+## 41. `<mc:Fallback>` 不总是 `<p:fade/>` —— core 元素在 Fallback 里**重复自己**
+
+**症状**：16 个 core 切换候选往返后全部被判「被改写」，看起来像 PowerPoint
+不认这些元素。但子元素一个都没变。
+
+**根因**：给 core 元素配了 `<p:fade/>` 作为 Fallback。PowerPoint 的逻辑是
+**core 元素本来就向后兼容，Fallback 应该重复它自己**：
+
+```xml
+<!-- ✗ 写的：Fallback 是 fade -->
+<mc:Choice Requires="p14"><p:transition p14:dur="800"><p:push dir="u"/></p:transition></mc:Choice>
+<mc:Fallback><p:transition><p:fade/></p:transition></mc:Fallback>
+
+<!-- ✓ PowerPoint 保存后：Fallback 是 push 自己 -->
+<mc:Choice Requires="p14"><p:transition p14:dur="800"><p:push dir="u"/></p:transition></mc:Choice>
+<mc:Fallback><p:transition><p:push dir="u"/></p:transition></mc:Fallback>
+```
+
+只有 p14/p15/p159 的子元素才降级成 `<p:fade/>`。
+
+**顺带两条同源的**：
+
+* **每个切换都会被包进 `mc:AlternateContent`**，连 core 的也是 —— 因为 `p14:dur`
+  是 2010 年的属性，PowerPoint 选择包住整个 `<p:transition>` 而不是丢掉时长。
+  以为"只有 morph 需要包"是错的。
+* **PowerPoint 会删掉值等于默认值的属性**：`<p:push dir="l"/>` 存出来是 `<p:push/>`，
+  `<p:split orient="horz" dir="out"/>` 存出来是 `<p:split/>`。无害，但不会留下。
+
+---
+
+## 42. 切换 / 翻转 / 库 / 摩天轮 / 传送带 **缺 `dir` 会被拒开整份文件**
+
+**症状**：`<p14:switch/>`、`<p14:flip/>`、`<p14:gallery/>`、`<p14:ferris/>`、
+`<p14:conveyor/>` 五个裸写全部被拒开。元素名是从 [MS-PPTX] 的 p14 元素表来的，
+看起来完全合理。
+
+**根因**：这五个**必须**带 `dir`。PowerPoint 自己永远写 `dir="l"`。
+
+**关键教训**：**"拒开"只能说这个写法不行，说不出正确的写法是什么。**
+猜名字这条路走到这里就断了 —— 换个名字继续猜是在浪费时间。
+
+**正确的做法（照抄 §23「让 PowerPoint 自己写一遍」）**：造一份每页一个
+`PpEntryEffect` 值的 deck，用 COM 把值逐页设上去、保存、读回 XML。
+PowerPoint 自己给出的就是答案：
+
+```text
+3880  <p14:gallery dir="l"/>      3901  <p14:switch dir="l"/>
+3882  <p14:conveyor dir="l"/>     3905  <p14:flip dir="l"/>
+3899  <p14:ferris dir="l"/>
+```
+
+**枚举扫描还顺手纠正了旧的 COM 枚举表**：旧表把 fade 与 strips 都记成 `0x0A01`、
+push 与 randombar 都记成 `0x0901`。实测是 fade=3849 / strips=2561 /
+push(dir=u)=3855 / zoom(dir=in)=3074 —— 旧表那套 2003 年代的值与本机完全不同。
+
+完整的 48 项对照表见 [`transitions.md`](transitions.md)。

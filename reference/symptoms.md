@@ -141,6 +141,30 @@ python scripts/verify_singletons.py --pptx out.pptx
 
 ---
 
+### §40 切换候选合并成一份 deck → 拒开且无法归因
+
+把 48 个切换候选合并到一份 deck 里探，PowerPoint 报 `could not open the file`，
+**一个结论都拿不到** —— 一个非法子元素就足以拒开整份（同 §26），而"开不了"
+不会告诉你是哪一个坏的。
+
+**一个候选一份 deck**，"这份被拒开"才是可归因的结论。
+
+**症状的粒度本身就是信息**：一个拒开 = 那个候选有问题；**全部**拒开 =
+生成它们的那份代码有问题（第一次探测 48 个全拒，根因是我们自己把 `xmlns:a`
+在 `<p:sld>` 上声明了两次 —— python-pptx 已经声明过 a/p/r）。
+
+<p align="right"><sub>来源 com-pitfalls §40</sub></p>
+
+### §42 切换 / 翻转 / 库 / 摩天轮 / 传送带：裸写会被拒开整份文件
+
+`<p14:switch/>`、`<p14:flip/>`、`<p14:gallery/>`、`<p14:ferris/>`、`<p14:conveyor/>`
+五个裸写全部被拒开。**这五个必须带 `dir`**，PowerPoint 自己永远写 `dir="l"`。
+
+**"拒开"只说明这个写法不行，说不出正确的写法。** 猜名字到此为止 ——
+改用枚举扫描让 PowerPoint 自己写一遍（同 §23 的做法），答案就出来了。
+
+<p align="right"><sub>来源 com-pitfalls §42</sub></p>
+
 ## XML 里有，PowerPoint 不认（静默丢弃）
 
 最隐蔽的一类：文件能打开、不报错、不提示修复，**元素就在 XML 里，但被忽略**。字符串检查、结构检查、lxml 解析**全部会通过**。判据只有一个：**用 PowerPoint 读回**（对象模型 / 真渲染），不要看字符串。
@@ -882,7 +906,6 @@ pptx 的 y 轴向下增长：
 
 <p align="right"><sub>来源 com-pitfalls §39</sub></p>
 
----
 
 ## 往返后效果被吃掉
 
@@ -973,6 +996,27 @@ round-trip census: 153 effect(s) written back, 155 were in the input
 
 ---
 
+---
+
+### §41 core 切换的 Fallback 被 PowerPoint 改掉
+
+16 个 core 切换往返后全被判「被改写」，但子元素一个都没变。原因在 Fallback：
+**core 元素本来就向后兼容，PowerPoint 要求 Fallback 重复它自己**，
+只有 p14/p15/p159 的子元素才降级成 `<p:fade/>`。
+
+```xml
+<mc:Fallback><p:transition><p:fade/></p:transition></mc:Fallback>   <!-- 写的 -->
+<mc:Fallback><p:transition><p:push dir="u"/></p:transition></mc:Fallback>  <!-- 保存后 -->
+```
+
+同源两条：**每个切换都会被包进 `mc:AlternateContent`**（连 core 的也是，因为
+`p14:dur` 是 2010 年属性）；**值等于默认值的属性会被删掉**（`<p:push dir="l"/>` →
+`<p:push/>`）。
+
+完整 48 项对照表见 [`transitions.md`](transitions.md)。
+
+<p align="right"><sub>来源 com-pitfalls §41</sub></p>
+
 ## 工具与环境
 
 与 PowerPoint 无关，是**工具链本身**的坑：编码、解析、断言口径、COM 约束、以及「默认只读」这类安全设计。
@@ -1008,7 +1052,14 @@ lxml 只保证 well-formed。实例：v3（自建 timing）结构校验 OK，Pow
 所以**以写出的 `<p:transition>` 元素为准**，COM 属性只用于复核读数。实测 PowerPoint 会按我们
 写的元素（如 `<p:fade/>`）保存。
 
-<p align="right"><sub>来源 com-pitfalls §7</sub></p>
+**这张表已经不够用了**：它给出的值还是 2003 年代那套，而且**多个元素撞成同一个值**
+（fade 与 strips 都记 `0x0A01`）。枚举扫描量到本机的真实值是
+fade=3849 / strips=2561 / push(dir=u)=3855 / zoom(dir=in)=3074，和上面完全不同。
+
+**48 项界面切换的完整实测对照表见 [`transitions.md`](transitions.md)** ——
+界面名 ↔ PowerPoint 写出的子元素 ↔ 完整 XML 块 ↔ 实测枚举，四列对齐。
+
+<p align="right"><sub>来源 com-pitfalls §7 / §42</sub></p>
 
 ### §9 Office COM 的几个约束
 

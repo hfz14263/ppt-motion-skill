@@ -1,0 +1,72 @@
+{
+ "what": "切换效果层的索引：界面库里一个名字，在【界面】、【OOXML】、【COM 属性模型】三套世界里分别是什么。",
+ "rule": "本文件【不存数据】。48 项实测对照表在 canonical 里，这里只记【跨三套世界的规则】和【哪些结论只有测量能给出、查文档查不到】。",
+ "sources": [
+  {
+   "id": "transition-reference",
+   "canonical_for": "48 个界面切换项、PowerPoint 实际写出的子元素、完整 XML 块、EntryEffect 复核值",
+   "location": "reference/transitions.md",
+   "machine_readable": "scripts/transition_reference.json",
+   "regenerate_with": "python scripts/build_transition_table.py（配合 scripts/probe_transitions.ps1 与 scripts/probe_enum_scan.ps1）",
+   "measured_on": "PowerPoint 16.0 build 17928",
+   "enum_range_scanned": "1..4200，3956 以上无切换"
+  }
+ ],
+ "rules": [
+  {
+   "id": "ui-group-is-not-namespace",
+   "statement": "界面分组 ≠ XML 命名空间。细微组混着 core / p14 / p159；华丽组混着 p15 prstTrans 与 p14；动态内容组全是 p14。",
+   "the_trap": "按界面分组去猜元素所在的命名空间，四个组里至少有三个会猜错。",
+   "how_to_verify": "写一个候选，让 PowerPoint 保存一遍，读回来看它留在哪个命名空间",
+   "evidence": "reference/transitions.md §2 规则 1"
+  },
+  {
+   "id": "all-transitions-are-wrapped",
+   "statement": "每个切换最终都包在 mc:AlternateContent 里，连最普通的 core 切换也是。",
+   "why": "p14:dur 是 2010 年的属性，PowerPoint 选择把整个 <p:transition> 包起来，而不是丢掉时长。",
+   "the_trap": "以为只有 morph 需要包 —— 于是手写的 <p:fade/> 虽然能打开，却不是 PowerPoint 自己写的形式。",
+   "evidence": "reference/transitions.md §2 规则 2"
+  },
+  {
+   "id": "fallback-is-not-always-fade",
+   "statement": "mc:Fallback 不总是 <p:fade/>。core 元素在 Fallback 里重复自己；只有 p14/p15/p159 的子元素降级为 fade。",
+   "the_trap": "给 <p:push/> 配 <p:fade/> 的 Fallback：会被接受，但 PowerPoint 保存时改掉 —— 于是往返比对报「被改写」，看起来像 bug 其实只是没按它的规矩写。",
+   "measured": "第一批 48 个候选里有 16 个纯粹因为这个被判「被改写」",
+   "evidence": "reference/transitions.md §2 规则 3"
+  },
+  {
+   "id": "default-valued-attributes-are-deleted",
+   "statement": "PowerPoint 保存时会删掉值等于默认值的属性：<p:push dir=\"l\"/> → <p:push/>，<p:split orient=\"horz\" dir=\"out\"/> → <p:split/>。",
+   "the_trap": "以为写了 dir=\"l\" 就锁定了方向。它没有害处，但也不会留下 —— 想改方向必须写一个非默认值。",
+   "evidence": "reference/transitions.md §2 规则 4"
+  },
+  {
+   "id": "dir-is-mandatory-on-five-p14",
+   "statement": "切换 / 翻转 / 库 / 摩天轮 / 传送带 缺 dir 属性会让 PowerPoint 拒开【整份文件】，不是丢掉那一页。",
+   "the_trap": "拒开无法归因：不知道是元素名错了、还是缺属性、还是别的地方坏了。必须一个候选一份 deck 去探，让「拒开」成为可归因的结论。",
+   "how_to_verify": "枚举扫描：让 PowerPoint 自己写一遍，它永远写 dir=\"l\"",
+   "evidence": "reference/transitions.md §2 规则 5"
+  },
+  {
+   "id": "compare-structure-not-string",
+   "statement": "命名空间声明会挂在不同元素上（AlternateContent / Choice / transition），PowerPoint 还会加多余的 xmlns=\"\"。按字符串比较保存前后的 XML 会报一堆假差异。",
+   "fix": "比较元素结构，不比较文本",
+   "evidence": "reference/transitions.md §2 规则 6"
+  },
+  {
+   "id": "duplicate-xmlns-refuses-whole-deck",
+   "statement": "在 <p:sld> 上重复声明 xmlns 会让 part 不合法，PowerPoint 拒开整份 deck。",
+   "the_trap": "python-pptx 已经在 <p:sld> 上写了 xmlns:a / xmlns:p / xmlns:r，补扩展命名空间时不检查就会重复声明 xmlns:a。症状是「48 个候选全部拒开」，包括最普通的 <p:fade/> —— 这时该怀疑的是构建器，不是候选。",
+   "fix": "只补缺失的前缀",
+   "evidence": "reference/transitions.md §2 规则 7"
+  },
+  {
+   "id": "enum-cannot-establish-mapping",
+   "statement": "SlideShowTransition.EntryEffect 无法建立「界面名 → 元素」的映射。",
+   "why": "它是 2003 年代的枚举，本机映射与直觉差很远（0x0A01 名曰 fade 实际产出 <p:strips/>），而且多个元素会读回同一个值。",
+   "measured": "本机实测：fade=3849、strips=2561、push(dir=u)=3855、push(dir=l)=3853、zoom(dir=in)=3074、wipe=2817 —— 与旧表里 0x0A01/0x0901/0x0C01 那套完全不同，且旧表让 fade 与 strips 撞成同一个值",
+   "use_it_for": "只用于复核「这一页有没有切换」，不要拿它去同步",
+   "evidence": "reference/mso-primitives.md §5"
+  }
+ ]
+}

@@ -85,25 +85,35 @@ OOXML —— 那会让你得到完全不同的效果,而且结构校验全过。
 
 ## 5. 切换效果
 
-**以写出的 `<p:transition>` 元素为准。** COM 的
-`SlideShowTransition.EntryEffect` 枚举在本机与元素**不一致**
-（`0x0A01` 实际产出 `<p:strips/>`），所以它只用于复核读数，**不要用它去"同步"**。
+**完整对照表在 [`transitions.md`](transitions.md),这里只留结论与判据。**
 
-| spec 名 | 写出元素 | COM 复核枚举 |
+那张表是**实测**的（本机的 PowerPoint 上一项一项量出来），不是从规范抄的。
+它覆盖界面库里全部 48 项 + `motion.py` 的 14 个 spec，给出每一项 PowerPoint
+真正写出的子元素、完整 XML 块、以及 COM 复核枚举。
+
+**为什么 COM 枚举不能拿来做映射**：`SlideShowTransition.EntryEffect` 是 2003 年代的
+枚举，本机映射与直觉差很远（`0x0A01` 名曰 fade，实际产出 `<p:strips/>`），而且
+**多个元素会读回同一个值** —— 下面这张旧表就把 fade 与 strips 撞成了同一个 `0x0A01`，
+push / randombar 撞成同一个 `0x0901`。**这张旧表已作废，仅作教训留存**：
+实测值是 fade=3849、strips=2561、push(dir=u)=3855、zoom(dir=in)=3074。
+
+<details><summary>旧表（已作废，勿用）</summary>
+
+| spec 名 | 写出元素 | 旧 COM 枚举（错） |
 | --- | --- | --- |
 | `fade` | `<p:fade/>` | 0x0A01 |
 | `fadeblack` | `<p:fade thruBlk="1"/>` | 0x0B01 |
 | `push` | `<p:push dir="u"/>` | 0x0901 |
-| `pushleft` | `<p:push dir="l"/>` | 0x0901 |
-| `wipe` | `<p:wipe dir="l"/>` | 0x0801 |
-| `cover` | `<p:cover dir="l"/>` | 0x0C01 |
-| `split` | `<p:split orient="horz" dir="out"/>` | 0x0701 |
-| `zoom` | `<p:zoom dir="in"/>` | 0x0C01 |
-| `dissolve` | `<p:dissolve/>` | 0x0D01 |
 | `strips` | `<p:strips/>` | 0x0A01 |
-| `pull` | `<p:pull/>` | 0x0801 |
-| `randombar` | `<p:randomBar/>` | 0x0901 |
+| … | … | … |
 
-`<p:transition>` 还有两个前缀:**`mc:AlternateContent` 会让 PowerPoint 为一次切换
-写两个 `<p:transition>`**(Choice + Fallback),这是合法的,不是重复。
-位置约束见 [`com-pitfalls.md`](com-pitfalls.md) §12。
+</details>
+
+要用的三条结论：
+
+1. **每个切换都在 `mc:AlternateContent` 里**，`mc:Choice` + `mc:Fallback` 会写出
+   **两个** `<p:transition>`，这是合法的、不是重复。数"有几个切换"要数生效的那个
+   （`motion.py` 的 `active_transition_blocks()`）。
+2. **Fallback 不总是 `<p:fade/>`** —— core 元素在 Fallback 里重复自己，
+   只有 p14/p15/p159 的子元素才降级成 fade。
+3. 位置约束见 [`com-pitfalls.md`](com-pitfalls.md) §12。
