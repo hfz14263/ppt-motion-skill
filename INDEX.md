@@ -108,7 +108,7 @@ motion-design-spec*，这里沿用。
 | **文件正常但结果不对** | [`reference/symptoms.md`](reference/symptoms.md) → 「结果不对」 |
 | **效果被吃掉**（往返后丢失） | [`reference/symptoms.md`](reference/symptoms.md) → 「往返丢失」 |
 | 参数**实测对照表**（相机） | [`camera-reference.md`](reference/camera-reference.md) |
-| **界面切换 ↔ XML** 实测对照表（48 项） | [`transitions.md`](reference/transitions.md) |
+| **页面切换**：48 项实测对照 / 该怎么用 | [`transitions.md`](reference/transitions.md) · [`transition-model.md`](reference/transition-model.md) |
 | 效果**别名 ↔ presetID** | [`facts/symbols.json`](facts/symbols.json) |
 | **界面角度 ↔ lat/lon** | [`facts/axes.json`](facts/axes.json) |
 | 效果与切换的**原始语义** | [`mso-primitives.md`](reference/mso-primitives.md) |

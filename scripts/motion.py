@@ -767,6 +767,11 @@ def add_root_namespace(xml, prefix, uri):
 # mc:Fallback, otherwise PowerPoint treats it as an unknown element and silently
 # drops it -- which is exactly how it was once misdiagnosed as "unsupported".
 # p14 is declared locally here so no root-namespace fixup is needed.
+#
+# NOTE 1 -- both branches share the SAME {spd} token, and {extra} sits in BOTH
+# <p:transition> elements. A duration or an auto-advance that only reaches the
+# Choice branch is invisible here and wrong in the fallback world (WPS / old
+# PowerPoint / online preview) -- see _spd_for_ms.
 MORPH_TEMPLATE = (
     '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
     '<mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" '
@@ -775,11 +780,59 @@ MORPH_TEMPLATE = (
     '<p159:morph option="{option}"/>'
     '</p:transition>'
     '</mc:Choice>'
-    '<mc:Fallback><p:transition spd="{spd}"><p:fade/></p:transition></mc:Fallback>'
+    '<mc:Fallback><p:transition spd="{spd}"{extra}>'
+    '<p:fade/></p:transition></mc:Fallback>'
     '</mc:AlternateContent>'
 )
 MORPH_OPTIONS = ("byobject", "byword", "bychar")
 MORPH_SPEEDS = {"slow": "slow", "med": "med", "fast": "fast"}
+
+# What `spd` means in milliseconds, measured two independent ways.
+#
+#   (1) AS A LENGTH. A transition carrying ONLY spd="" (no p14:dur at all, which
+#       is what mc:Fallback can hold) grows/dissolves for this long
+#       (build_transition_table.py anchordeck -> notch.pptx; the same at 2s and
+#       5s per slide, so it is the transition and not the dwell):
+#             fast ~500ms   med ~767ms   slow ~1000ms
+#
+#   (2) AS A READ-BACK. SlideShowTransition.Duration, after opening an applied
+#       deck, reports 0.8s / 0.6s / 0.9s exactly as written -- the millisecond
+#       survives the round-trip. So spd is NOT a second copy of the duration
+#       competing with it; it is the coarse notch, and p14:dur always wins.
+#
+# FAILURE MODE WORTH KNOWING: PowerPoint recomputes the Choice branch's spd on
+# save. A written `spd="med" p14:dur="800"` comes back as `spd="slow"` with the
+# 800ms intact -- it rounds the duration to its nearest notch, and 0.8s is
+# closer to 1.0s than to 0.767s. Nothing is refused, nothing is lost, and every
+# structural check still passes; a round-trip diff just shows spd moving.
+#   * writing spd="800" instead makes PowerPoint REFUSE the whole deck
+#     (HRESULT E_FAIL) -- do not reach for the numeric form because a morph's
+#     saved spd happens to be numeric; that one comes out of a COM value in
+#     SECONDS on a different element.
+SPD_NOTCH_MS = (("fast", 500.0), ("med", 767.0), ("slow", 1000.0))
+
+
+def _spd_for_ms(ms, speed=None):
+    """Pick the spd notch closest to a millisecond duration.
+
+    `p14:dur` is the field that actually drives the render, so this only has to
+    be honest in the one place p14:dur cannot reach: mc:Fallback, where spd IS
+    the duration. Picking the nearest measured notch keeps the two branches
+    telling the same story there.
+
+    An explicit `speed` wins -- then the caller is asking for a label by name,
+    and the notch values are the ones in SPD_NOTCH_MS.
+    """
+    if speed:
+        return _spd_for_label(speed)
+    return min(SPD_NOTCH_MS, key=lambda kv: abs(kv[1] - ms))[0]
+
+
+def _spd_for_label(speed):
+    got = MORPH_SPEEDS.get(str(speed).strip().lower())
+    if got is None:
+        raise ValueError("speed must be slow/med/fast, got %r" % speed)
+    return got
 
 
 def build_transition(name, duration=None, advance_after=None, on_click=None,
@@ -792,7 +845,7 @@ def build_transition(name, duration=None, advance_after=None, on_click=None,
             raise ValueError("morph option must be one of byObject/byWord/byChar, got %r" % option)
         opt = {"byobject": "byObject", "byword": "byWord", "bychar": "byChar"}[opt.lower()]
         ms = int(round(float(duration if duration is not None else 2.0) * 1000))
-        spd = MORPH_SPEEDS.get(str(speed or "slow").lower(), "slow")
+        spd = _spd_for_ms(ms, speed)
         extra = ""
         if advance_after:
             extra += ' advTm="%d"' % int(round(float(advance_after) * 1000))
@@ -805,19 +858,24 @@ def build_transition(name, duration=None, advance_after=None, on_click=None,
     block = TRANSITIONS[key]
     if not block:
         return ""
-    # p14:dur is the millisecond-accurate duration. The measured block declares
-    # xmlns:p14 itself, so there is no root-namespace fixup to attempt here and
-    # no case where the duration has to be dropped.
-    ms = int(round(float(duration if duration is not None else 0.7) * 1000))
-    block = block.format(spd="med", dur=' p14:dur="%d"' % ms)
+    # `extra` (advTm / advClick) has to be merged BEFORE .format() runs, not
+    # pasted in afterwards. Pasting first and formatting second is invisible
+    # until extra is set: the literal "{spd}" then lives in the element that
+    # the paste hit, gets replaced with a non-attribute string, and the file
+    # PowerPoint writes back carries the previous spd. Nothing raises.
     extra = ""
     if advance_after:
         extra += ' advTm="%d"' % int(round(float(advance_after) * 1000))
     if on_click is False:
         extra += ' advClick="0"'
-    if extra:
-        block = block.replace("<p:transition", "<p:transition" + extra, 1)
-    return block
+    # p14:dur is the millisecond-accurate duration. The measured block declares
+    # xmlns:p14 itself, so there is no root-namespace fixup to attempt here and
+    # no case where the duration has to be dropped. `extra` is merged into BOTH
+    # branches (there is no count=1 here) so an auto-advance is not a
+    # 2010-only feature.
+    ms = int(round(float(duration if duration is not None else 0.7) * 1000))
+    return block.replace("<p:transition", "<p:transition" + extra).format(
+        spd=_spd_for_ms(ms, speed), dur=' p14:dur="%d"' % ms)
 
 
 def drop_alternate_content(xml):

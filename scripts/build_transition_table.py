@@ -216,6 +216,7 @@ MOTION_SPECS = [
 DUR_MS = 800          # long enough to see, short enough for clean boundaries
 PROBE_SPD = "slow"    # what the probe writes; parameterised back out in table
 SLIDE_SECONDS = 2     # CreateVideo DefaultSlideDuration
+FPS = 30              # must match what probe_anchor.ps1 exports at
 
 # Every rule here was measured, not read out of a spec. They travel with the
 # table because a table of element names without them invites exactly the
@@ -699,6 +700,251 @@ def cmd_table(report, scans, out):
 
 
 # --------------------------------------------------------------------------
+# anchordeck: does a <p:transition> written on slide N drive N-1 -> N?
+# --------------------------------------------------------------------------
+# Two claims every user of the table makes, and neither had been measured:
+#
+#   A. A transition is written on the slide it ANIMATES INTO. So it lives on
+#      slide N and drives N-1 -> N. Writing it on slide 1 should do nothing
+#      visible. Prove it with rendered frames, not with the XML: the XML is
+#      there either way, so "the file contains it" proves nothing.
+#   B. <p:transition> takes exactly ONE child. So morph and push cannot both be
+#      in force -- they compete for the same slot. (This is what decides whether
+#      "shape deformation AND whole-page movement" is even expressible.)
+#
+# The anchor deck puts an 800ms push on slide 1 and an 800ms wipe on slide 3,
+# leaving slide 2 empty. Rendered at 30fps with 2s per slide the boundaries sit
+# near frames 60 and 120. If (A) holds there is a multi-frame change burst only
+# at the second boundary; the first is a one-frame hard cut.
+def _flat_deck(path, labels, blocks, dur=DUR_MS):
+    from pptx import Presentation
+    from pptx.util import Pt, Emu
+    from pptx.dml.color import RGBColor
+
+    prs = Presentation()
+    prs.slide_width = Emu(9144000)
+    prs.slide_height = Emu(5143500)
+    blank = prs.slide_layouts[6]
+    palette = [(200, 60, 60), (60, 150, 90), (60, 80, 190), (190, 150, 40)]
+    for i, text in enumerate(labels):
+        s = prs.slides.add_slide(blank)
+        r = s.shapes.add_shape(1, 0, 0, prs.slide_width, prs.slide_height)
+        r.fill.solid()
+        r.fill.fore_color.rgb = RGBColor(*palette[i % len(palette)])
+        r.line.fill.background()
+        r.shadow.inherit = False
+        tb = s.shapes.add_textbox(Pt(60), Pt(60), prs.slide_width - Pt(120),
+                                  prs.slide_height - Pt(120))
+        tf = tb.text_frame
+        tf.text = text
+        tf.paragraphs[0].font.size = Pt(240)
+        tf.paragraphs[0].font.bold = True
+    prs.save(path)
+
+    assigned = {}
+    buf = io.BytesIO(open(path, "rb").read())
+    out = io.BytesIO()
+    with zipfile.ZipFile(buf) as zin, zipfile.ZipFile(
+            out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            m = re.fullmatch(r"ppt/slides/slide(\d+)\.xml", item.filename)
+            if m and int(m.group(1)) in blocks:
+                data = _slide_xml(data, blocks[int(m.group(1))])
+                assigned[int(m.group(1))] = blocks[int(m.group(1))]
+            zout.writestr(item, data)
+    open(path, "wb").write(out.getvalue())
+    return assigned
+
+
+def cmd_anchordeck(out_dir):
+    """Two decks that can FALSIFY claim A, plus one that probes claim B.
+
+    anchor.pptx -- three slides, a push written on slide 2 ONLY.
+        A holds  -> change burst at boundary 1 (1->2), hard cut at boundary 2.
+        A is wrong (transition drives the page it is written on OUT) ->
+        hard cut at boundary 1, burst at boundary 2.
+    first.pptx  -- two slides, a wipe written on slide 1 ONLY.
+        A holds  -> no burst anywhere: slide 1 has no predecessor to move from.
+        A is wrong -> burst at the single boundary.
+    twochild.pptx -- one <p:transition> holding two children at once (claim B).
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    tr_push = wrap_transition("core", '<p:push dir="u"/>', dur=DUR_MS)
+    tr_wipe = wrap_transition("core", '<p:wipe dir="l"/>', dur=DUR_MS)
+
+    anchor = os.path.join(out_dir, "anchor.pptx")
+    got = _flat_deck(anchor, ["1", "2", "3"], {2: tr_push})
+    json.dump({"case": "transition written on slide 2 only",
+               "transitions_on": sorted(got), "dur_ms": DUR_MS, "fps": FPS,
+               "expected_boundary_frames": [1 * SLIDE_SECONDS * 30,
+                                            2 * SLIDE_SECONDS * 30],
+               "prediction": ("A: burst at boundary 1, hard cut at boundary 2 / "
+                              "not-A: hard cut at 1, burst at 2")},
+              io.open(os.path.join(out_dir, "anchor.manifest.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+
+    first = os.path.join(out_dir, "first.pptx")
+    got1 = _flat_deck(first, ["1", "2"], {1: tr_wipe})
+    json.dump({"case": "transition written on slide 1 only",
+               "transitions_on": sorted(got1), "dur_ms": DUR_MS, "fps": FPS,
+               "expected_boundary_frames": [SLIDE_SECONDS * 30],
+               "prediction": "A: no burst at all / not-A: burst at boundary 1"},
+              io.open(os.path.join(out_dir, "first.manifest.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+
+    # Claim B: two children competing for the one slot.
+    two = os.path.join(out_dir, "twochild.pptx")
+    both = ('<mc:AlternateContent xmlns:mc="%s" xmlns:p159="%s" xmlns:p14="%s">'
+            '<mc:Choice Requires="p159">'
+            '<p:transition spd="slow" p14:dur="%d">'
+            '<p:push dir="u"/><p159:morph option="byObject"/>'
+            '</p:transition></mc:Choice>'
+            '<mc:Fallback><p:transition spd="slow"><p:fade/></p:transition>'
+            '</mc:Fallback></mc:AlternateContent>'
+            ) % (NS["mc"], NS["p159"], NS["p14"], DUR_MS)
+    _flat_deck(two, ["one slot", "two children"], {2: both})
+
+    # Same claim with two core children, to show it is not a p159 peculiarity.
+    twoc = os.path.join(out_dir, "twochild_core.pptx")
+    both_c = ('<mc:AlternateContent xmlns:mc="%s" xmlns:p14="%s">'
+              '<mc:Choice Requires="p14">'
+              '<p:transition spd="slow" p14:dur="%d">'
+              '<p:push dir="u"/><p:wipe dir="l"/>'
+              '</p:transition></mc:Choice>'
+              '<mc:Fallback><p:transition spd="slow"><p:fade/></p:transition>'
+              '</mc:Fallback></mc:AlternateContent>'
+              ) % (NS["mc"], NS["p14"], DUR_MS)
+    _flat_deck(twoc, ["one slot", "two children"], {2: both_c})
+
+    # Claim C: spd (three coarse notches) and p14:dur (exact milliseconds) encode
+    # the SAME quantity. Write them in conflict and see which one the renderer
+    # obeys. slow is ~2s, fast is ~0.5s; the dur values say the opposite.
+    duel = os.path.join(out_dir, "duel.pptx")
+    slow_short = ('<mc:AlternateContent xmlns:mc="%s" xmlns:p14="%s">'
+                  '<mc:Choice Requires="p14">'
+                  '<p:transition spd="slow" p14:dur="200">'
+                  '<p:push dir="u"/>'
+                  '</p:transition></mc:Choice>'
+                  '<mc:Fallback><p:transition spd="slow"><p:fade/>'
+                  '</p:transition></mc:Fallback></mc:AlternateContent>'
+                  ) % (NS["mc"], NS["p14"])
+    fast_long = ('<mc:AlternateContent xmlns:mc="%s" xmlns:p14="%s">'
+                 '<mc:Choice Requires="p14">'
+                 '<p:transition spd="fast" p14:dur="1500">'
+                 '<p:wipe dir="l"/>'
+                 '</p:transition></mc:Choice>'
+                 '<mc:Fallback><p:transition spd="fast"><p:fade/>'
+                 '</p:transition></mc:Fallback></mc:AlternateContent>'
+                 ) % (NS["mc"], NS["p14"])
+    _flat_deck(duel, ["1", "2", "3"], {2: slow_short, 3: fast_long})
+    json.dump({"case": "spd vs p14:dur in conflict",
+               "transitions_on": [2, 3], "dur_ms": DUR_MS, "fps": FPS,
+               "expected_boundary_frames": [60, 120],
+               "prediction": ("dur wins -> ~6 frames at boundary 1, ~45 at 2 / "
+                              "spd wins -> ~60 frames at boundary 1, ~15 at 2")},
+               io.open(os.path.join(out_dir, "duel.manifest.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+
+    # Claim C follow-up: the Choice branch obeys milliseconds, but mc:Fallback
+    # carries NO p14:dur -- a 2010 attribute cannot appear in the fallback world.
+    # There the only knob is spd, so "how long is slow/med/fast" decides what old
+    # PowerPoint / WPS / online preview actually show. One element, three notches.
+    notch = os.path.join(out_dir, "notch.pptx")
+    ns_rows = []
+    for k, spd in enumerate(("slow", "med", "fast")):
+        ns_rows.append('<p:transition spd="%s"><p:dissolve/></p:transition>' % spd)
+    _flat_deck(notch, ["1", "2", "3", "4"], {2: ns_rows[0], 3: ns_rows[1],
+                                             4: ns_rows[2]})
+    json.dump({"case": "spd notches with NO p14:dur (the fallback world)",
+               "transitions_on": [2, 3, 4], "fps": FPS,
+               "expected_boundary_frames": [60, 120, 180],
+               "prediction": "burst length per notch = its millisecond value"},
+              io.open(os.path.join(out_dir, "notch.manifest.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("anchordeck -> %s" % out_dir)
+    print("  anchor.pptx   3 页，只有第 2 页写 push   <- 能否扭转「写在哪页」")
+    print("  first.pptx    2 页，只有第 1 页写 wipe   <- 第一页有没有得可动")
+    print("  twochild.pptx      push + morph 同槽（扩展 vs p159）")
+    print("  twochild_core.pptx push + wipe  同槽（两个都是 core）")
+    print("  duel.pptx     3 页，第 2/3 页故意让 spd 与 p14:dur 打架")
+    print("  notch.pptx    4 页，slow/med/fast 只写 spd、不写 p14:dur（降级世界）")
+    return 0
+
+
+# --------------------------------------------------------------------------
+# anchors: where did the rendered frames actually change?
+# --------------------------------------------------------------------------
+def cmd_anchors(video, manifest):
+    import cv2
+    import numpy as np
+
+    man = _load_json(manifest)
+    cap = cv2.VideoCapture(video)
+    frames = []
+    while True:
+        ok, f = cap.read()
+        if not ok:
+            break
+        frames.append(f)
+    cap.release()
+    gray = [cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in frames]
+    d = [0.0] + [float(np.mean(cv2.absdiff(gray[i], gray[i - 1])))
+                 for i in range(1, len(frames))]
+
+    fps = man.get("fps", 30)
+    # A global absdiff threshold misses slow reveals: a 1.5s wipe moves an EDGE,
+    # so per frame only ~2% of the pixels change and the mean stays under noise.
+    # These probe decks are flat single-colour fills, so asking "did the average
+    # colour move at all" has no such blind spot. Signature = rounded mean BGR.
+    sig = []
+    for f in frames:
+        m = f.mean(axis=(0, 1))
+        sig.append((round(float(m[0]), 1), round(float(m[1]), 1),
+                    round(float(m[2]), 1)))
+    changed = [i for i in range(1, len(sig)) if sig[i] != sig[i - 1]]
+    if not changed:
+        print("== %d 帧；全程无任何变化 ==" % len(frames))
+        return 0
+    events = []
+    s = p = changed[0]
+    for i in changed[1:]:
+        if i == p + 1:
+            p = i
+        else:
+            events.append((s, p))
+            s = p = i
+    events.append((s, p))
+
+    bounds = man.get("expected_boundary_frames") or []
+    print("== %s：%d 帧 ==" % (os.path.basename(video), len(frames)))
+    print("  用例：%s" % man.get("case", ""))
+    print("  预期：%s" % man.get("prediction", ""))
+    print("  预期页边界 @%dfps：%s" % (fps, bounds))
+    print()
+    print("  %-14s %-6s %-8s %-10s %s" % (
+        "帧区间", "帧数", "毫秒", "判定", "落在"))
+    for a, b in events:
+        n = b - a + 1
+        ms = n * 1000.0 / fps
+        if n <= 2:
+            kind = "硬切"
+        elif abs(ms - man.get("dur_ms", -1)) < 200:
+            kind = "过渡 burst"
+        else:
+            kind = "多帧变化"
+        near = ""
+        for k, bf in enumerate(bounds):
+            if a - 2 <= bf <= b + 2:
+                near = "边界 %d（第%d页→第%d页）" % (k + 1, k + 1, k + 2)
+        if not near:
+            near = "放映起步" if a <= 3 else "非页边界"
+        print("  %-14s %-6d %-8.0f %-10s %s" % (
+            "%d–%d" % (a, b), n, ms, kind, near))
+    return 0
+
+
+# --------------------------------------------------------------------------
 # video: one combined deck, for the rendering pass
 # --------------------------------------------------------------------------
 def cmd_video(case_dir, out_dir, out_pptx):
@@ -847,6 +1093,11 @@ def main(argv=None):
     t.add_argument("report")
     t.add_argument("out")
     t.add_argument("--scans", nargs="+", required=True)
+    ad = sub.add_parser("anchordeck")
+    ad.add_argument("out_dir")
+    an = sub.add_parser("anchors")
+    an.add_argument("video")
+    an.add_argument("manifest")
     ns = ap.parse_args(argv)
     if ns.cmd == "build":
         return cmd_build(ns.case_dir)
@@ -860,6 +1111,10 @@ def main(argv=None):
         return cmd_video(ns.case_dir, ns.out_dir, ns.out_pptx)
     if ns.cmd == "table":
         return cmd_table(ns.report, ns.scans, ns.out)
+    if ns.cmd == "anchordeck":
+        return cmd_anchordeck(ns.out_dir)
+    if ns.cmd == "anchors":
+        return cmd_anchors(ns.video, ns.manifest)
     return cmd_sheets(ns.video, ns.out_dir, ns.want)
 
 

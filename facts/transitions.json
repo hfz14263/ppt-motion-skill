@@ -10,6 +10,14 @@
    "regenerate_with": "python scripts/build_transition_table.py（配合 scripts/probe_transitions.ps1 与 scripts/probe_enum_scan.ps1）",
    "measured_on": "PowerPoint 16.0 build 17928",
    "enum_range_scanned": "1..4200，3956 以上无切换"
+  },
+  {
+   "id": "transition-model",
+   "canonical_for": "切换的机制层：挂在终点页（渲染帧实测）、一个槽位、spd 与 p14:dur 谁生效、快慢中三档的实际毫秒、为什么它看不见形状",
+   "location": "reference/transition-model.md",
+   "regenerate_with": "python scripts/build_transition_table.py anchordeck <dir>；powershell -NoProfile -File scripts/probe_anchor.ps1 -Dir <dir>；python scripts/build_transition_table.py anchors <video> <manifest>",
+   "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p",
+   "replication": "每个时长结论都在「每页停留 2s」与「5s」两种设置下各测一遍并互相复核"
   }
  ],
  "rules": [
@@ -67,6 +75,46 @@
    "measured": "本机实测：fade=3849、strips=2561、push(dir=u)=3855、push(dir=l)=3853、zoom(dir=in)=3074、wipe=2817 —— 与旧表里 0x0A01/0x0901/0x0C01 那套完全不同，且旧表让 fade 与 strips 撞成同一个值",
    "use_it_for": "只用于复核「这一页有没有切换」，不要拿它去同步",
    "evidence": "reference/mso-primitives.md §5"
+  },
+  {
+   "id": "transition-anchors-on-the-target-page",
+   "statement": "<p:transition> 写在第 N 页，动的是「进入第 N 页」（N-1 → N），不是「离开第 N 页」。",
+   "why_it_matters": "写错页不报错，效果是整体往前挪一个边界：想让第 5→6 页动画化却写在第 5 页，会得到 5→6 硬切、4→5 意外动起来。",
+   "the_trap": "两种说法下「切换在第 N 页上」都成立，所以读 XML 什么都不能证明，必须数渲染出来的帧。",
+   "measured": "3 页 deck、只有第 2 页写 push 800ms：burst 62–85 帧 = 24 帧 = 800ms，落在边界 1（1→2）；边界 2（2→3）第 148 帧是单帧硬切",
+   "corollary_first_page": "第 1 页没有前驱页，它的切换只用在放映起步从黑场进入开场那一次（实测渲染出 767ms 的真 wipe），此后真正的第 1→2 边界是硬切",
+   "evidence": "reference/transition-model.md 一、com-pitfalls §43.1"
+  },
+  {
+   "id": "one-transition-one-slot",
+   "statement": "一个 <p:transition> 只接受一个子元素。放两个会让 PowerPoint 拒开整份文件。",
+   "measured": "push+morph 拒开、push+wipe 也拒开 —— 两组都试是为了排除「p159 特有」这种解释",
+   "the_trap": "不是丢一个、也不是留第一个，是整份打不开；与缺 dir 那五个同一类失败，所以还是要一份候选一个 deck 地探。",
+   "consequence": "「整页怎么过去」与「形状怎么形变」抢同一个名额，不可同时表达；页内个体行为只能走 <p:timing>",
+   "evidence": "reference/transition-model.md 二、com-pitfalls §43.2"
+  },
+  {
+   "id": "duration-truth-is-milliseconds",
+   "statement": "spd（三档粗调）与 p14:dur（毫秒）是同一个量的两种写法；并存的条件下听毫秒。",
+   "measured": "spd=\"slow\"+dur=200 → 6 帧 = 200ms；spd=\"fast\"+dur=1500 → 44 帧 = 1467ms",
+   "the_trap": "mc:Fallback 里不可能有 p14:dur（2010 属性），所以 WPS / 旧版 / 在线预览只认 spd —— 写死 spd=\"med\" 会让任何时长在那个世界里塌回 ~767ms。",
+   "fallback_world_ms": "slow≈1000ms、med≈733–767ms、fast≈467–500ms（不是界面上传说的 3s/2s/1s）",
+   "powerpoint_recomputes_spd": "往返会把 mc:Choice 的 spd 按它的粒度重算（写 spd=\"med\"+dur=800，存回 spd=\"slow\"），而 p14:dur 原样保留 —— 看到 spd 变化不等于时长丢了",
+   "how_the_engine_handles_it": "spd 由 duration 就近取档（≤633→fast、634–883→med、≥884→slow）；显式 speed= 被尊重；Fallback 不得携带 p14:dur；附加属性（advTm/advClick）必须与占位符一起合流，否则会写出半成品",
+   "evidence": "reference/transition-model.md 三、com-pitfalls §43.3"
+  },
+  {
+   "id": "transition-cannot-address-a-shape",
+   "statement": "<p:transition> 是 <p:sld> 的直接子元素、与 <p:cSld> 平级，所以在形状容器之外，天生看不见任何形状。",
+   "consequence": "切换只能陈述「整页被怎样替换掉」；「某一个形状怎么动」必须走 <p:timing>。两套机制正交，可同时存在于一页。",
+   "evidence": "reference/transition-model.md 四、reference/architecture.md"
+  },
+  {
+   "id": "frames-not-total-length",
+   "statement": "可从渲染帧断言「某个页边界上有没有 burst、多少毫秒」，不可断言「第 N 页从第几帧开始、全片多长」。",
+   "why": "页边界的实际帧号 = Σ各页停留 + Σ之前所有过渡；而导出总长在同一参数下也 deck 间不一致（同一批里一个被截短 23 帧、另一个完整）。",
+   "detector_caveat": "整帧 absdiff 均值会放过慢速 wipe（只移动一条边），也会把 wipe 读成淡入。判断有没有用「平均色变没变」，判断是哪种要看空间剖面。",
+   "evidence": "reference/transition-model.md 七/八、com-pitfalls §43.5"
   }
  ]
 }

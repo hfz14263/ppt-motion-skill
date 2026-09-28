@@ -165,6 +165,19 @@ python scripts/verify_singletons.py --pptx out.pptx
 
 <p align="right"><sub>来源 com-pitfalls §42</sub></p>
 
+### §43.2 一个 `<p:transition>` 里塞两个子元素 → 拒开整份文件
+
+`<p:push/>` + `<p159:morph/>`、`<p:push/>` + `<p:wipe/>`，两组都拒开。
+**不是丢一个、不是留第一个，是整份打不开** —— 与 §42 同一类失败。
+
+于是「整页怎么过去」只有一个名额：**形状形变与整页位移不能同时表达**，
+页内的个体行为必须走 `<p:timing>`。详见
+[`transition-model.md`](transition-model.md) 二。
+
+<p align="right"><sub>来源 com-pitfalls §43.2</sub></p>
+
+---
+
 ## XML 里有，PowerPoint 不认（静默丢弃）
 
 最隐蔽的一类：文件能打开、不报错、不提示修复，**元素就在 XML 里，但被忽略**。字符串检查、结构检查、lxml 解析**全部会通过**。判据只有一个：**用 PowerPoint 读回**（对象模型 / 真渲染），不要看字符串。
@@ -1224,3 +1237,35 @@ powershell -NoProfile -File scripts/probe_createvideo.ps1
 <p align="right"><sub>来源 com-pitfalls §32</sub></p>
 
 ---
+
+### §43.1 切换效果整体错位一个页边界
+
+**现象**：想让第 5→6 页有切换，写在了第 5 页，结果 5→6 是硬切，
+而 4→5 那一页边界动了起来。
+
+**根因**：`<p:transition>` 挂在**终点页**上 —— 写在第 N 页，动的是「进入第 N 页」。
+spec 里 `slides[].page` 是终点页，不是出发页。
+
+**为什么查不出来**：两种解释下"切换在第 N 页上"都成立，读 XML 一分都分不出来。
+判别必须数渲染帧 —— 3 页 deck、只有第 2 页写 800ms push，
+burst 落在边界 1（1→2）而不是边界 2。详见 [`transition-model.md`](transition-model.md) 一。
+
+**附带**：第 1 页没有前驱，它的切换只用在**放映起步从黑场进入开场**那一次，
+不是"被忽略"；此后真正的第 1→2 边界仍是硬切。
+
+<p align="right"><sub>来源 com-pitfalls §43.1</sub></p>
+
+### §43.3 时长在 WPS / 旧版 / 在线预览里全变成"中等"
+
+**现象**：本机 PowerPoint 里时长完全正确（毫秒级），但换到 WPS 或旧版 PowerPoint
+播放，**任何时长都跑成差不多的 ~0.75 秒**。
+
+**根因**：`p14:dur` 只在 `mc:Choice` 分支里（它需要 2010 命名空间），
+而 `mc:Fallback` 分支**不可能带它**，那里唯一说话的属性是 `spd`（三档）。
+如果生成器把 `spd` 写死成 `"med"`，降级世界的时长就全部塌到 med。
+
+**正确的做法**：让 `spd` 跟着 `duration` 取最接近的档位（显式 `speed=` 优先）。
+三档的实测值是 **slow ≈ 1000ms / med ≈ 767ms / fast ≈ 500ms**
+（不是界面上传说的 3s/2s/1s），由 `tests/test_transition_table.py` 钉住。
+
+<p align="right"><sub>来源 com-pitfalls §43.3</sub></p>

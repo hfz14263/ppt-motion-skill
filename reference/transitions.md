@@ -5,6 +5,11 @@
 本表不是从 ECMA-376 或 MS-PPTX 抄来的，是**在这台机器的 PowerPoint 上量出来的**。
 理由见下面的「为什么必须量」。
 
+> **这张表管「是什么」，不管「怎么用」。**
+> 「切换该写在哪一页」「一次能装几个」「时长听 `spd` 还是 `p14:dur`」
+> 「为什么它碰不到单个形状」—— 这些是机制层，渲染帧给的结论，
+> 见 [`transition-model.md`](transition-model.md)。
+
 - 机器可读：`scripts/transition_reference.json`
 - 重新生成：`python scripts/build_transition_table.py`（配合 `scripts/probe_transitions.ps1`
   与 `scripts/probe_enum_scan.ps1`，两者都需要真实 PowerPoint）

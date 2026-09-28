@@ -30,6 +30,11 @@ LEGACY_SPECS = ("fade", "smoothfade", "fadeblack", "push", "pushleft", "wipe",
 fails = []
 
 
+def _load_json(path):
+    # 这些文件有的是 PowerShell 写的（Set-Content -Encoding UTF8 会带 BOM）。
+    return json.load(io.open(path, encoding="utf-8-sig"))
+
+
 def check(name, ok, detail=""):
     print("  %-58s %s" % (name, "ok" if ok else "FAIL " + detail))
     if not ok:
@@ -138,6 +143,88 @@ def main():
     check("重复注入后仍只有一个生效切换",
           len(M.active_transition_blocks(twice)) == 1,
           str(len(M.active_transition_blocks(twice))))
+
+    # ---- 5. Choice 说毫秒，Fallback 说 spd，两者必须讲同一个故事 --------
+    # 实测（build 17928）：p14:dur 压过 spd；而 mc:Fallback 里**没有** p14:dur
+    # （2010 属性进不了那个世界），所以降级世界里只有 spd 说话。写死 spd="med"
+    # 不但让那里全塌回 ~0.5s，还会被 PowerPoint 当场改写。
+    def spd_of(block):
+        m = re.search(r'spd="(\w+)"', block)
+        return m.group(1) if m else None
+
+    # 取 PowerPoint 自己从 Duration 反算出来的映射（slow>=1000，其余 med/fast）
+    # 就近取档：快≈500 / 中≈767 / 慢≈1000（实测）。三个边界因此落在
+    #   (500+767)/2 = 633.5  和  (767+1000)/2 = 883.5
+    # 也就是：<=633 取 fast，634–883 取 med，>=884 取 slow。
+    expect = [("push", 0.3, "fast"), ("push", 0.5, "fast"), ("push", 0.6, "fast"),
+              ("push", 0.7, "med"), ("push", 0.8, "med"),
+              ("push", 0.9, "slow"), ("push", 2.5, "slow"),
+              ("wipe", 0.63, "fast"), ("wipe", 0.64, "med")]
+    for spec, secs, want in expect:
+        blk = M.build_transition(spec, secs)
+        got = spd_of(blk)
+        check("%s %.1fs -> spd=%s" % (spec, secs, want), got == want,
+              "got %r" % got)
+
+    # Fallback 分支不许带 p14:dur：它需要 xmlns:p14，而 Fallback 的世界正是
+    # 「没有 2010 扩展」的那个世界。
+    blk = M.build_transition("push", 1.2)
+    fb = blk[blk.index("<mc:Fallback"):]
+    check("Fallback 不带 p14:dur", "p14:dur" not in fb)
+    check("Fallback 的 spd 与 Choice 一致", spd_of(fb) == spd_of(blk))
+    check("显式 speed= 会被尊重",
+          spd_of(M.build_transition("wipe", 3.0, speed="fast")) == "fast")
+    try:
+        M.build_transition("wipe", speed="zzz")
+        check("非法 speed 被拒绝", False, "no exception")
+    except ValueError:
+        check("非法 speed 被拒绝", True)
+
+    # ---- 5b. 附加属性必须和占位符一起合流 -------------------------------
+    # 这条踩过：先 replace 再 format，会把 {spd} 插进一个位置上看不见的地方，
+    # 于是最后一个占位符没被替换 —— 只有在**又给 advTm** 时才发作，
+    # 写出的文件里躺着 "spd=""med"" ... {spd}"，而 PowerPoint 会打开它。
+    for spec in ("fade", "push", "wipe", "morph"):
+        x = M.build_transition(spec, 1.5, advance_after=3.0, on_click=False)
+        check("%s: 带 advTm/advClick 后无占位符残留" % spec,
+              "{" not in x and "}" not in x)
+        # 两个分支都要拿到 advTm（否则自动换页只在其中一套环境生效）
+        heads = re.findall(r"<p:transition[^>]*>", x)
+        check("%s: 两个 <p:transition> 都带 advTm" % spec,
+              len(heads) == 2 and all('advTm="3000"' in h for h in heads),
+              str(heads))
+
+    # ---- 6. 机制层文档 + facts 与引擎一致 --------------------------------
+    # 这四条是「渲染出来的帧」给的结论（reference/transition-model.md）。
+    # 它们不靠读代码复核，只能靠真渲染；能在这里钉住的只有"文档还在、
+    # facts 还声明了它、引擎还按结论办事"这三点。
+    model = os.path.join(ROOT, "reference", "transition-model.md")
+    check("机制层文档存在", os.path.exists(model))
+    if os.path.exists(model):
+        text = io.open(model, encoding="utf-8").read()
+        for token, why in (("终点页", "模型①：写在哪页管的是进入哪页"),
+                           ("一个槽位", "模型②：两次子元素会让整份文件拒开"),
+                           ("p14:dur", "模型③：毫秒压过 spd"),
+                           ("1000", "模型③：spd 三档的实测毫秒")):
+            check("机制层文档仍写着「%s」" % why, token in text)
+
+    fx = _load_json(os.path.join(ROOT, "facts", "transitions.json"))
+    ids = {r["id"] for r in fx["rules"]}
+    for want in ("transition-anchors-on-the-target-page", "one-transition-one-slot",
+                 "duration-truth-is-milliseconds",
+                 "transition-cannot-address-a-shape", "frames-not-total-length"):
+        check("facts 仍记着 %s" % want, want in ids)
+    declared = " ".join(s.get("location", "") for s in fx["sources"])
+    check("facts 已声明机制层为唯一真相源",
+          "reference/transition-model.md" in declared)
+
+    # 引擎必须按模型② 办事：切换与动画各占一个位置，互不挤掉对方。
+    both = M.build_transition("push", 0.8)
+    check("切换块写在自己的位置（不含 timing）", "p:timing" not in both)
+    # 模型① 的可测后果：块是"写在哪页"的，所以引擎不该把它写到别页去。
+    # 这里只能核对块本身不含页号 —— 页号由 spec 决定，见 normalize_spec。
+    check("切换块不自带页号（页号来自 spec）",
+          not re.search(r"slide\d", both))
 
     print()
     if fails:
