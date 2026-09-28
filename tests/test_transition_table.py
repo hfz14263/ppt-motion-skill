@@ -312,6 +312,41 @@ def main():
         check("单帧硬切判成 cut", r4 and r4["mode"] == "cut",
               str(r4 and r4.get("mode")))
 
+        # ---- 8b. 旋转指标（第四类）--------------------------------------
+        # 为什么单独测：前三类指标【看不见旋转】—— 一圈扫下来重心回原点、
+        # 不是整页平移、径向剖面又和中心扩散几乎一样。clock 就是这么被错
+        # 归到「中心扩散」、方向还错记成 t->b 的。这是用户目视发现的。
+        def wheel_frames(cw=True, n=14):
+            # 一条从中心射出的扇区，绕中心扫过。cw=False 反向。
+            out = []
+            for k in range(n):
+                f = np.zeros((H, W, 3), np.uint8)
+                a0 = (90 - k * 25) if cw else (90 + k * 25)
+                yy, xx = np.indices((H, W)).astype(np.float32)
+                ang = (np.degrees(np.arctan2(-(yy - H / 2.0), xx - W / 2.0))
+                       + 360.0) % 360.0
+                delta = np.abs(((ang - (a0 % 360) + 180) % 360) - 180)
+                m = delta < 20                      # 当前扫到的那个扇区
+                f[m] = 255
+                out.append(f)
+            return out
+
+        r5 = B._profile_metrics(wheel_frames(cw=True))
+        check("顺时针扫一圈被认成旋转（is_rotation）",
+              r5 and r5.get("is_rotation") is True,
+              "rot_span=%s rot_mono=%s" % (r5 and r5.get("rot_span"),
+                                           r5 and r5.get("rot_mono")))
+        check("旋转指标给出扇区覆盖数（≥12 才算扫过半圈）",
+              r5 and r5.get("rot_span", 0) >= 12,
+              str(r5 and r5.get("rot_span")))
+        # 直线平移绝不能被认成旋转 —— 否则这个指标会污染整页平移族
+        check("平移序列不被误判为旋转",
+              r1 and r1.get("is_rotation") is False,
+              str(r1 and r1.get("is_rotation")))
+        check("静止序列不被误判为旋转",
+              r3 and r3.get("is_rotation") is False,
+              str(r3 and r3.get("is_rotation")))
+
     # ---- 9. 形态层文档 + facts 一致 --------------------------------------
     shapes_doc = os.path.join(ROOT, "reference", "transition-shapes.md")
     check("形态层文档存在", os.path.exists(shapes_doc))
@@ -321,7 +356,9 @@ def main():
                            ("方向揭示", "六族之一：wipe/cover 靠漂移指标认"),
                            ("中心扩散", "六族之一：split/ripple"),
                            ("band_travel", "deck2 用来分开 fade 与 wipe 的判据"),
-                           ("morph", "形态层必须说明 morph 不适用")):
+                           ("morph", "形态层必须说明 morph 不适用"),
+                           ("旋转", "第七族：clock 靠角度轨迹认（用户目视发现）"),
+                           ("角度轨迹", "旋转指标的名字，不能被删掉")):
             check("形态层文档仍写着「%s」" % why, token in text)
         # 48 个效果必须都在表里（避免只写了几族就交差）
         missing = [h["spec"] for h in B.HYPOTHESES
@@ -368,7 +405,7 @@ def main():
                     if num not in text:
                         drift.append("%s 的数字 %s 文档里没有" % (c["spec"], num))
                 # 方向符号必须同源（用同一套记号，否则读者无法互校）
-                for arrow in ("l→r", "r→l", "t→b", "b→t"):
+                for arrow in ("l→r", "r→l", "t→b", "b→t", "l↔r"):
                     if arrow in c["claim"] and arrow not in text:
                         drift.append("%s 的 %s 文档里没有" % (c["spec"], arrow))
             check("证据 deck 与形态文档无漂移（数字/方向同源）",

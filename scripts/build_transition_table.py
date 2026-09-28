@@ -1358,6 +1358,8 @@ def _profile_metrics(frames):
                     "energy": energy.tolist(), "peak_frame": int(hot[0]),
                     "span": 0, "dx": 0.0, "dy": 0.0, "translate": "none",
                     "tx": 0.0, "ty": 0.0, "symmetry_v": 0.0, "symmetry_h": 0.0,
+                    "rot_span": 0, "rot_mono": 0.0, "is_rotation": False,
+                    "ang_trace": [],
                     "radial_profile": [], "coverage": 0.0,
                     "peak_to_mean": 0.0, "band_travel": 0.0,
                     "active_frames": int(hot.size)}
@@ -1365,6 +1367,8 @@ def _profile_metrics(frames):
                 "energy": energy.tolist(), "peak_frame": 0, "span": 0,
                 "dx": 0.0, "dy": 0.0, "translate": "none",
                 "symmetry_v": 0.0, "symmetry_h": 0.0,
+                "rot_span": 0, "rot_mono": 0.0, "is_rotation": False,
+                "ang_trace": [],
                 "radial_profile": [], "active_frames": 0}
     # Strongest run by integrated energy.
     a, b = max(runs, key=lambda r: energy[r[0]:r[1] + 1].sum())
@@ -1495,8 +1499,50 @@ def _profile_metrics(frames):
             return float((idx * c).sum() / (c.sum() + 1e-9)) / max(1, len(c) - 1)
         band_travel = colcen(diffs[dense[-1]]) - colcen(diffs[dense[0]])
 
+    # --- rotation: does the diff sweep around the centre? -------------------
+    # 前三类指标都看不见旋转：一圈扫下来重心回原点（漂移≈0）、不是整页平移
+    # （位移≈0）、径向剖面又和中心扩散几乎一样 —— 结果 clock 被就近塞进
+    # 「中心扩散」，方向还错记成 t->b。这个指标是补上那条缝。
+    #
+    # 做法：绕中心切 24 个 15° 扇区，逐帧取"当前变化最集中的扇区"，
+    # 得到一条角度序列。扫一圈的效果会表现为角度【单调推进】（顺时针递减）。
+    # 判据用"覆盖了多少个不同扇区"+"轨迹的单调性"，避免把随机抖动认成旋转。
+    ang_trace = []
+    if len(dense) >= 4:
+        yy, xx = np.indices((H, W))
+        ang = (np.degrees(np.arctan2(-(yy - (H / 2.0)), xx - (W / 2.0)))
+               + 360.0) % 360.0
+        sec_id = (ang // 15.0).astype(np.int32)          # 0..23
+        for di in dense:
+            dm = diffs[di]
+            tot = float(dm.sum())
+            if tot <= 1e-9:
+                continue
+            per = np.bincount(sec_id.ravel(), weights=dm.ravel(), minlength=24)
+            ang_trace.append(int(per.argmax()) * 15)
+
+    rot_span = 0        # 覆盖过多少个不同扇区
+    rot_mono = 0.0      # 顺时针推进的一致性（0..1）
+    if len(ang_trace) >= 4:
+        rot_span = len(set(ang_trace))
+        # 相邻两步的"顺时针增量"（角度递减），归一化到 [-0.5, 0.5]
+        steps = []
+        for a, b in zip(ang_trace, ang_trace[1:]):
+            d = ((a - b + 180) % 360) - 180           # 正数=顺时针
+            if abs(d) <= 90:                          # 忽略跳变（扇区换错峰）
+                steps.append(d)
+        if steps:
+            pos = sum(1 for s in steps if s > 0)
+            rot_mono = float(pos) / len(steps)
+
+    # 旋转的判据：扫过 ≥12 个扇区（半圈以上）且顺时针一致 ≥0.7。
+    # 门槛取这么高是因为"局部纹理变化"也会零星点亮不同扇区，但那不单调。
+    is_rotation = (rot_span >= 12 and rot_mono >= 0.7)
+
     return {"direction": direction, "dx": round(dx, 3), "dy": round(dy, 3),
             "translate": translate, "tx": round(tx, 3), "ty": round(ty, 3),
+            "rot_span": rot_span, "rot_mono": round(rot_mono, 3),
+            "is_rotation": is_rotation, "ang_trace": ang_trace,
             "symmetry_v": round(float(rv), 3), "symmetry_h": round(float(rh), 3),
             "mode": mode, "radial_profile": [round(x, 3) for x in rp_n],
             "coverage": round(coverage, 3),
