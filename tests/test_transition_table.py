@@ -434,6 +434,104 @@ def main():
                 if s not in {h["spec"] for h in B.HYPOTHESES}]
         check("DECK2_ONLY 都是真实 spec", not bad2, str(bad2))
 
+    # ---- 11. 选择层文档（3b）：判断可以反驳，引用不能漂移 ------------------
+    # 为什么需要这一组：3b 是唯一一层**没有测量支撑**的文档 —— 它给的是设计建议。
+    # 所以它有两种失效方式，都必须钉住：
+    #   ① 建议本身变味（少了某个关系/页型 → 场景字典就残缺了）
+    #   ② 更隐蔽：建议里引用的【实测】数字/方向与形态层对不上。
+    #      这一层的每条 [实测] 都自称"不能反驳"，那就必须真的能回溯到形态层；
+    #      否则读者拿到的是"看起来有证据、其实是我编的" —— 比没有证据更糟。
+    choice_doc = os.path.join(ROOT, "reference", "transition-choice.md")
+    check("选择层文档存在", os.path.exists(choice_doc))
+    if os.path.exists(choice_doc):
+        ctext = io.open(choice_doc, encoding="utf-8").read()
+
+        # ① 场景字典的两个维度必须齐全（缺一个就等于没有字典）
+        for rel, why in (("递进", "关系之一：顺阅读流"),
+                         ("并列", "关系之一：横向对照"),
+                         ("转折", "关系之一：换话题，要断"),
+                         ("回归", "关系之一：反向，闭环"),
+                         ("复位", "关系之一：最常用，无方向")):
+            check("选择层覆盖「%s」关系（%s）" % (rel, why), rel in ctext)
+        for pt in ("封面", "章节", "金句", "要点正文", "数据", "对比",
+                   "流程", "收尾"):
+            check("选择层覆盖「%s」页型" % pt, pt in ctext)
+
+        # ② 两种标记都在 —— 这一层的诚实性全押在"哪些能反驳"上
+        check("选择层声明了 [实测] 标记（引用，不可反驳）", "[实测]" in ctext)
+        check("选择层声明了 ［判断］ 标记（建议，可反驳）", "［判断］" in ctext)
+        # 本层不能改上层的硬约束必须写着
+        check("选择层声明「本层不能改上层」", "本层不能改上层" in ctext)
+
+        # ③ 反向自证：选择层里出现的每个切换名必须是真实 spec。
+        #    引一个不存在的效果 = 读者照着写会写不出来，而且不报错。
+        if os.path.exists(REF):
+            real = {h["spec"] for h in B.HYPOTHESES}
+            # 只认反引号里的单个小写词，避免把 `dir`/`l→r`/代码片段当效果名
+            cited = set(re.findall(r"`([a-z][a-z0-9_]{1,20})`", ctext))
+            # 那些明确不是效果名的反引号词：属性名、占位符、以及 `none`
+            # （`none` 是"无切换"，合法但不属于 48 个效果集）。注意 `fade`
+            # 是**真实** spec，不在此列 —— 混进来会让这条检查失去意义。
+            NOT_SPEC = {"dir", "none", "auto", "true", "advtm", "advtm",
+                        "fallback", "choice", "xml", "pptx"}
+            bogus = sorted(s for s in cited
+                           if s not in real and s not in NOT_SPEC)
+            check("选择层引用的切换名都是真实 spec", not bogus,
+                  "疑似假名: %s" % bogus[:8])
+            # 反过来：至少得引用到一定数量的真实效果，否则这层是空壳
+            used = sorted(s for s in cited if s in real)
+            check("选择层至少引用 10 个真实效果", len(used) >= 10,
+                  "只引用 %d 个: %s" % (len(used), used[:8]))
+
+        # ④ 最关键：所有 [实测] 引用的数字与方向，必须逐字出现在形态层。
+        #    这是"不能反驳"这句承诺的唯一技术保障。
+        if os.path.exists(shapes_doc):
+            stext = io.open(shapes_doc, encoding="utf-8").read()
+            drift = []
+            for num in re.findall(r"-?\d+\.\d+", ctext):
+                if num not in stext:
+                    drift.append("数字 %s 形态层里没有" % num)
+            for arrow in ("l→r", "r→l", "t→b", "b→t", "l↔r"):
+                if arrow in ctext and arrow not in stext:
+                    drift.append("方向 %s 形态层里没有" % arrow)
+            check("选择层的实测引用与形态层同源（数字/方向无漂移）",
+                  not drift, "; ".join(drift[:5]))
+
+            # ⑤ 形态层的**族名**必须被选择层用同一套说法引（不许自造族名）
+            for fam, why in (("整页平移", "选择层讲 push 时该用形态层的族名"),
+                             ("方向揭示", "选择层讲 wipe 时该用形态层的族名"),
+                             ("中心扩散", "选择层讲 split 时该用形态层的族名"),
+                             ("旋转", "选择层讲 clock 时该用形态层的族名")):
+                check("选择层沿用形态层族名「%s」（%s）" % (fam, why),
+                      fam in ctext)
+
+    # ⑥ facts 必须记着"选择层是判断不是测量"这条元规则。
+    #    这不是装饰：它决定了日后有人质疑本文建议时，正确的动作是"改建议"，
+    #    而不是"改实测"。
+    if os.path.exists(os.path.join(ROOT, "facts", "transitions.json")):
+        fx3 = _load_json(os.path.join(ROOT, "facts", "transitions.json"))
+        ids3 = {r["id"] for r in fx3["rules"]}
+        check("facts 记着「选择层是判断不是测量」",
+              "choice-layer-is-judgement-not-measurement" in ids3,
+              "缺 choice-layer-is-judgement-not-measurement")
+        d3 = " ".join(s.get("location", "") for s in fx3["sources"])
+        check("facts 已声明选择层为判断来源",
+              "reference/transition-choice.md" in d3)
+
+    # ⑦ §5 的方向断层必须修好（旧版没写 dir，导致 push/wipe 默认下分不开）
+    spec_doc = os.path.join(ROOT, "reference", "motion-design-spec.md")
+    if os.path.exists(spec_doc):
+        s5 = io.open(spec_doc, encoding="utf-8").read()
+        check("§5 已加方向列（不能只写效果名）", "方向" in s5)
+        check("§5 已指向选择层完整版", "transition-choice.md" in s5)
+        check("§5 已标出默认 r→l 的陷阱", "r→l" in s5)
+
+    # ⑧ 选择层必须能从 INDEX 到达（否则读者永远找不到这一层）
+    index_doc = os.path.join(ROOT, "INDEX.md")
+    if os.path.exists(index_doc):
+        itext = io.open(index_doc, encoding="utf-8").read()
+        check("INDEX 能到达选择层文档", "transition-choice.md" in itext)
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))

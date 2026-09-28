@@ -26,6 +26,11 @@
       "regenerate_with": "python scripts/build_transition_table.py shapedeck <dir1> && shapedeck2 <dir2>；powershell -NoProfile -File scripts/probe_shapes.ps1 -Dir <dir>（两次）；python scripts/build_transition_table.py shapes <dir> --out shapes.json",
       "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p, 每页停留 2s",
       "caveat": "形态数字来自渲染帧的统计剖面，能回答「有没有方向/往哪边/整页还是局部」，不能回答「好不好看」；morph 不适用（形态由内容决定）"
+    },
+    {
+      "location": "reference/transition-choice.md",
+      "kind": "design-judgement",
+      "note": "选择层：设计判断，非实测。所有 [实测] 引用回溯到 transition-shapes.md"
     }
   ],
   "rules": [
@@ -163,6 +168,20 @@
       "claim": "判“起点在哪”必须回到过渡的第一帧，只看轨迹后半段会把起点写错 —— uncover 因此被误写成“起点在中间”",
       "evidence": "reference/transition-shapes.md 五 + com-pitfalls §47.4",
       "consequence": "用基准帧差（首帧 vs 各帧）而不是相邻帧差来定位起点；能量峰值位置才是真正的中点"
+    },
+    {
+      "id": "choice-layer-is-judgement-not-measurement",
+      "statement": "选择层（reference/transition-choice.md）的每条建议都没有渲染帧支撑 —— 它回答的是“该用什么”，而“该用什么”取决于场景、观众与表达意图。它是四层里唯一的【设计判断】层。",
+      "the_trap": "把选择层的建议当成实测结论去引用。它引用的数字/方向来自形态层（可回溯、不可反驳），但建议本身是可反驳的。",
+      "how_to_verify": "看标记：[实测] 的条目必须能在 reference/transition-shapes.md 里逐字找到它的数字与方向符号（tests 第 11 组自动校验）；［判断］ 的条目只要求给出理由。",
+      "evidence": "reference/transition-choice.md 顶部标记说明 + §六"
+    },
+    {
+      "id": "choice-layer-cannot-override-shape-layer",
+      "statement": "当选择层的建议与形态层实测冲突时，改选择层，不改实测。真实观测 > 设计意见。",
+      "the_trap": "为了让某条选型建议讲得通，去回改形态层的数字或方向 —— 那是在用设计意见污染测量结果，而测量结果有帧为证。",
+      "how_to_verify": "形态层的每个数字都应能由 scripts/build_transition_table.py 重新跑出来；若选择层的引用对不上，先怀疑选择层。",
+      "evidence": "reference/transition-choice.md §六「方向不可倒推」与「本层不能改上层」"
     }
   ]
 }
