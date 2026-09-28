@@ -1063,6 +1063,548 @@ def cmd_sheets(video, out_dir, want=10):
     return 0
 
 
+# --------------------------------------------------------------------------
+# shapedeck / shapeanalyze: WHAT does each transition look like as motion?
+#
+# The 48-item table answers "what element does PowerPoint write". It says
+# nothing about what the viewer SEES. transition-model.md §七 already found
+# that a whole-frame mean cannot see direction: a 1.5s wipe merely moves one
+# edge, so the frame mean barely moves, and the same detector reads a wipe as
+# a fade. Measuring SHAPE therefore requires a spatial profile, and the probe
+# deck must carry spatial structure for that profile to have anything to read.
+#
+# Design of one probe deck (2 slides):
+#   slide 1 = "FROM": a fine grid of distinct cells (each cell its own colour)
+#   slide 2 = "TO"  : the same grid, each cell shifted by one step in the
+#                     palette -- so every cell differs, and the difference is
+#                     uniform in space. A transition that sweeps will reveal
+#                     the grid in a spatial order we can recover.
+# Both slides carry a large centred disc in a contrasting colour so the
+# spatial centroid of change is well defined even for centre-out effects.
+# --------------------------------------------------------------------------
+GRID_COLS = 16
+GRID_ROWS = 9
+
+
+def _shape_deck(path, block, dur=DUR_MS):
+    """One 2-slide deck whose 'entering' slide carries `block`.
+
+    Returns the number of slides written so callers can assert nothing was
+    silently dropped.
+    """
+    from pptx import Presentation
+    from pptx.util import Emu
+    from pptx.dml.color import RGBColor
+
+    prs = Presentation()
+    prs.slide_width = Emu(9144000)
+    prs.slide_height = Emu(5143500)
+    blank = prs.slide_layouts[6]
+    w, h = prs.slide_width, prs.slide_height
+
+    def cell_colour(i):
+        # Identical on both slides: the grid is a STATIC reference frame, not
+        # part of the change. An earlier version stepped the palette between
+        # the two slides, which made every cell differ -- the diff map went
+        # nearly uniform and the direction of the actual motion was averaged
+        # away. (push measured as "stationary" because of it.) The only thing
+        # that should differ between FROM and TO is the marker below.
+        v = (i * 37) % 200 + 30
+        return v
+
+    for phase in (0, 1):                      # phase 0 = FROM, 1 = TO
+        s = prs.slides.add_slide(blank)
+        cw, ch = w // GRID_COLS, h // GRID_ROWS
+        for r in range(GRID_ROWS):
+            for c in range(GRID_COLS):
+                i = r * GRID_COLS + c
+                v = cell_colour(i)
+                sh = s.shapes.add_shape(1, c * cw, r * ch, cw, ch)
+                sh.fill.solid()
+                sh.fill.fore_color.rgb = RGBColor(v, v, v)
+                sh.line.fill.background()
+                sh.shadow.inherit = False
+        # ONE marker that moves and recolours between the two slides. Its
+        # displacement makes a directional transition produce a clean, moving
+        # diff centroid; its colour change guarantees a strong signal even for
+        # effects that do not translate anything (fade, dissolve).
+        d = min(w, h) // 3
+        dx = 0 if phase == 0 else w // 3       # a known, sizeable shift
+        disc = s.shapes.add_shape(9, (w - d) // 2 + dx, (h - d) // 2, d, d)
+        disc.fill.solid()
+        disc.fill.fore_color.rgb = RGBColor(230, 30, 30) if phase == 0 \
+            else RGBColor(30, 30, 230)
+        disc.line.fill.background()
+        disc.shadow.inherit = False
+
+    prs.save(path)
+
+    buf = io.BytesIO(open(path, "rb").read())
+    out = io.BytesIO()
+    n = 0
+    with zipfile.ZipFile(buf) as zin, zipfile.ZipFile(
+            out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if re.fullmatch(r"ppt/slides/slide2\.xml", item.filename):
+                data = _slide_xml(data, block)
+                n += 1
+            zout.writestr(item, data)
+    open(path, "wb").write(out.getvalue())
+    return n
+
+
+def _shape_deck2(path, block, dur=DUR_MS):
+    """A SECOND probe deck for effects the first one cannot separate.
+
+    Why a second deck exists at all (measured, not theorised): in deck 1 the
+    only thing that differs between FROM and TO is a centred disc. Every
+    effect that does not TRANSLATE therefore produces the same centre-weighted
+    diff, and fade / wipe / dissolve / split / shape / randombar / box all came
+    back with radial profiles within 0.03 of each other. They differ in HOW the
+    change propagates, not WHERE it sits -- so the probe has to make
+    propagation visible.
+
+    Design: FROM and TO are both a fine RANDOM noise texture (different noise on
+    each page, same average brightness). Now:
+      * a sweeping reveal exposes the new noise region by region -> the diff
+        forms a band that TRAVELS, and its direction is measurable;
+      * a uniform cross-fade changes every pixel at once -> a flat diff, no
+        travel;
+      * a split opens from the centre outward -> the diff centroid moves
+        outward in both directions.
+    Average brightness is matched between the two pages on purpose: if TO were
+    brighter overall, a fade would look like a brightness ramp and could be
+    mistaken for a sweep.
+    """
+    from pptx import Presentation
+    from pptx.util import Emu
+    from pptx.dml.color import RGBColor
+
+    import random as _random
+
+    prs = Presentation()
+    prs.slide_width = Emu(9144000)
+    prs.slide_height = Emu(5143500)
+    blank = prs.slide_layouts[6]
+    w, h = prs.slide_width, prs.slide_height
+    cols, rows = 48, 27                       # 48x27 tiles = 1296 cells
+    tw, th = w // cols, h // rows
+
+    for phase in (0, 1):
+        rng = _random.Random(1000 + phase)
+        s = prs.slides.add_slide(blank)
+        # Two brightness levels only, 50/50: matched mean, but the SPATIAL
+        # pattern is what differs. Two levels keep the H.264 noise low.
+        for r in range(rows):
+            for c in range(cols):
+                v = 190 if rng.random() < 0.5 else 60
+                sh = s.shapes.add_shape(1, c * tw, r * th, tw, th)
+                sh.fill.solid()
+                sh.fill.fore_color.rgb = RGBColor(v, v, v)
+                sh.line.fill.background()
+                sh.shadow.inherit = False
+
+    prs.save(path)
+
+    buf = io.BytesIO(open(path, "rb").read())
+    out = io.BytesIO()
+    n = 0
+    with zipfile.ZipFile(buf) as zin, zipfile.ZipFile(
+            out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if re.fullmatch(r"ppt/slides/slide2\.xml", item.filename):
+                data = _slide_xml(data, block)
+                n += 1
+            zout.writestr(item, data)
+    open(path, "wb").write(out.getvalue())
+    return n
+
+
+# Effects whose radial profile in deck 1 lands within 0.03 of another's, i.e.
+# the first probe cannot tell them apart. Found by clustering the deck-1
+# results; the list is data, not a guess.
+DECK2_SPECS = ("fade", "wipe", "dissolve", "split", "shape", "randombar",
+               "box", "push", "pan", "clock", "random", "cut")
+
+
+def cmd_shapedeck2(out_dir, specs=None):
+    """Deck 2: the noise-texture probe, for the effects deck 1 conflates."""
+    os.makedirs(out_dir, exist_ok=True)
+    want = set(specs or DECK2_SPECS)
+    written = []
+    for hyp in HYPOTHESES:
+        if hyp["spec"] not in want:
+            continue
+        path = os.path.join(out_dir, hyp["spec"] + ".pptx")
+        block = wrap_transition(hyp["family"], hyp["child"], dur=DUR_MS)
+        n = _shape_deck2(path, block)
+        if n != 1:
+            raise RuntimeError("%s: transition not written (n=%d)"
+                               % (hyp["spec"], n))
+        written.append({"spec": hyp["spec"], "ui": hyp["ui"],
+                        "en": hyp["en"], "family": hyp["family"]})
+        json.dump({"case": "shape probe 2 (noise): %s" % hyp["ui"],
+                   "spec": hyp["spec"], "ui": hyp["ui"],
+                   "group": hyp["group"], "family": hyp["family"],
+                   "child": hyp["child"], "dur_ms": DUR_MS, "fps": FPS,
+                   "slides": 2, "transition_on": 2, "probe": "noise",
+                   "expected_boundary_frames": [SLIDE_SECONDS * FPS]},
+                  io.open(os.path.join(out_dir, hyp["spec"] + ".manifest.json"),
+                          "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("shapedeck2 -> %s" % out_dir)
+    print("  %d 份（%s）" % (len(written), "、".join(sorted(want))))
+    return 0
+
+
+def cmd_shapedeck(out_dir):
+    """One deck per effect in HYPOTHESES, for the shape (not the name) probe.
+
+    Default attributes only: one deck per spec. Variants (push dir=l vs r,
+    wheel spokes=1 vs 4) are the SAME motion mirrored or re-parameterised, so
+    measuring them adds little; what the table needs first is "what does each
+    of the 47 do by default".
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    written = []
+    for hyp in HYPOTHESES:
+        name = hyp["spec"]
+        path = os.path.join(out_dir, name + ".pptx")
+        block = wrap_transition(hyp["family"], hyp["child"], dur=DUR_MS)
+        n = _shape_deck(path, block)
+        if n != 1:
+            raise RuntimeError("%s: transition not written (n=%d)" % (name, n))
+        written.append({"spec": name, "ui": hyp["ui"], "en": hyp["en"],
+                        "group": hyp["group"], "family": hyp["family"],
+                        "child": hyp["child"]})
+        json.dump({"case": "shape probe: %s (%s)" % (hyp["ui"], hyp["en"]),
+                   "spec": name, "ui": hyp["ui"], "group": hyp["group"],
+                   "family": hyp["family"], "child": hyp["child"],
+                   "dur_ms": DUR_MS, "fps": FPS, "slides": 2,
+                   "transition_on": 2,
+                   "expected_boundary_frames": [SLIDE_SECONDS * FPS],
+                   "grid": [GRID_COLS, GRID_ROWS]},
+                  io.open(os.path.join(out_dir, name + ".manifest.json"), "w",
+                          encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump({"decks": written, "fps": FPS, "dur_ms": DUR_MS,
+               "slide_seconds": SLIDE_SECONDS, "count": len(written)},
+              io.open(os.path.join(out_dir, "_index.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("shapedeck -> %s" % out_dir)
+    print("  %d 份 deck（HYPOTHESES 全量，默认属性）" % len(written))
+    print("  每份 2 页：第 1 页 FROM 网格、第 2 页 TO 网格 + 该效果")
+    return 0
+
+
+def _profile_metrics(frames):
+    """Recover the SPATIAL story from a rendered transition.
+
+    Whole-frame means are not enough (transition-model.md §七): a directional
+    reveal moves an edge, not the mean. So we work with a coarse block grid
+    and ask, per frame, where the change is concentrated and how that centre
+    travels.
+    """
+    import cv2
+    import numpy as np
+
+    if len(frames) < 2:
+        return None
+    # Work at block resolution: 16x9 blocks, same as the probe grid.
+    small = [cv2.resize(cv2.cvtColor(f, cv2.COLOR_BGR2GRAY),
+                        (GRID_COLS * 4, GRID_ROWS * 4),
+                        interpolation=cv2.INTER_AREA).astype(np.float32)
+             for f in frames]
+    diffs = [np.abs(small[i] - small[i - 1]) for i in range(1, len(small))]
+    energy = np.array([float(d.sum()) for d in diffs])
+
+    # Active window. Two traps here, both met in practice:
+    #
+    # 1. A relative-only threshold. H.264 leaves isolated noise spikes on
+    #    otherwise identical frames (measured on a still grid: energy 84-170
+    #    on single frames), while the real transition of a small-area effect
+    #    can peak at ~800. 10% of 823 is 82 -- right inside the noise band,
+    #    which is how wipe/fade first reported a 120-frame window covering the
+    #    whole dwell.
+    # 2. The noise floor from median+MAD is USELESS when most frames are
+    #    pixel-identical (median=0, MAD=0 -> floor=0), which is exactly the
+    #    case for a flat probe deck.
+    #
+    # So: threshold on prominence, then require CONTIGUITY. A transition is a
+    # contiguous run of frames; noise is isolated single frames. Keep only runs
+    # of >= 3 frames, and pick the strongest.
+    thr = max(energy.max() * 0.10, 1e-6)
+    hot = np.where(energy > thr)[0]
+    runs = []
+    if hot.size:
+        s = p = int(hot[0])
+        for i in hot[1:]:
+            i = int(i)
+            if i <= p + 2:                 # bridge 1-frame gaps inside a run
+                p = i
+            else:
+                runs.append((s, p))
+                s = p = i
+        runs.append((s, p))
+    runs = [(s, e) for s, e in runs if e - s >= 2]     # >= 3 frames
+    if not runs:
+        # No run long enough to be a motion. If there is still a strong single-
+        # frame spike, that is a HARD CUT -- one frame, real change, no motion
+        # to describe. Reporting a bare "none" would conflate it with "nothing
+        # happened at all", which is a different thing (measured: cut fires
+        # exactly one 33 ms frame at energy 7601, versus a still deck's 0).
+        if hot.size and energy.max() > 1e-6:
+            return {"direction": "none", "symmetry": "none", "mode": "cut",
+                    "energy": energy.tolist(), "peak_frame": int(hot[0]),
+                    "span": 0, "dx": 0.0, "dy": 0.0, "translate": "none",
+                    "tx": 0.0, "ty": 0.0, "symmetry_v": 0.0, "symmetry_h": 0.0,
+                    "radial_profile": [], "coverage": 0.0,
+                    "peak_to_mean": 0.0, "band_travel": 0.0,
+                    "active_frames": int(hot.size)}
+        return {"direction": "none", "symmetry": "none", "mode": "none",
+                "energy": energy.tolist(), "peak_frame": 0, "span": 0,
+                "dx": 0.0, "dy": 0.0, "translate": "none",
+                "symmetry_v": 0.0, "symmetry_h": 0.0,
+                "radial_profile": [], "active_frames": 0}
+    # Strongest run by integrated energy.
+    a, b = max(runs, key=lambda r: energy[r[0]:r[1] + 1].sum())
+    active = np.arange(a, b + 1)
+
+    # Dense frames = the ones where the reveal front is actually travelling.
+    dense = [i for i in active if energy[i] > energy.max() * 0.25]
+    sub = [diffs[i] for i in dense]
+    if not sub:
+        sub = [diffs[i] for i in active]
+    mean_map = np.mean(sub, axis=0)
+    H, W = mean_map.shape
+
+    ys, xs = np.mgrid[0:H, 0:W]
+    tot = mean_map.sum() + 1e-9
+    cx = float((xs * mean_map).sum() / tot) / (W - 1)
+    cy = float((ys * mean_map).sum() / tot) / (H - 1)
+
+    # --- direction: does the change centre drift across the window? --------
+    cxs, cys = [], []
+    for i in dense:
+        m = diffs[i]
+        t = m.sum() + 1e-9
+        cxs.append(float((xs * m).sum() / t) / (W - 1))
+        cys.append(float((ys * m).sum() / t) / (H - 1))
+    if len(cxs) >= 3:
+        dx = cxs[-1] - cxs[0]
+        dy = cys[-1] - cys[0]
+    else:
+        dx = dy = 0.0
+    if max(abs(dx), abs(dy)) < 0.12:
+        direction = "stationary"          # change happens but does not travel
+    elif abs(dx) >= abs(dy):
+        direction = "l->r" if dx > 0 else "r->l"
+    else:
+        direction = "t->b" if dy > 0 else "b->t"
+
+    # --- symmetry: mirror residual about vertical / horizontal axes --------
+    def mirror_resid(m):
+        fv = m[:, ::-1]
+        fh = m[::-1, :]
+        den = m.sum() + 1e-9
+        return (np.abs(m - fv).sum() / den, np.abs(m - fh).sum() / den)
+    rv, rh = mirror_resid(mean_map)
+
+    # --- mode: linear sweep vs radial vs rotating vs uniform --------------
+    # Radial test: energy ringed around the centre at constant radius.
+    rr = np.sqrt(((xs - (W - 1) / 2.0) / (W / 2.0)) ** 2 +
+                 ((ys - (H - 1) / 2.0) / (H / 2.0)) ** 2)
+    r_bins = np.linspace(0, 1.4, 8)
+    radial_profile = []
+    for k in range(len(r_bins) - 1):
+        m_sel = (rr >= r_bins[k]) & (rr < r_bins[k + 1])
+        radial_profile.append(float(mean_map[m_sel].mean())
+                              if m_sel.any() else 0.0)
+    rp = np.array(radial_profile)
+    rp_n = rp / (rp.max() + 1e-9)
+
+    # How many frames actually carried the change. One frame is a HARD CUT --
+    # there is no motion to describe, and calling it "centre-out" (as an early
+    # version did) invents a shape that does not exist. `cut` measured exactly
+    # one 33 ms frame; so does nothing else.
+    n_active = int(active.size)
+    if b - a <= 1 or n_active <= 1:
+        mode = "cut"
+    elif direction != "stationary" and abs(dx) + abs(dy) > 0.35:
+        mode = "sweep"
+    elif rp_n[1:4].mean() > rp_n[4:].mean() * 1.5:
+        mode = "centre-out"
+    elif float(rp_n.std()) < 0.10:
+        mode = "uniform"
+    else:
+        mode = "radial/other"
+
+    # --- translation: accumulated per-frame displacement --------------------
+    # The centroid method above cannot see a WHOLE-PAGE translation (push, pan,
+    # switch, peel): every column changes equally, so the change centroid never
+    # moves. Measured: push reported "stationary" while its column bands were
+    # visibly scrambling between frames 65 and 80.
+    #
+    # Phase correlation between the two ENDPOINT frames does not help either --
+    # for a slide-in both endpoints are mid-motion frames that look alike, so
+    # the net shift reads ~0. What works is to accumulate the per-frame shift
+    # ACROSS the window: consecutive frames give a clean signal (measured on
+    # push: a steady -1 to -5 px per frame, response ~1.0), and summing them
+    # recovers the total travel and its sign.
+    tot_x = tot_y = 0.0
+    n_pairs = 0
+    for i in range(a, min(b + 1, len(small) - 1)):
+        try:
+            (sx, sy), resp = cv2.phaseCorrelate(
+                np.float32(small[i]), np.float32(small[i + 1]))
+        except Exception:
+            continue
+        tot_x += float(sx)
+        tot_y += float(sy)
+        n_pairs += 1
+    tx = tot_x / max(1, W - 1)
+    ty = tot_y / max(1, H - 1)
+    shift_mag = (tx ** 2 + ty ** 2) ** 0.5
+    if shift_mag > 0.15:
+        if abs(tx) >= abs(ty):
+            translate = "l->r" if tx > 0 else "r->l"
+        else:
+            translate = "t->b" if ty > 0 else "b->t"
+    else:
+        translate = "none"
+
+    # --- localisation: how SPREAD OUT is the diff, and does it travel? ------
+    # This is the metric deck 2 exists for. A uniform cross-fade lights up the
+    # whole frame at once (high coverage, low peak-to-mean). A sweeping reveal
+    # lights up a moving band (varying coverage, high peak-to-mean on a coarse
+    # grid). `band_travel` is the signed drift of the diff's column profile,
+    # which is exactly "which way is the reveal front going".
+    mean_map_norm = mean_map / (mean_map.max() + 1e-9)
+    coverage = float((mean_map_norm > 0.35).mean())
+    p2m = float(mean_map_norm.mean()) or 1e-9
+    peak_to_mean = float(1.0 / p2m) if p2m else 0.0
+    # Column profile of the mean diff, as a fraction of frame width, and its
+    # drift from the first dense frame to the last. A front moving left->right
+    # shifts the column centroid the same way.
+    colprof = mean_map.sum(axis=0)
+    band_travel = 0.0
+    if len(dense) >= 3:
+        def colcen(m):
+            c = m.sum(axis=0)
+            idx = np.arange(len(c))
+            return float((idx * c).sum() / (c.sum() + 1e-9)) / max(1, len(c) - 1)
+        band_travel = colcen(diffs[dense[-1]]) - colcen(diffs[dense[0]])
+
+    return {"direction": direction, "dx": round(dx, 3), "dy": round(dy, 3),
+            "translate": translate, "tx": round(tx, 3), "ty": round(ty, 3),
+            "symmetry_v": round(float(rv), 3), "symmetry_h": round(float(rh), 3),
+            "mode": mode, "radial_profile": [round(x, 3) for x in rp_n],
+            "coverage": round(coverage, 3),
+            "peak_to_mean": round(peak_to_mean, 2),
+            "band_travel": round(band_travel, 3),
+            "peak_frame": a, "span": b - a, "active_frames": n_active,
+            "energy": energy.tolist()}
+
+
+def cmd_shapeanalyze(video, manifest, out=None):
+    """Report the shape of one rendered transition."""
+    import cv2
+
+    man = _load_json(manifest)
+    cap = cv2.VideoCapture(video)
+    frames = []
+    while True:
+        ok, f = cap.read()
+        if not ok:
+            break
+        frames.append(f)
+    cap.release()
+    if not frames:
+        print("!! %s 读不出帧" % video)
+        return 1
+    fps = man.get("fps", FPS)
+    # Only the boundary region matters; trim to the known boundary +- 2s.
+    bnd = (man.get("expected_boundary_frames") or [SLIDE_SECONDS * fps])[0]
+    lo = max(0, bnd - 2 * fps)
+    hi = min(len(frames), bnd + 3 * fps)
+    seg = frames[lo:hi]
+
+    res = _profile_metrics(seg)
+    res = dict(res or {})
+    res.update({"spec": man.get("spec"), "ui": man.get("ui"),
+                "group": man.get("group"), "family": man.get("family"),
+                "child": man.get("child"), "video_frames": len(frames)})
+    line = ("%-14s %-8s dir=%-11s mode=%-12s sym_v=%.2f sym_h=%.2f span=%d")
+    print(line % (res.get("spec"), res.get("ui"), res.get("direction"),
+                  res.get("mode"), res.get("symmetry_v", 0),
+                  res.get("symmetry_h", 0), res.get("span", 0)))
+    if out:
+        all_res = []
+        if os.path.exists(out):
+            try:
+                all_res = _load_json(out).get("shapes", [])
+            except Exception:
+                all_res = []
+        all_res = [r for r in all_res if r.get("spec") != res["spec"]]
+        all_res.append(res)
+        all_res.sort(key=lambda r: str(r.get("spec")))
+        json.dump({"shapes": all_res},
+                  io.open(out, "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+    return 0
+
+
+def cmd_shapes(video_dir, out):
+    """Analyse every <dir>/*.mp4 that has a matching manifest."""
+    import glob as _glob
+
+    videos = sorted(_glob.glob(os.path.join(video_dir, "*.mp4")))
+    if not videos:
+        print("!! %s 下没有 mp4" % video_dir)
+        return 1
+    results = []
+    for v in videos:
+        stem = os.path.splitext(os.path.basename(v))[0]
+        man = os.path.join(video_dir, stem + ".manifest.json")
+        if not os.path.exists(man):
+            print("-- %s: 无 manifest，跳过" % stem)
+            continue
+        import cv2
+        cap = cv2.VideoCapture(v)
+        frames = []
+        while True:
+            ok, f = cap.read()
+            if not ok:
+                break
+            frames.append(f)
+        cap.release()
+        if not frames:
+            continue
+        m = _load_json(man)
+        fps = m.get("fps", FPS)
+        bnd = (m.get("expected_boundary_frames") or [SLIDE_SECONDS * fps])[0]
+        seg = frames[max(0, bnd - 2 * fps):min(len(frames), bnd + 3 * fps)]
+        res = _profile_metrics(seg) or {}
+        res.update({"spec": m.get("spec"), "ui": m.get("ui"),
+                    "group": m.get("group"), "family": m.get("family"),
+                    "child": m.get("child")})
+        results.append(res)
+    results.sort(key=lambda r: str(r.get("spec")))
+    print("\n%-14s %-10s %-10s %-10s %-13s %s" % (
+        "spec", "界面名", "位移", "变化漂移", "推进模式", "对称(v/h) 帧跨度"))
+    print("-" * 92)
+    for r in results:
+        print("%-14s %-10s %-10s %-10s %-13s %.2f / %.2f  %s" % (
+            r.get("spec"), r.get("ui"), r.get("translate"),
+            r.get("direction"), r.get("mode"),
+            r.get("symmetry_v", 0), r.get("symmetry_h", 0), r.get("span")))
+    if out:
+        json.dump({"shapes": results}, io.open(out, "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+        print("\n-> %s（%d 条）" % (out, len(results)))
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="切换效果实测表")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -1098,6 +1640,18 @@ def main(argv=None):
     an = sub.add_parser("anchors")
     an.add_argument("video")
     an.add_argument("manifest")
+    sd = sub.add_parser("shapedeck")
+    sd.add_argument("out_dir")
+    sd2 = sub.add_parser("shapedeck2")
+    sd2.add_argument("out_dir")
+    sd2.add_argument("--specs", nargs="+")
+    sa = sub.add_parser("shapeanalyze")
+    sa.add_argument("video")
+    sa.add_argument("manifest")
+    sa.add_argument("--out")
+    sh = sub.add_parser("shapes")
+    sh.add_argument("video_dir")
+    sh.add_argument("--out")
     ns = ap.parse_args(argv)
     if ns.cmd == "build":
         return cmd_build(ns.case_dir)
@@ -1115,6 +1669,14 @@ def main(argv=None):
         return cmd_anchordeck(ns.out_dir)
     if ns.cmd == "anchors":
         return cmd_anchors(ns.video, ns.manifest)
+    if ns.cmd == "shapedeck":
+        return cmd_shapedeck(ns.out_dir)
+    if ns.cmd == "shapedeck2":
+        return cmd_shapedeck2(ns.out_dir, ns.specs)
+    if ns.cmd == "shapeanalyze":
+        return cmd_shapeanalyze(ns.video, ns.manifest, ns.out)
+    if ns.cmd == "shapes":
+        return cmd_shapes(ns.video_dir, ns.out)
     return cmd_sheets(ns.video, ns.out_dir, ns.want)
 
 

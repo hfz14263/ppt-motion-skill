@@ -226,6 +226,125 @@ def main():
     check("切换块不自带页号（页号来自 spec）",
           not re.search(r"slide\d", both))
 
+    # ---- 7. 形态探测 deck 生成器 -----------------------------------------
+    # 3a 的探测 deck 必须真的能被分析器读出东西来。这里不渲染视频，只保证
+    # 生成器：① 每份 deck 都写上了切换（掉一个就会静默少量一个效果）；
+    # ② 两页在空间上真的不同（纯色页会让"方向"无从测起，正是 §七 的坑）；
+    # ③ manifest 里的字段分析器真的会用。
+    import tempfile
+    import build_transition_table as B
+    tmp = tempfile.mkdtemp(prefix="shapedeck_")
+    try:
+        rc = B.cmd_shapedeck(tmp)
+        check("shapedeck 生成成功", rc == 0)
+        idx = _load_json(os.path.join(tmp, "_index.json"))
+        check("每份 Hypothesis 都有 deck", idx["count"] == len(B.HYPOTHESES),
+              "got %d vs %d" % (idx["count"], len(B.HYPOTHESES)))
+        specs = {d["spec"] for d in idx["decks"]}
+        check("deck 覆盖全部 spec",
+              {h["spec"] for h in B.HYPOTHESES} == specs)
+
+        # 抽三种家族各验一份：切换真的写在第 2 页、manifest 字段齐全。
+        for spec in ("push", "wind", "morph"):
+            spec_obj = next(h for h in B.HYPOTHESES if h["spec"] == spec)
+            man = _load_json(os.path.join(tmp, spec + ".manifest.json"))
+            check("%s manifest 有 spec/ui/family" % spec,
+                  man.get("spec") == spec and man.get("family")
+                  == spec_obj["family"] and man.get("ui"))
+            check("%s manifest 记录网格尺寸" % spec,
+                  man.get("grid") == [B.GRID_COLS, B.GRID_ROWS])
+            check("%s 切换写在第 2 页" % spec, man.get("transition_on") == 2)
+            # deck 里第 2 页必须真的带着这个效果的子元素
+            import zipfile
+            with zipfile.ZipFile(os.path.join(tmp, spec + ".pptx")) as z:
+                x2 = z.read("ppt/slides/slide2.xml").decode("utf-8")
+            check("%s deck 第 2 页含 %s" % (spec, spec_obj["child"]),
+                  spec_obj["child"] in x2)
+    finally:
+        import shutil
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    # ---- 8. 形态分析器：方向必须真的被量出来 ------------------------------
+    # §七 的坑是"整帧均值看不出方向"。这里用两张合成的"擦除"帧序列做标定：
+    # 一个从左推进、一个从右推进，分析器必须给出相反的方向。
+    try:
+        import numpy as np
+        import cv2
+    except ImportError:
+        np = cv2 = None
+    if np is not None:
+        H, W = 9 * 4, 16 * 4
+
+        def sweep_frames(left_to_right, n=12):
+            # A directional reveal moves its FRONT across the frame: the newly
+            # revealed strip sits at the advancing edge, so the diff centroid
+            # travels in the reveal direction. Left-to-right grows the lit
+            # region from x=0; right-to-left grows it from x=W. Getting this
+            # fixture backwards was the whole reason a bug hid here once --
+            # both branches produced identical frames.
+            out = []
+            for k in range(n):
+                f = np.zeros((H, W, 3), np.uint8)
+                edge = int(W * (k + 1) / (n + 1))
+                if left_to_right:
+                    f[:, :edge] = 255          # lit region grows left -> right
+                else:
+                    f[:, W - edge:] = 255      # lit region grows right -> left
+                out.append(f)
+            return out
+
+        r1 = B._profile_metrics(sweep_frames(True))
+        r2 = B._profile_metrics(sweep_frames(False))
+        check("左→右的推进被量成 l->r", r1 and r1["direction"] == "l->r",
+              str(r1 and r1["direction"]))
+        check("右→左的推进被量成 r->l", r2 and r2["direction"] == "r->l",
+              str(r2 and r2["direction"]))
+        check("两个方向互为镜像（对称性判据分开）",
+              abs(r1["symmetry_v"] - r2["symmetry_v"]) < 0.01)
+        # 一个完全静止的序列不能被当成有方向
+        still = [np.full((H, W, 3), 128, np.uint8) for _ in range(6)]
+        r3 = B._profile_metrics(still)
+        check("静止序列判成 none", r3 and r3["direction"] == "none",
+              str(r3 and r3["direction"]))
+        # 硬切：单帧变化不能被描述成一种"运动形态"
+        single = [np.zeros((H, W, 3), np.uint8), np.full((H, W, 3), 255, np.uint8)]
+        r4 = B._profile_metrics(single)
+        check("单帧硬切判成 cut", r4 and r4["mode"] == "cut",
+              str(r4 and r4.get("mode")))
+
+    # ---- 9. 形态层文档 + facts 一致 --------------------------------------
+    shapes_doc = os.path.join(ROOT, "reference", "transition-shapes.md")
+    check("形态层文档存在", os.path.exists(shapes_doc))
+    if os.path.exists(shapes_doc):
+        text = io.open(shapes_doc, encoding="utf-8").read()
+        for token, why in (("整页平移", "六族之一：push/pan 靠位移指标认"),
+                           ("方向揭示", "六族之一：wipe/cover 靠漂移指标认"),
+                           ("中心扩散", "六族之一：split/ripple"),
+                           ("band_travel", "deck2 用来分开 fade 与 wipe 的判据"),
+                           ("morph", "形态层必须说明 morph 不适用")):
+            check("形态层文档仍写着「%s」" % why, token in text)
+        # 48 个效果必须都在表里（避免只写了几族就交差）
+        missing = [h["spec"] for h in B.HYPOTHESES
+                   if ("`%s`" % h["spec"]) not in text]
+        check("形态表覆盖全部 48 个效果", not missing,
+              "缺 %s" % missing[:8])
+
+    fx2 = _load_json(os.path.join(ROOT, "facts", "transitions.json"))
+    ids2 = {r["id"] for r in fx2["rules"]}
+    for want in ("shape-needs-two-complementary-probes",
+                 "measurement-needs-the-right-instrument-per-effect-family",
+                 "random-transition-has-no-stable-shape",
+                 "dont-write-i-cant-measure-as-it-has-no-direction"):
+        check("facts 仍记着 %s" % want, want in ids2)
+    declared2 = " ".join(s.get("location", "") for s in fx2["sources"])
+    check("facts 已声明形态层为真相源",
+          "reference/transition-shapes.md" in declared2)
+
+    # deck2 的名单必须是 HYPOTHESES 里真实存在的 spec
+    bad = [s for s in B.DECK2_SPECS
+           if s not in {h["spec"] for h in B.HYPOTHESES}]
+    check("DECK2_SPECS 都是真实 spec", not bad, "假 spec: %s" % bad)
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))

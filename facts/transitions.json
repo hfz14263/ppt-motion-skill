@@ -18,6 +18,14 @@
    "regenerate_with": "python scripts/build_transition_table.py anchordeck <dir>；powershell -NoProfile -File scripts/probe_anchor.ps1 -Dir <dir>；python scripts/build_transition_table.py anchors <video> <manifest>",
    "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p",
    "replication": "每个时长结论都在「每页停留 2s」与「5s」两种设置下各测一遍并互相复核"
+  },
+  {
+   "id": "transition-shapes",
+   "canonical_for": "切换的形态层：48 个效果各自的运动方向、对称性、推进方式（硬切/整页平移/方向揭示/中心扩散/均匀淡变/随机），以及每种判定用的统计指标",
+   "location": "reference/transition-shapes.md",
+   "regenerate_with": "python scripts/build_transition_table.py shapedeck <dir1> && shapedeck2 <dir2>；powershell -NoProfile -File scripts/probe_shapes.ps1 -Dir <dir>（两次）；python scripts/build_transition_table.py shapes <dir> --out shapes.json",
+   "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p, 每页停留 2s",
+   "caveat": "形态数字来自渲染帧的统计剖面，能回答「有没有方向/往哪边/整页还是局部」，不能回答「好不好看」；morph 不适用（形态由内容决定）"
   }
  ],
  "rules": [
@@ -115,6 +123,34 @@
    "why": "页边界的实际帧号 = Σ各页停留 + Σ之前所有过渡；而导出总长在同一参数下也 deck 间不一致（同一批里一个被截短 23 帧、另一个完整）。",
    "detector_caveat": "整帧 absdiff 均值会放过慢速 wipe（只移动一条边），也会把 wipe 读成淡入。判断有没有用「平均色变没变」，判断是哪种要看空间剖面。",
    "evidence": "reference/transition-model.md 七/八、com-pitfalls §43.5"
+  },
+  {
+   "id": "shape-needs-two-complementary-probes",
+   "statement": "没有一个探测 deck 能同时看清全部 48 个效果：「变化在哪」和「变化怎么扩散」需要两种不同的画。",
+   "measured": "deck1（网格+一个移动标记）下 fade/wipe/dissolve/split/shape/randombar/box 的径向剖面差值 <0.03，根本分不开；deck2（满屏随机噪点）才把 wipe（band_travel=−0.747）与 fade（0.015）分开",
+   "the_trap": "第一版 deck 让每格都变色，结果差异图均匀，push 被测成「无方向」—— 探测画面必须「只有一个变量在动」。",
+   "how_to_choose_deck2_specs": "对 deck1 结果聚类，剖面差值 <0.05 的那组就是要重测的名单（DECK2_SPECS），不是猜的",
+   "evidence": "reference/transition-shapes.md 四、com-pitfalls §44.1/§44.4"
+  },
+  {
+   "id": "measurement-needs-the-right-instrument-per-effect-family",
+   "statement": "不同运动类型必须用不同指标：整页平移靠「逐帧累积相位相关」，方向揭示靠「差异重心轨迹」，中心/均匀靠「径向剖面」。单一指标一定会漏掉一整族。",
+   "measured": "push 的变化重心全程停在 ~0.5（指标A看不见它），但逐帧相位相关给出稳定 −4~−5px/帧；反之 wipe 只有一条边在动，全局相位相关读不到，重心却从 0.87 走到 0.43",
+   "the_trap": "用首尾两帧做相位相关：滑入类效果的首尾两帧都是「运动中途」的样子，净位移读成 0。必须逐帧累加。",
+   "evidence": "reference/transition-shapes.md 二、com-pitfalls §44.5"
+  },
+  {
+   "id": "random-transition-has-no-stable-shape",
+   "statement": "<p:random/> 每次放映随机挑一个效果，所以「random 的形态」没有稳定答案 —— 不是测不出来，是它不存在。",
+   "measured": "两次探测给出不同结果；random 与 clock 的 mp4 大小完全相同（186,629 字节）但 md5 不同，说明 random 那次恰好抽到了与 clock 相同的效果",
+   "consequence": "用 random 无法保证任何观感一致性，商务场合不要用；需要「不重复」就手动轮换几个确定的切换",
+   "evidence": "reference/transition-shapes.md 三、com-pitfalls §44.3"
+  },
+  {
+   "id": "dont-write-i-cant-measure-as-it-has-no-direction",
+   "statement": "指标给不出信号时，必须标注「该指标看不见它」，不能写成「它没有方向」。",
+   "measured": "honeycomb/shred/doors/window 的位移指标是噪声级（不是 push 那种稳定 −4~−5px/帧），真实形态是内部纹理在变；这四个的形态在现有 probe 下不可靠，表里如实标注",
+   "evidence": "reference/transition-shapes.md 五、com-pitfalls §44.6"
   }
  ]
 }
