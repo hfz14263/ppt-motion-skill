@@ -65,36 +65,46 @@ WIPE_DIRS = ("down", "left", "right", "up",
 DIRECTIONAL_FILTERS = ("wipe", "barn", "checkerboard", "circle", "diamond",
                        "plus", "wheel", "wedge", "strips")
 
-TRANSITIONS = {
-    "fade": '<p:transition spd="med"{dur}><p:fade/></p:transition>',
-    "smoothfade": '<p:transition spd="med"{dur}><p:fade/></p:transition>',
-    "fadeblack": '<p:transition spd="med"{dur}><p:fade thruBlk="1"/></p:transition>',
-    "push": '<p:transition spd="med"{dur}><p:push dir="u"/></p:transition>',
-    "pushleft": '<p:transition spd="med"{dur}><p:push dir="l"/></p:transition>',
-    "wipe": '<p:transition spd="med"{dur}><p:wipe dir="l"/></p:transition>',
-    "cover": '<p:transition spd="med"{dur}><p:cover dir="l"/></p:transition>',
-    "split": '<p:transition spd="med"{dur}><p:split orient="horz" dir="out"/></p:transition>',
-    "zoom": '<p:transition spd="med"{dur}><p:zoom dir="in"/></p:transition>',
-    "dissolve": '<p:transition spd="med"{dur}><p:dissolve/></p:transition>',
-    "strips": '<p:transition spd="med"{dur}><p:strips/></p:transition>',
-    "pull": '<p:transition spd="med"{dur}><p:pull/></p:transition>',
-    "randombar": '<p:transition spd="med"{dur}><p:randomBar/></p:transition>',
-    "none": "",
-}
-# Legacy SlideShowTransition.EntryEffect values. NOTE: this build of PowerPoint
-# maps them far from the obvious preset numbers (0x0A01 "fade" emits <p:strips/>,
-# 0x0901 emits <p:randomBar/>, 0x0C01 emits <p:zoom/>). The XML element written by
-# build_transition is authoritative; these are only used to let the review layer
-# report a non-zero transition via the COM property model.
-TRANSITION_ENUM = {
-    "fade": 0x0A01, "smoothfade": 0x0A01, "strips": 0x0A01,
-    "push": 0x0901, "randombar": 0x0901,
-    "wipe": 0x0801, "pull": 0x0801,
-    "cover": 0x0C01, "zoom": 0x0C01,
-    "split": 0x0701, "fadeblack": 0x0B01,
-    "dissolve": 0x0D01,
-    "none": 0,
-}
+# ---------------------------------------------------------------------------
+# Slide transitions come from transition_reference.json, which was MEASURED on
+# this PowerPoint build by scripts/build_transition_table.py (see that file's
+# header). These used to be thirteen hand-written template strings, and every
+# one of them was wrong in some way that only a roundtrip could show:
+#
+#   * none of them was wrapped in mc:AlternateContent. PowerPoint keeps a bare
+#     <p:transition> but rewrites it on save, so the file we produced was never
+#     in the form PowerPoint itself writes.
+#   * the Fallback is not <p:fade/> for a core element -- it repeats the core
+#     element. Only a p14/p15/p159 child degrades to fade.
+#   * pushleft / wipe / cover / split / pull spelled out direction attributes
+#     that carry the DEFAULT value; PowerPoint deletes them on save.
+#   * TRANSITION_ENUM below was a table of legacy 2003-era numbers in which
+#     "fade" actually resolves to <p:strips/>. The measured values are nothing
+#     like it (fade is 3849, strips is 2561).
+#
+# The table stores PowerPoint's own saved XML with {spd} and {dur} parameterised
+# back out, so the block emitted here is structurally identical to what
+# PowerPoint writes, and every namespace it needs is declared inside the block
+# itself -- no root-namespace fixup, no "duration omitted" fallback.
+# ---------------------------------------------------------------------------
+TRANSITION_REF_PATH = os.path.join(HERE, "transition_reference.json")
+
+
+def _load_transition_reference():
+    with open(TRANSITION_REF_PATH, encoding="utf-8-sig") as fh:
+        return json.load(fh)
+
+
+_TRANSITION_REF = _load_transition_reference()
+TRANSITIONS = {spec: e["xml"] for spec, e in _TRANSITION_REF["by_spec"].items()}
+TRANSITIONS["none"] = ""
+# Measured SlideShowTransition.EntryEffect per spec, straight out of the enum
+# scan. Used only so the review layer can report a non-zero transition through
+# the COM property model; the XML above is what actually lands in the file.
+TRANSITION_ENUM = {spec: e["entryEffect"]
+                   for spec, e in _TRANSITION_REF["by_spec"].items()
+                   if e["entryEffect"] is not None}
+TRANSITION_ENUM["none"] = 0
 EXT_CONTENT_TYPES = {
     "mp4": "video/mp4", "m4v": "video/mp4", "mov": "video/quicktime",
     "wmv": "video/x-ms-wmv", "avi": "video/avi",
@@ -795,9 +805,11 @@ def build_transition(name, duration=None, advance_after=None, on_click=None,
     block = TRANSITIONS[key]
     if not block:
         return ""
-    # p14:dur is the millisecond-accurate duration; p:sld declares xmlns:p14
+    # p14:dur is the millisecond-accurate duration. The measured block declares
+    # xmlns:p14 itself, so there is no root-namespace fixup to attempt here and
+    # no case where the duration has to be dropped.
     ms = int(round(float(duration if duration is not None else 0.7) * 1000))
-    block = block.format(dur=' p14:dur="%d"' % ms)
+    block = block.format(spd="med", dur=' p14:dur="%d"' % ms)
     extra = ""
     if advance_after:
         extra += ' advTm="%d"' % int(round(float(advance_after) * 1000))
@@ -824,6 +836,39 @@ def drop_alternate_content(xml):
         if close == -1:
             return xml
         xml = xml[:m.start()] + xml[close + len("</mc:AlternateContent>"):]
+
+
+def drop_transition_alternate_content(xml):
+    """Remove mc:AlternateContent blocks that wrap a <p:transition>, keep the rest.
+
+    drop_alternate_content() takes every AlternateContent in the slide, which is
+    too blunt to run on every transition: a slide can carry unrelated ones
+    (extension lists, media). This one only removes a wrapper whose body holds a
+    <p:transition>, so an already-processed deck can be re-processed without
+    accumulating a second transition -- while everything else is left alone.
+    """
+    while True:
+        m = re.search(r"<mc:AlternateContent(?=[\s/>])", xml)
+        if not m:
+            return xml
+        gt = xml.find(">", m.end())
+        if gt == -1:
+            return xml
+        if xml[gt - 1] == "/":
+            end = gt + 1
+            body = xml[m.start():end]
+        else:
+            close = xml.find("</mc:AlternateContent>", gt)
+            if close == -1:
+                return xml
+            end = close + len("</mc:AlternateContent>")
+            body = xml[m.start():end]
+        if "<p:transition" in body:
+            xml = xml[:m.start()] + xml[end:]
+        else:
+            # not ours -- step past it and keep looking
+            rest = drop_transition_alternate_content(xml[end:])
+            return xml[:end] + rest
 
 
 # ---------------------------------------------------------------------------
@@ -1366,26 +1411,20 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
                 block = build_transition(trans.get("type", "fade"), trans.get("duration"),
                                          trans.get("advanceAfter"), trans.get("onClick"),
                                          trans.get("option"), trans.get("speed"))
-                if block and "p14:" in block and not is_morph:
-                    # p14:dur needs the prefix bound on the slide ROOT. Declare it
-                    # when we can, else fall back to the pre-2010 transition form
-                    # (spd only, no millisecond duration) which every version opens.
-                    if not root_declares(new_xml, "p14"):
-                        new_xml = add_root_namespace(
-                            new_xml, "p14",
-                            "http://schemas.microsoft.com/office/powerpoint/2010/main")
-                    if not root_declares(new_xml, "p14"):
-                        block = re.sub(r'\s+p14:dur="[^"]*"', "", block)
-                        report["warnings"].append(
-                            "slide %d: xmlns:p14 not declarable on root, "
-                            "transition duration omitted" % idx)
+                # No xmlns:p14 root fixup any more: the measured block declares
+                # every prefix it uses inside itself. The old code declared p14
+                # on <p:sld> and, failing that, STRIPPED p14:dur and warned --
+                # a silent loss of the transition duration that can no longer
+                # happen, because the block carries its own declaration.
+                #
+                # Every measured transition is wrapped in mc:AlternateContent
+                # (morph always was; the core ones are too -- PowerPoint wraps
+                # them to host p14:dur). So the previous wrapper has to go for
+                # ALL of them, not just morph, or re-running this tool on an
+                # already-processed deck leaves two transitions behind.
+                new_xml = drop_transition_alternate_content(new_xml)
                 new_xml = remove_elements(new_xml, "transition")
                 if block:
-                    if is_morph:
-                        # morph is wrapped in mc:AlternateContent. Drop the whole
-                        # wrapper first, then insert with the "transition" tag so
-                        # SLIDE_CHILD_ORDER still places it before <p:timing>.
-                        new_xml = drop_alternate_content(new_xml)
                     new_xml = replace_or_insert(new_xml, "transition", block)
                 sr["transition"] = trans.get("type", "fade")
                 report["transitioned"] += 1
@@ -1593,6 +1632,14 @@ def strip_animations(pptx_in, out_path):
             continue
         xml = data.decode("utf-8", "replace")
         new = remove_elements(xml, "timing")
+        # Both forms have to go: the measured blocks wrap the transition in
+        # mc:AlternateContent (that is how PowerPoint writes every one of them),
+        # and a deck written by an older build of this tool carries a bare
+        # <p:transition>. remove_elements() alone leaves an EMPTY mc:Choice
+        # behind, and an AlternateContent whose Choice survives is not "empty",
+        # so remove_empty_alternate_content would not clean it up either --
+        # the wrapper has to be taken together with its transition.
+        new = drop_transition_alternate_content(new)
         new = remove_elements(new, "transition")
         new = remove_empty_alternate_content(new)
         if new != xml:

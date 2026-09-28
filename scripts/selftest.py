@@ -256,9 +256,15 @@ def main():
         motion.apply_motion(out1, SPEC, out2)
         with zipfile.ZipFile(out2) as z:
             x2 = read(z, "ppt/slides/slide1.xml")
+        # Counted as EFFECTIVE transitions, not raw <p:transition occurrences.
+        # Slide transitions are now written in PowerPoint's own canonical form,
+        # which is an mc:AlternateContent holding a Choice AND a Fallback -- two
+        # <p:transition> elements that are one transition (see [5] above). A raw
+        # count reports 2 and would fail here for being correct.
         check("still exactly one transition",
-              len(re.findall(r"<p:transition\b", x2)) == 1,
-              str(len(re.findall(r"<p:transition\b", x2))))
+              len(motion.active_transition_blocks(x2)) == 1,
+              "%d effective / %d raw" % (len(motion.active_transition_blocks(x2)),
+                                         len(re.findall(r"<p:transition\b", x2))))
         check("still exactly one timing block",
               len(re.findall(r"<p:timing>", x2)) == 1)
 
