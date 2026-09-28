@@ -77,8 +77,11 @@ if ((Test-Path $dest) -and -not $Force) {
 } else {
   if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
   New-Item -ItemType Directory -Force -Path $dest | Out-Null
-  foreach ($item in 'SKILL.md', 'HANDOVER.md', 'README.md', 'LICENSE',
-                  'scripts', 'references', 'examples', 'install.ps1', 'requirements.txt') {
+  # INDEX.md 与 facts/ 是三层结构（fac93ec）之后的顶层项 —— 漏掉它们，
+  # 装出来的技能包会没有入口页、也没有唯一真相源。
+  foreach ($item in 'SKILL.md', 'INDEX.md', 'HANDOVER.md', 'README.md', 'LICENSE',
+                  'scripts', 'reference', 'facts', 'examples', 'install.ps1',
+                  'requirements.txt') {
     $s = Join-Path $src $item
     if (Test-Path $s) { Copy-Item $s -Destination $dest -Recurse -Force }
   }

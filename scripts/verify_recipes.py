@@ -26,7 +26,7 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
-LIB = os.path.join(ROOT, "references", "recipes.json")
+LIB = os.path.join(ROOT, "reference", "recipes.json")
 
 REQUIRED = ("id", "principle", "one_line", "mechanism", "constraints", "breaks_how",
             "evidence")
@@ -68,7 +68,7 @@ def main(argv=None):
 
         # every cited artefact must exist
         ev = e.get("evidence", "")
-        cited = re.findall(r"(?:tests|scripts|references)/[A-Za-z0-9_./-]+", ev)
+        cited = re.findall(r"(?:tests|scripts|reference)/[A-Za-z0-9_./-]+", ev)
         cited += re.findall(r"(?:building|showcase|template)/[A-Za-z0-9_./-]+", ev)
         for c in cited:
             if not os.path.exists(os.path.join(ROOT, c)):

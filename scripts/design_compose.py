@@ -40,7 +40,7 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DS_DIR = os.path.abspath(os.path.join(HERE, "..", "references", "design-system"))
+DS_DIR = os.path.abspath(os.path.join(HERE, "..", "reference", "design-system"))
 
 HEX = re.compile(r"#([0-9A-Fa-f]{6})\b")
 FENCE = re.compile(r"【([^】]+)】")

@@ -248,7 +248,7 @@ def audit_git(root):
 def audit_licences(root):
     """Vendored third-party content must carry attribution."""
     out = []
-    ds = os.path.join(root, 'references', 'design-system')
+    ds = os.path.join(root, 'reference', 'design-system')
     if os.path.isdir(ds):
         files = [f for f in os.listdir(ds) if f.endswith('.md')]
         has_lic = os.path.exists(os.path.join(ds, 'LICENSE-upstream.txt'))

@@ -16,7 +16,7 @@ import urllib.request
 RAW = "https://raw.githubusercontent.com/acnlie/open-kimi-ppt-skill/main/skills/open-kimi-ppt/reference"
 # resolved relative to this script so the helper is portable
 DEST = os.path.normpath(os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), '..', 'references', 'design-system'))
+    os.path.dirname(os.path.abspath(__file__)), '..', 'reference', 'design-system'))
 
 # id, upstream relative path, category, one-line purpose (Chinese, used for matching)
 THEMES = [
