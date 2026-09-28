@@ -129,7 +129,7 @@ def main():
                  "Copyright (c) 2026 Binaryify Zhuang，全文见 `LICENSE-upstream.txt`）。")
     lines.append("")
     lines.append("分工：**这些文件管静态版面**（色板、字体、布局骨架、图表语言、页型版式、禁止项）；")
-    lines.append("**动效归 `references/motion-design-spec.md`**。上游文件本身不含动效指导，"
+    lines.append("**动效归 `reference/motion-design-spec.md`**。上游文件本身不含动效指导，"
                  "不要指望从里面读出节奏建议。")
     lines.append("")
     vendored = [c for c in CATALOG if c[4]]

@@ -66,7 +66,7 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 
 所以交付前**必须**跑覆盖率审计(`check`)和往返普查(`motion.ps1 -Strict`),
 并且**人眼看一遍方向和顺序**。清单见
-[`references/authoring-rules.md`](references/authoring-rules.md) §H。
+[`reference/authoring-rules.md`](reference/authoring-rules.md) §H。
 
 ## 文档
 
@@ -74,19 +74,19 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | --- | --- |
 | [`HANDOVER.md`](HANDOVER.md) | **交接文档**:当前能力状态、架构四层、目录地图、四次真实误判、环境依赖与待办 |
 | [`SKILL.md`](SKILL.md) | **操作手册**:分层职责、S0–S8 流程、spec 全文、命令、九条坑 |
-| [`references/architecture.md`](references/architecture.md) | 为什么这样设计:OOXML / COM / 渲染行为的知识构成 |
-| [`references/authoring-rules.md`](references/authoring-rules.md) | 13 条硬约束,每条对应一次真实翻车 + 人眼清单 |
-| [`references/com-pitfalls.md`](references/com-pitfalls.md) | 28 条 COM / OOXML 坑,含"静默失败"四类 |
-| [`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md) | **Morph(平滑)与 3D 相机的注入配方**:元素写法、命名空间、跨页匹配规则、实测对照、两个测量陷阱 |
-| [`references/template-patterns.md`](references/template-patterns.md) | 给"一个动画都没有"的现成模板从零设计动效 |
-| [`references/recipe-library.md`](references/recipe-library.md) | **动效配方库：按原理组织**（6 条已实测）。新素材从原理推导，而不是查效果清单 |
-| [`references/mso-primitives.md`](references/mso-primitives.md) | PowerPoint 原生效果与切换的原始语义 |
-| [`references/camera-reference.md`](references/camera-reference.md) | **3D 相机参数 → 实测结果**:62 个预设、lat/lon、fov、zoom 的实测对照表 |
-| [`references/ppt-studio-integration.md`](references/ppt-studio-integration.md) | 与 `dsh-ppt-studio`(`deck.yaml` + `elementId`)的对接契约 |
-| [`references/motion-design-spec.md`](references/motion-design-spec.md) | **动效怎么设计**:动效闸门、时长阶梯 T0–T3、效果语义映射、7 类页型编排剧本、密度上限、自检清单 |
-| [`references/design-system/README.md`](references/design-system/README.md) | **静态版面**设计系统:内置 10 套(咨询/财务/汇报/推广/学术)+ 上游 34 套按需抓取 |
-| [`references/video-analysis-limits.md`](references/video-analysis-limits.md) | 从视频量动效的**实测能力边界**:起点 ±0.10s、时长 +0.02~+0.16s、哪些测不出 |
-| [`references/review-checklist.md`](references/review-checklist.md) | **交付复核清单**:判据可信度分级(哪条判据已知会骗人)、结构/素材卫生/版面/动效/一致性检查项、交叉验证规则 |
+| [`reference/architecture.md`](reference/architecture.md) | 为什么这样设计:OOXML / COM / 渲染行为的知识构成 |
+| [`reference/authoring-rules.md`](reference/authoring-rules.md) | 13 条硬约束,每条对应一次真实翻车 + 人眼清单 |
+| [`reference/com-pitfalls.md`](reference/com-pitfalls.md) | 28 条 COM / OOXML 坑,含"静默失败"四类 |
+| [`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md) | **Morph(平滑)与 3D 相机的注入配方**:元素写法、命名空间、跨页匹配规则、实测对照、两个测量陷阱 |
+| [`reference/template-patterns.md`](reference/template-patterns.md) | 给"一个动画都没有"的现成模板从零设计动效 |
+| [`reference/recipe-library.md`](reference/recipe-library.md) | **动效配方库：按原理组织**（6 条已实测）。新素材从原理推导，而不是查效果清单 |
+| [`reference/mso-primitives.md`](reference/mso-primitives.md) | PowerPoint 原生效果与切换的原始语义 |
+| [`reference/camera-reference.md`](reference/camera-reference.md) | **3D 相机参数 → 实测结果**:62 个预设、lat/lon、fov、zoom 的实测对照表 |
+| [`reference/ppt-studio-integration.md`](reference/ppt-studio-integration.md) | 与 `dsh-ppt-studio`(`deck.yaml` + `elementId`)的对接契约 |
+| [`reference/motion-design-spec.md`](reference/motion-design-spec.md) | **动效怎么设计**:动效闸门、时长阶梯 T0–T3、效果语义映射、7 类页型编排剧本、密度上限、自检清单 |
+| [`reference/design-system/README.md`](reference/design-system/README.md) | **静态版面**设计系统:内置 10 套(咨询/财务/汇报/推广/学术)+ 上游 34 套按需抓取 |
+| [`reference/video-analysis-limits.md`](reference/video-analysis-limits.md) | 从视频量动效的**实测能力边界**:起点 ±0.10s、时长 +0.02~+0.16s、哪些测不出 |
+| [`reference/review-checklist.md`](reference/review-checklist.md) | **交付复核清单**:判据可信度分级(哪条判据已知会骗人)、结构/素材卫生/版面/动效/一致性检查项、交叉验证规则 |
 | [`examples/material/README.md`](examples/material/README.md) | **原始素材**:两份参考模板 + 当时的作业笔记。上面那些结论的推导来源,可用来重新核对 |
 
 ## 找参考素材时先跑一下 `inspect_pptx.py`
@@ -126,7 +126,7 @@ python scripts/review_assist.py --pptx out.pptx --source in.pptx
 界面（69% 近白像素、547 行近白），以及 `image1.png` 被放大 1.47 倍显示。
 
 判据可信度分级与三条交叉验证规则见
-[`references/review-checklist.md`](references/review-checklist.md)。
+[`reference/review-checklist.md`](reference/review-checklist.md)。
 
 ## 本机能力探测
 

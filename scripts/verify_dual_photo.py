@@ -6,7 +6,7 @@
   2) 前景不能被拉伸 —— 视频里专门给了失败对照："拉伸人物就长胖"。
      用 a:srcRect 裁剪式放大才是不变形的做法，改 fillRect/直接拉伸都会变形。
 
-判定原则（对齐 references/review-checklist.md §5）：
+判定原则（对齐 reference/review-checklist.md §5）：
   * 每条"通过"尽量给两条独立判据；判据互相打架时报 WARN 而不是装作通过；
   * 检测器必须先在已知样本上证明它能看见要找的问题（正负对照见 tests/test_dual_photo.py）。
 

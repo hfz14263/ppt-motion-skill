@@ -15,7 +15,7 @@
   {
    "id": "com-pitfalls",
    "canonical_for": "界面属性读回值与 XML 写出的值【为什么会不一致】",
-   "location": "references/com-pitfalls.md",
+   "location": "reference/com-pitfalls.md",
    "note": "叙述与当时的误解在此；本节只记规则。"
   }
  ],
@@ -29,13 +29,13 @@
     {"alias": "pathCircle", "presetID": 1, "enum": 86, "class": "动作路径"}
    ],
    "how_to_verify": "读 catalog 的 presetID，再用对象模型读回实际的 EntryEffect 比对",
-   "evidence": "scripts/motion_catalog.json；references/com-pitfalls.md"
+   "evidence": "scripts/motion_catalog.json；reference/com-pitfalls.md"
   },
   {
    "id": "presetclass-offsets",
    "statement": "偏移量按 presetClass 分段：入场 +0、强调 +53、动作路径 +85。",
    "caveat": "这是【实测规律】不是定义。用它反推前先抽两个样本核对。",
-   "evidence": "references/mso-primitives.md（表已删除，结论保留）"
+   "evidence": "reference/mso-primitives.md（表已删除，结论保留）"
   },
   {
    "id": "element-name-lives-in-its-namespace",
@@ -47,7 +47,7 @@
     {"written_wrong": "p:blipFill", "correct": "a:blipFill",
      "explains": "填充定义在 drawingml，不在 presentationml"}
    ],
-   "evidence": "references/com-pitfalls.md §20（morph）、§29（blipFill）"
+   "evidence": "reference/com-pitfalls.md §20（morph）、§29（blipFill）"
   }
  ]
 }

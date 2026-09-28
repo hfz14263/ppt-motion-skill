@@ -1,7 +1,7 @@
 {
  "source": "https://github.com/acnlie/open-kimi-ppt-skill",
  "license": "MIT (c) 2026 Binaryify Zhuang",
- "note": "static layout only; motion governed by references/motion-design-spec.md",
+ "note": "static layout only; motion governed by reference/motion-design-spec.md",
  "themes": [
   {
    "id": "pine-green-strategy",

@@ -1,7 +1,7 @@
 # 交接文档
 
 > 给接手这份工作的人（或下一个会话的 agent）。
-> 先读本文，再读 `SKILL.md`（操作手册）与 `references/review-checklist.md`（交付复核）。
+> 先读本文，再读 `SKILL.md`（操作手册）与 `reference/review-checklist.md`（交付复核）。
 
 ---
 
@@ -60,7 +60,7 @@
 ③ 复核层  verify_motion.py          结构自证
    │      review_assist.py          自动复核 + 明说判不了什么
    ▼
-④ 设计层  references/               规范与配方（不产生代码）
+④ 设计层  reference/               规范与配方（不产生代码）
           motion-design-spec.md     该怎么动
           review-checklist.md       怎么验（含美感判据）
           morph-and-3d-recipes.md   三项技术配方
@@ -97,7 +97,7 @@ scripts/
   vendor_themes.py            批量下载上游设计系统
   motion_catalog.json         137 个效果的真实 presetID + XML 模板
 
-references/
+reference/
   authoring-rules.md          13 条硬约束（每条对应一次真实翻车）
   com-pitfalls.md             COM / OOXML 坑，含"静默失败"四类
   review-checklist.md         ★ 交付复核清单（判据可信度分级 + 美感判据）
@@ -189,7 +189,7 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 > 那几个字节落在 `IDAT` 压缩流里，纯属巧合。所以扫描器只读文本块，
 > 不读像素。同理，`.pptx` 上直接 `grep` 永远是 0 命中，无论里面写了什么。
 
-**因此 `references/review-checklist.md` §5 的三条规则不是形式主义**：
+**因此 `reference/review-checklist.md` §5 的三条规则不是形式主义**：
 
 1. 任何"通过"结论要**两个独立判据**（"几何没变"+"结构合法"不算，都出自同一份 XML）
 2. 机器判"没有 / 没变"时，必须找**正向判据**佐证
@@ -245,10 +245,10 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
    **过程中一个函数里踩出四种静默失败**，全部产物都能正常打开、渲染却错：
    命名空间写成 `p:blipFill`（应为 `a:`）、插在 `<a:ln>` 之后、没删旧填充（填充是
    `xsd:choice`，取第一个）、`r:embed` 是编的 id 画占位符。详见
-   `references/com-pitfalls.md` §29–30 与 `tests/test_fill_window.py`（28 条）。
+   `reference/com-pitfalls.md` §29–30 与 `tests/test_fill_window.py`（28 条）。
    **结论：正确性是让 PowerPoint 自己写一遍对照出来的，不是推出来的。**
 
-4. **动效配方库（按原理，不按效果）** —— `references/recipe-library.md` +
+4. **动效配方库（按原理，不按效果）** —— `reference/recipe-library.md` +
    `recipes.json`，6 条已实测原理（页间差异 / 动遮罩不动图 / 形状拼切整图 /
    平面→立体是两页 / 手写中间帧 / 图×形状是设计层）。
    每条带 `constraints`、**`breaks_how`（坏掉时的可见症状）**、`evidence`。
@@ -257,6 +257,25 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
    指向真实文件** —— 防止库退化成效果清单或传闻集。
    **下一步**：遇到新素材时按 `recipe-library.md` §3 的顺序做，加条目前先确认
    它是不是已有原理的实例。
+
+5. ~~**三层文档结构重整**~~ ✅ **已做（2026-09-18 `fac93ec` 开启，2026-09-28 收尾）** ——
+   动机：文档曾长到 **27 文件 / 261k 字符**，超过任何模型的上下文。这不只是"读不完"：
+   没人能同时持有全部内容，于是**一处说 X、另一处说 not-X 的矛盾根本不可能被发现**
+   （同一轮里就发生了：`lat/lon` 值域出现在三个文件、一个"静默丢弃"概念散在十处）。
+   结构：
+   - **L1 `INDEX.md`** —— 唯一入口，按"我想____"分六个入口，**预算 6000 字符**
+     （现 4124）。入口一旦需要翻页就不再是入口。
+   - **L2 `facts/*.json`** —— 权威来源 + 跨来源规则，机器可校验。
+   - **L3 `reference/*.md`** —— 细节**只写一次**，正文在这里、别处只引。
+   收尾时补的两件事：目录名统一为单数 `reference/`（全局引用已改，
+   `scripts/verify_docs.py` 的 `SCAN_DIRS` 也去掉了复数兼容项，防止文件被写回旧目录后
+   仍被判为可达）；`reference/symptoms.md` 补齐 **§32–§39**，至此症状表与
+   `com-pitfalls` 正文 **§1–§39 一一对应**。
+   **闸**：`python scripts/verify_docs.py` 查悬空引用 / 孤儿文档 / 入口体积，
+   现跑为 OK。**它只证明结构自洽，不证明内容正确。**
+   **教训（为什么这项会被漏掉半截）**：规划只存在于提交信息里，没进 HANDOVER、
+   没开分支、没建文档，两周后就查不到"还有个尾巴"。**跨会话的规划必须落在
+   可检索的文件里**，提交信息不算。
 
 **验证文化（请保持）**
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
@@ -273,7 +292,7 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
   的成熟版本演进（该线已有 63 断言自测、13 条 authoring-rules、62 相机实测表、
   `player.py`）。本仓库在其基线上叠加：动效设计规范、设计系统、视频分析、
   交付复核清单、camera/morph spec 支持。
-- `references/design-system/` 的 10 套设计系统来自
+- `reference/design-system/` 的 10 套设计系统来自
   [`open-kimi-ppt-skill`](https://github.com/acnlie/open-kimi-ppt-skill)（**MIT**，
   Copyright (c) 2026 Binaryify Zhuang），逐字保留并附 `LICENSE-upstream.txt`。
 - 本项目 MIT。

@@ -24,7 +24,7 @@ OOXML 合法、几何没动，**证明不了"该动的都动了、顺序对、�
 | P8 映射表 | — | 45 个形状 | 整表只有一次整页淡入 |
 
 **约束**：写一个"读实际 deck 形状 → 按几何分组 → 生成 spec"的脚本
-（见 `references/template-patterns.md` 的分组方法）。id 只能来自运行时读取。
+（见 `reference/template-patterns.md` 的分组方法）。id 只能来自运行时读取。
 
 ### A2. 必须显式断言"每个形状都有效果"
 

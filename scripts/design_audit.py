@@ -5,7 +5,7 @@ what it cannot judge.
 
 WHY THIS EXISTS
 ---------------
-`references/motion-design-spec.md` section 6 lists five hard limits and section 8 a
+`reference/motion-design-spec.md` section 6 lists five hard limits and section 8 a
 ten-item pre-delivery checklist. Until now both were things a person had to remember
 and count by hand, which is exactly the kind of instruction that rots. This turns the
 mechanical half into a command.
@@ -13,7 +13,7 @@ mechanical half into a command.
 WHAT IT CAN AND CANNOT DECIDE
 -----------------------------
 The project has a documented history of automated checks giving confident wrong
-answers (references/review-checklist.md section 6, and HANDOVER.md section 6). A design
+answers (reference/review-checklist.md section 6, and HANDOVER.md section 6). A design
 linter is a fresh opportunity to make that mistake, so the output is split in three:
 
   FAIL    a mechanical limit is broken. Cheap, reliable, and the rule is written down

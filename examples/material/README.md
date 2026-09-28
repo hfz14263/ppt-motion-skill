@@ -2,8 +2,8 @@
 
 这里放的是**驱动本技能动效设计的原始素材**：两份参考模板 + 当时的作业笔记。
 
-技能里的 `references/morph-and-3d-recipes.md` §4 / §6 / §7 / §8 和
-`references/template-patterns.md` 都是从这批素材反推出来的。素材在手，
+技能里的 `reference/morph-and-3d-recipes.md` §4 / §6 / §7 / §8 和
+`reference/template-patterns.md` 都是从这批素材反推出来的。素材在手，
 那些结论就可以被**重新核对**，而不是只能相信文档。
 
 > 这批文件是**素材**，不是技能运行时需要的东西。它进仓库是为了让推导过程可复查；
@@ -30,9 +30,9 @@
 
 | # | 手法 | 落到哪里 |
 | --- | --- | --- |
-| 1 | **图片本身变化**（同一张图两页，3D 旋转 + 平滑） | `references/morph-and-3d-recipes.md` §4、§6、§7 |
-| 2 | **用形状实现效果**（矩形组从画板外滑入展开） | `references/morph-and-3d-recipes.md` §4 |
-| 3 | **形状切割图片 + 从左向右的直线**（单页内部动画） | `references/morph-and-3d-recipes.md` §8 |
+| 1 | **图片本身变化**（同一张图两页，3D 旋转 + 平滑） | `reference/morph-and-3d-recipes.md` §4、§6、§7 |
+| 2 | **用形状实现效果**（矩形组从画板外滑入展开） | `reference/morph-and-3d-recipes.md` §4 |
+| 3 | **形状切割图片 + 从左向右的直线**（单页内部动画） | `reference/morph-and-3d-recipes.md` §8 |
 
 ## 两份 deck 实测长什么样
 

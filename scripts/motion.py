@@ -945,7 +945,7 @@ def window_insets(window, picture, slide_w):
 
     In the common case the picture spans the whole slide, which reduces to
     l = -(x / w) * 100000 and r = -((slideW - x - w) / w) * 100000 -- the form written
-    down in references/morph-and-3d-recipes.md section 8.2.
+    down in reference/morph-and-3d-recipes.md section 8.2.
 
     Taking the general form rather than hard-coding the slide-spanning case is
     deliberate: a window onto a picture that is NOT full-bleed is just as useful, and

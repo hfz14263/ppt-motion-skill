@@ -9,7 +9,7 @@
 # The gaps come from Timing.TriggerDelayTime. Without it, afterEffect chains the
 # fades back-to-back into ONE continuous 3.0s motion, which the analyser then
 # correctly reports as a single burst -- easily mistaken for a measurement bug.
-# See references/video-analysis-limits.md.
+# See reference/video-analysis-limits.md.
 #
 # Output: <out>/calib.pptx and <out>/calib.mp4
 #
@@ -61,7 +61,7 @@ for ($i = 0; $i -lt 3; $i++) {
   $sh = $s1.Shapes.AddShape(9, $x, 180, 220, 220)          # oval
   $sh.Name = "circle$i"
   # high contrast on purpose: low-contrast fades are NOT measurable from video
-  # (see references/video-analysis-limits.md section 2)
+  # (see reference/video-analysis-limits.md section 2)
   $sh.Fill.ForeColor.RGB = 0x000000                         # BGR black
   $sh.Line.Visible = 0
   $e = $seq.AddEffect($sh, 10, 0, 3)                        # msoAnimEffectFade, afterEffect

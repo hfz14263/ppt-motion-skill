@@ -4,7 +4,7 @@
 
 WHY THIS EXISTS
 ---------------
-The design systems in references/design-system/ are rich and prescriptive -- palette,
+The design systems in reference/design-system/ are rich and prescriptive -- palette,
 type scale, layout skeleton, signature components, prohibitions, density baseline -- but
 they are prose. A person can read them; a program cannot, so every deck that "follows
 style X" was following a human's memory of X. That is why decks converge on the same
@@ -353,7 +353,7 @@ def compose(theme, out_path, deck_title="动效注入的三道闸"):
 
     # ---- fixed page trio: source line, page number ----------------------------
     text(0.72, 6.95, 7.0, 0.3, [{"runs": [
-        {"t": "来源：dsh-ppt-office-motion · references/review-checklist.md",
+        {"t": "来源：dsh-ppt-office-motion · reference/review-checklist.md",
          "sz": 8, "c": theme["mute"]}]}])
     text(11.6, 6.95, 1.0, 0.3, [{"runs": [
         {"t": "01", "sz": 8, "c": theme["mute"]}]}], align=PP_ALIGN.RIGHT)

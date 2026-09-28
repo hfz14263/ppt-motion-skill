@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """dsh-ppt-office-motion :: review assistant.
 
-Automates the parts of references/review-checklist.md that CAN be judged
+Automates the parts of reference/review-checklist.md that CAN be judged
 mechanically, and -- just as important -- prints what it CANNOT judge.
 
 Design rule learned the hard way (three real misjudgements this project):
@@ -307,7 +307,7 @@ def main():
     for item in CANNOT_JUDGE:
         print('   - %s' % item)
     print()
-    print('Reminder: a machine verdict is a signal. See references/review-checklist.md')
+    print('Reminder: a machine verdict is a signal. See reference/review-checklist.md')
     print('section 5 for the cross-validation rules that came out of three real')
     print('misjudgements.')
     return 0

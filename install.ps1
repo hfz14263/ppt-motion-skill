@@ -154,12 +154,12 @@ foreach ($f in 'HANDOVER.md', 'README.md',
                'scripts/motion.py', 'scripts/verify_motion.py', 'scripts/motion.ps1',
                'scripts/player.py', 'scripts/check_coverage.py', 'scripts/selftest.py',
                'scripts/analyze_video.py', 'scripts/make_calibration.ps1',
-               'references/com-pitfalls.md', 'references/template-patterns.md',
-               'references/authoring-rules.md',
+               'reference/com-pitfalls.md', 'reference/template-patterns.md',
+               'reference/authoring-rules.md',
                'scripts/review_assist.py',
-               'references/motion-design-spec.md', 'references/video-analysis-limits.md',
-               'references/review-checklist.md',
-               'references/design-system/README.md') {
+               'reference/motion-design-spec.md', 'reference/video-analysis-limits.md',
+               'reference/review-checklist.md',
+               'reference/design-system/README.md') {
   if (Test-Path (Join-Path $dest $f)) { Say "  $f : OK" } else { Say "  $f : MISSING"; $ok = $false }
 }
 

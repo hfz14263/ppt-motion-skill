@@ -1,7 +1,7 @@
 # 动效设计规范（Motion Design Spec）
 
 本文件是 `ppt-office-motion` 的**设计层提示词**：回答"这份 deck 该怎么动"，而不是"怎么把动画写进 XML"。
-语法、命令、注入机制见 `SKILL.md`；效果全表见 `references/mso-primitives.md`。
+语法、命令、注入机制见 `SKILL.md`；效果全表见 `reference/mso-primitives.md`。
 
 分工原则：**静态版面质量属上游**（内容结构、网格、配色、字体、密度）。本规范只管"动"，
 且只允许在**不改变版面几何**的前提下动。所以任何一条动效建议，都必须能在"全部动画被删除"后
@@ -186,7 +186,7 @@
 - **不做纯靠动效传递信息的设计**。若某结论只能通过"动画揭示"才能理解，静态版就是失败的。
 - **避免高频闪烁**（`flash`/`flicker` 类）用于大面积元素；小图标反馈可以。
 - **导出的静态图 / PDF 中，带入场动画的元素会处于隐藏态**。要交付截图或 PDF，
-  必须先用 `motion.py preview` 生成去动画副本再导出（见 `references/com-pitfalls.md` §5）。
+  必须先用 `motion.py preview` 生成去动画副本再导出（见 `reference/com-pitfalls.md` §5）。
 - **跨版本一致性**：`fade` `fly` `zoom` `wipe` `stretch` 在 PowerPoint 2016→365 表现稳定；
   复杂路径与 `pinwheel` 之类在某些版本或 WPS/Keynote 上会降级。**要跨平台交付就只用默认三件套。**
 

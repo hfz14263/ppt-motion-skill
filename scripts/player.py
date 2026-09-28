@@ -7,7 +7,7 @@ Answers "I injected animation -- now how do I actually look at it?".
 Why this exists instead of an MP4: Presentation.CreateVideo is unusable on the
 machine this was measured on. Quality must be 0 (1 and 2 raise E_INVALIDARG),
 and even Quality 0 returns a success code without ever producing a file -- see
-references/com-pitfalls.md 16. So the motion is rebuilt as layered PNGs.
+reference/com-pitfalls.md 16. So the motion is rebuilt as layered PNGs.
 
 How it works
 ------------

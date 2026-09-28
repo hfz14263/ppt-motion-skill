@@ -3,7 +3,7 @@ Vendored from open-kimi-ppt-skill (MIT, Copyright (c) 2026 Binaryify Zhuang)
 Source: https://raw.githubusercontent.com/acnlie/open-kimi-ppt-skill/main/skills/open-kimi-ppt/reference/design_system/academic/wine-red-data/design.md
 This file is upstream content, kept verbatim except for this header.
 Upstream design systems govern STATIC layout only; motion is governed by
-references/motion-design-spec.md in this skill.
+reference/motion-design-spec.md in this skill.
 -->
 
 # Wine Red Data · Academic STYLE DESIGN SYSTEM

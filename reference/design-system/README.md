@@ -3,7 +3,7 @@
 本目录为**静态版面**设计资产，来源 [open-kimi-ppt-skill](https://github.com/acnlie/open-kimi-ppt-skill)（MIT，Copyright (c) 2026 Binaryify Zhuang，全文见 `LICENSE-upstream.txt`）。
 
 分工：**这些文件管静态版面**（色板、字体、布局骨架、图表语言、页型版式、禁止项）；
-**动效归 `references/motion-design-spec.md`**。上游文件本身不含动效指导，不要指望从里面读出节奏建议。
+**动效归 `reference/motion-design-spec.md`**。上游文件本身不含动效指导，不要指望从里面读出节奏建议。
 
 已内置 **10 套**（离线可用），其余 **34 套**按需从上游抓取。
 

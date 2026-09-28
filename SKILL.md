@@ -37,7 +37,7 @@ S6  motion.py player --pptx out.pptx --spec m.yaml --outdir preview
                                               # 动效预览，浏览器打开 preview.html
 S7  read_image 看 review/render/*.png         # 视觉审阅（版面）
 S8  review_assist.py 自动复核 + design_audit.py 动效规范审计
-    + references/review-checklist.md 人眼过一遍
+    + reference/review-checklist.md 人眼过一遍
 ```
 
 **S8 不可省**，而且是**两条独立命令**，因为它们查的不是同一件事：
@@ -74,7 +74,7 @@ python scripts/verify_singletons.py --pptx out.pptx
 **组** = 点击/自动推进边界（一串 `after` 只算一组）。
 一页可以只有 1 组却揭示 18 次，那仍然是"等动画"。
 
-`references/review-checklist.md` 是完整清单，含三样关键内容：
+`reference/review-checklist.md` 是完整清单，含三样关键内容：
 
 - **判据可信度分级** —— 哪条判据能证明什么、**已知在哪失效**（本项目被自己的自动化判据骗过三次）
 - **美感评价项** —— 版面 / 素材卫生 / 动效 / 跨页一致性
@@ -98,12 +98,12 @@ S3 的 `--assert-geometry`、S4 的 `verify_motion`、S5 的往返普查，
 2. **顺序对**（标题在内容前、结论在论据后）
 3. **单位对**（EMU / pt / inch 混用会静默错位）
 
-**动手前先读 `references/authoring-rules.md`**（13 条硬约束，每条对应一次真实翻车）。
+**动手前先读 `reference/authoring-rules.md`**（13 条硬约束，每条对应一次真实翻车）。
 它给出三个额外校验器：覆盖率、目标有效性、版面（溢出/越界/压页脚）。
 
 **动效怎么设计**（该不该加、节奏、效果选择、页型编排、密度）见
-`references/motion-design-spec.md`；**静态版面**设计系统见
-`references/design-system/README.md`（内置 10 套 + 34 套按需抓取）。
+`reference/motion-design-spec.md`；**静态版面**设计系统见
+`reference/design-system/README.md`（内置 10 套 + 34 套按需抓取）。
 
 特别是这两条最贵：
 
@@ -141,7 +141,7 @@ slides:
 | `repeat` | 次数 | `repeatCount = 次数×1000` |
 | `autoReverse` | true/false | 往复播放 |
 | `smooth` | 0–1 | accel/decel |
-| `transition.type` | `fade` `push` `wipe` `cover` `split` `zoom` `dissolve` `strips` `pull` `randombar` `morph` `none` | 见 `references/mso-primitives.md`；**`morph`（平滑）**需配 `option: byObject\|byWord\|byChar`，默认时长 2.0s |
+| `transition.type` | `fade` `push` `wipe` `cover` `split` `zoom` `dissolve` `strips` `pull` `randombar` `morph` `none` | 见 `reference/mso-primitives.md`；**`morph`（平滑）**需配 `option: byObject\|byWord\|byChar`，默认时长 2.0s |
 | `media.*` | src/bounds/loop/rewind/mute/volume/autoplay/elementId | 媒体必须走 COM 层 |
 
 ### 3.0 Morph（平滑）
@@ -152,11 +152,11 @@ transition: {type: morph, duration: 2.0, option: byObject}
 
 morph **跨页配对同名形状**并补间差异，所以两页必须有真实差异、且形状名/id 一致。
 完整配方（含元素写法、命名空间、降级、验证）见
-[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md)，
+[`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md)，
 回归测试 `tests/test_morph.py`。
 
 > 历史：morph 曾被判为"本机不支持"，实为元素名写错（`p:morph` 应为 `p159:morph`）。
-> 详见 `references/com-pitfalls.md` §20。
+> 详见 `reference/com-pitfalls.md` §20。
 
 ### 3.1 3D 相机（`cameras:`，角度用度数）
 
@@ -188,9 +188,9 @@ slides:
 即**平行投影**，永远没有灭点。省略 `prst` 时默认给透视预设，避免踩这个坑。
 若显式指定了非透视预设，会打印警告。
 
-实测对照表见 [`references/camera-reference.md`](references/camera-reference.md)，
+实测对照表见 [`reference/camera-reference.md`](reference/camera-reference.md)，
 配方与两个测量陷阱见
-[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md)，
+[`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md)，
 回归测试 `tests/test_camera.py`。
 
 **三条最容易翻车的，先看这三条：**
@@ -213,7 +213,7 @@ slides:
 
 让一个形状成为**图片的窗口**（只露出大图的一角），而不是把图片压扁塞进去 ——
 即"用形状切割图片"（配方见
-[`references/morph-and-3d-recipes.md`](references/morph-and-3d-recipes.md) §8）。
+[`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md) §8）。
 
 ```yaml
 fills:
@@ -254,7 +254,7 @@ effects:
   `presetID/presetClass/presetSubtype` 完全一致，只差 `filter` 字符串，所以
   `--assert-geometry`、`verify_motion`、往返普查**全部通过**。本机也无法自动校准：
   COM 导出看不到动画中间态、截屏拿不到画面（三条死路见
-  `references/authoring-rules.md` §I3）。**交付前必须人眼看一次方向**（同文件 §H）。
+  `reference/authoring-rules.md` §I3）。**交付前必须人眼看一次方向**（同文件 §H）。
 - `player` 会按方向渲染起始裁剪（`player.py` 的 `WIPE_CLIP`）。这一步是必须的：如果
   预览把所有擦除都画成"从左边长出来"，那它验证的就是错的东西。
 
@@ -289,7 +289,7 @@ python scripts/motion.py player --pptx animated.pptx --spec m.yaml --outdir prev
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/motion.ps1 `
            -Pptx out.pptx -Spec m.yaml -OutDir review -ExportPdf
 
-# 从视频里量动效节奏（拿不到 pptx 时的兜底；精度见 references/video-analysis-limits.md）
+# 从视频里量动效节奏（拿不到 pptx 时的兜底；精度见 reference/video-analysis-limits.md）
 python scripts/analyze_video.py --video clip.mp4 --out analysis [--json]
 python scripts/analyze_video.py --video clip.mp4 --fps 15     # 长视频降采样提速
 
@@ -309,7 +309,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps
 > 本机实测（LTSC 2024，`16.0.17928.20148`）：480p=1.19MB / 720p=2.49MB / 1080p=4.11MB /
 > q1=0.54MB 全部成功，而 `quality 0` **两边都失败**（`E_INVALIDARG`）。
 > **换机器先跑 `scripts/probe_createvideo.ps1` 实测，不要套用任何一方的结论。**
-> 详见 `references/com-pitfalls.md` §16.4。
+> 详见 `reference/com-pitfalls.md` §16.4。
 >
 > 即便能导 MP4，`player` 的价值也不可替代：它做**逐形状图层 + 可控时序**，
 > 能暂停在任意时刻单看某一层 —— 这是 MP4 做不到的。
@@ -331,7 +331,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps
 
 1. **多余 preset 包装层会让 PowerPoint 拒绝打开**（本 skill 已修）。PowerPoint 自己写的
    `<p:cTn presetID=... nodeType="afterEffect">` 不能直接嵌在骨架 `<p:cTn>` 下；效果子节点必须
-   **内联**在骨架 cTn 里，preset 属性合并到骨架 cTn 上。详见 `references/com-pitfalls.md`。
+   **内联**在骨架 cTn 里，preset 属性合并到骨架 cTn 上。详见 `reference/com-pitfalls.md`。
 2. **`<p:sld>` 子元素是 sequence，`<p:transition>` 必须在 `<p:timing>` 之前**（本 skill 已修）。
    位置错了 PowerPoint 不报错、`EntryEffect` 读回 0，`Save()` 后**切换静默消失**。详见
    `com-pitfalls.md` §12。
@@ -364,9 +364,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps
 - 别在同一形状上叠"入场 + 强调"（§5 第 4 条）。
 
 完整方法、形状分类脚本、以及"怎么让人看见动效"（本机导不出 MP4，改用逐形状图层 +
-自包含 HTML 播放器）见 `references/template-patterns.md`；
-**写 spec 的硬约束见 `references/authoring-rules.md`**；
-静态/逐形状导出的 COM 坑见 `references/com-pitfalls.md` §16。
+自包含 HTML 播放器）见 `reference/template-patterns.md`；
+**写 spec 的硬约束见 `reference/authoring-rules.md`**；
+静态/逐形状导出的 COM 坑见 `reference/com-pitfalls.md` §16。
 
 ## 7. 与 dsh-ppt-studio 的对接契约
 

@@ -247,7 +247,7 @@ function Add-MediaLayer($ppt, $pres, $plan) {
 # ------------------------------------------------------------- transition sync
 function Sync-Transitions($pres, $plan) {
   # OPT-IN ONLY (-SyncTransitions). The enum table below is measurably wrong on
-  # this build (see references/com-pitfalls.md 7): 0x0A01 emits <p:strips/>, not
+  # this build (see reference/com-pitfalls.md 7): 0x0A01 emits <p:strips/>, not
   # a fade. The <p:transition> element written by the OOXML engine is the
   # authoritative form and PowerPoint now honours it, so re-applying these enums
   # does not "sync" anything -- it OVERWRITES a correct transition with the wrong
@@ -426,7 +426,7 @@ try {
           Say ("  LOSS: {0} effect(s) did not survive PowerPoint's save ({1} -> {2})." -f $lost, $result.effectsBefore, $after)
           Say "  Usual cause: an emphasis effect stacked on an entrance for the SAME shape."
           Say "  Use one effect per shape, or move the emphasis onto its own shape."
-          Say "  See references/com-pitfalls.md 12. Re-run with -Strict to fail on this."
+          Say "  See reference/com-pitfalls.md 12. Re-run with -Strict to fail on this."
         } else {
           Say "  round-trip clean: every effect survived PowerPoint's save"
         }

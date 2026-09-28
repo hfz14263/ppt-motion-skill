@@ -5,7 +5,7 @@ Upstream: https://github.com/acnlie/open-kimi-ppt-skill
 License : MIT, Copyright (c) 2026 Binaryify Zhuang
 
 Only the design.md text files are vendored (no images, no code). The upstream
-LICENSE text is copied alongside them as references/design-system/LICENSE-upstream.txt
+LICENSE text is copied alongside them as reference/design-system/LICENSE-upstream.txt
 so the redistribution condition ("include the copyright notice") is met.
 """
 import json
@@ -57,7 +57,7 @@ def main():
             "Source: %s\n"
             "This file is upstream content, kept verbatim except for this header.\n"
             "Upstream design systems govern STATIC layout only; motion is governed by\n"
-            "references/motion-design-spec.md in this skill.\n"
+            "reference/motion-design-spec.md in this skill.\n"
             "-->\n\n" % url
         ).encode("utf-8")
         with open(out, "wb") as fh:
@@ -80,7 +80,7 @@ def main():
     with open(os.path.join(DEST, "themes.json"), "w", encoding="utf-8") as fh:
         json.dump({"source": "https://github.com/acnlie/open-kimi-ppt-skill",
                    "license": "MIT (c) 2026 Binaryify Zhuang",
-                   "note": "static layout only; motion governed by references/motion-design-spec.md",
+                   "note": "static layout only; motion governed by reference/motion-design-spec.md",
                    "themes": index}, fh, ensure_ascii=False, indent=1)
     print("\nvendored %d/%d themes -> %s" % (ok, len(THEMES), DEST))
 

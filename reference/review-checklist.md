@@ -59,7 +59,7 @@
 
 ## 3. 版面美感（人看 / 视觉）
 
-> 具体量化标准见 `references/design-system/*.md`（每套都带**禁止项**）。
+> 具体量化标准见 `reference/design-system/*.md`（每套都带**禁止项**）。
 > 下面是跨风格通用的判断项。
 
 **层级与信息组织**
@@ -93,7 +93,7 @@
 
 ## 4. 动效美感（人看 / 视觉）
 
-> 量化标准见 `references/motion-design-spec.md`。
+> 量化标准见 `reference/motion-design-spec.md`。
 > **§6 的机械上限已做成命令**：`python scripts/design_audit.py --pptx out.pptx --spec m.yaml`
 > —— 它输出 FAIL（硬上限）/ ADVISE（启发式，可能正是你要的）/ HUMAN（判不了，只能人眼）
 > 三类，并**明说通过 ≠ 复核完成**。

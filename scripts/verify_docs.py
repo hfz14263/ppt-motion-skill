@@ -26,7 +26,7 @@ the properties that keep it fixed:
 Rules 1-3 are mechanical. Rule 4 is reported as ADVISE, not failure: prose legitimately
 mentions a number while explaining it, and a check that cannot tell a definition from a
 mention would fail on every well-written document. Naming what it cannot decide is the
-point -- see references/review-checklist.md section 0.
+point -- see reference/review-checklist.md section 0.
 
 Usage:
     python scripts/verify_docs.py
@@ -47,8 +47,11 @@ INDEX_BUDGET = 6000          # characters; ~3500 tokens. Beyond this it stops be
                              # readable in a single pass, which is its whole purpose.
 
 # Directories that are entry-point reachable material and must be linked from INDEX.
-SCAN_DIRS = ("references", "reference", "facts")
-SKIP_FILES = {"references/design-system/README.md"}   # linked via its own directory entry
+# "references" (plural) was the old name; the 2026-09-28 reorganisation settled on the
+# singular. The plural is gone from disk, so listing it would only hide a regression:
+# a file written back into references/ would be silently treated as reachable.
+SCAN_DIRS = ("reference", "facts")
+SKIP_FILES = {"reference/design-system/README.md"}   # linked via its own directory entry
 UPSTREAM = re.compile(r"vendored from|upstream content", re.I)
 
 

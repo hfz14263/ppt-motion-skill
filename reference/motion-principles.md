@@ -77,7 +77,7 @@
 
 ## 3. 落到本 skill 的规则
 
-`references/motion-design-spec.md` 已经把上面这些量化了。**对照 Carbon 后要补三条**：
+`reference/motion-design-spec.md` 已经把上面这些量化了。**对照 Carbon 后要补三条**：
 
 1. **进/出场用不同语义**（Carbon 的核心）：
    入场用**减速停稳**（`smooth` 高、时长中），退场用**加速**（时长短）。
