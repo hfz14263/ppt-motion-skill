@@ -912,6 +912,167 @@ def main():
         if os.path.isdir(aprobe):
             _sh2.rmtree(aprobe, ignore_errors=True)
 
+    # ------------------------------------------------------------------
+    # 14 组：切换 × 页内动画同页（TIMING_PROBE）
+    #
+    # 这一组守的是一条**被推翻过的断言**：文档曾写「两者正交、不限名额」。
+    # 实测推翻了「时间上正交」那一半 —— 页内动画排队等切换演完。
+    # 所以这里既守结构（两块都在、顺序对），也守那条实测出来的延迟规律。
+    # ------------------------------------------------------------------
+    print("\n== 14. 切换 × 页内动画：结构平行、时间串行 ==")
+
+    if os.path.exists(os.path.join(ROOT, "scripts", "build_transition_table.py")):
+        # 范围纪律：每一行要么是"组合"，要么是某个组合的"对照"，
+        # 且对照必须与它的组合行用同一个切换元素（只差动画这一个变量）。
+        labels = [r[2] for r in B.TIMING_PROBE]
+        check("TIMING_PROBE 标签唯一", len(labels) == len(set(labels)),
+              str([l for l in labels if labels.count(l) > 1]))
+        for spec, tspec, label, why in B.TIMING_PROBE:
+            check("TIMING_PROBE 行 %s 是四元组且有 why" % label,
+                  bool(why) and isinstance(why, str))
+        # 每一组组合都要有对照：both_<x> 必须配 solo_anim 与一个 solo_trans
+        combos = [l for l in labels if l.startswith("both_")]
+        check("有组合行也有对照行", len(combos) >= 2 and
+              any(l.startswith("solo_anim") for l in labels) and
+              any(l.startswith("solo_trans") for l in labels))
+        # push/wipe 两组组合都必须有"同切换的对照"——这是踩过的坑：
+        # 对照写成别的切换，会一次动两个变量，低能量的那个被读成"切换消失"
+        for grp, want_trans in (("both_push", "solo_trans"),
+                                ("both_wipe", "solo_trans_wipe")):
+            check("%s 有同切换对照 %s" % (grp, want_trans), want_trans in labels)
+
+    # 归档：实测 JSON 与目视对照图
+    tfx = os.path.join(ROOT, "tests", "fixtures", "dir", "timingdiff_full.json")
+    if os.path.exists(tfx):
+        tf = _load_json(tfx)
+        trows = {r["label"]: r for r in tf.get("timing", [])}
+        check("timingdiff 归档里有组合与对照",
+              "both_push" in trows and "solo_trans" in trows)
+        # ⭐ 实测规律：同页有切换时，进入形状出现得**更晚**，
+        #    且延迟随切换时长单调增。这三条一起守住"串行"这个结论。
+        solo = trows.get("solo_anim", {}).get("entry_delay_ms")
+        short = trows.get("both_fade_short", {}).get("entry_delay_ms")
+        push = trows.get("both_push", {}).get("entry_delay_ms")
+        long_ = trows.get("both_fade_long", {}).get("entry_delay_ms")
+        check("归档：无切换时进入形状几乎不延迟（<=120ms）",
+              solo is not None and solo <= 120, str(solo))
+        check("归档：挂了切换后进入形状被推后（>300ms）",
+              push is not None and push > 300, str(push))
+        check("归档：延迟随切换时长单调增（short < push < long）",
+              short is not None and push is not None and long_ is not None
+              and short < push < long_,
+              "%s < %s < %s" % (short, push, long_))
+        # 两族切换（push / wipe）在**同样 800ms** 下延迟应当一致 ——
+        # 说明改的是"时长"不是"哪个效果"
+        pw = trows.get("both_wipe", {}).get("entry_delay_ms")
+        check("归档：push 与 wipe 同为 800ms 时延迟相同",
+              pw == push, "%s vs %s" % (pw, push))
+        # 动画自身的长度不受切换影响 —— 五种组合的斜坡都是同一个值
+        ramps = {r["label"]: r.get("entry_ramp_ms") for r in tf.get("timing", [])
+                 if r["label"].startswith("both_") and r.get("entry_ramp_ms")}
+        check("归档：动画自身长度不受切换影响（组合间斜坡一致）",
+              len(set(ramps.values())) <= 1,
+              str(ramps))
+        # 结构：往返报告里没有任何一份丢块
+        rt = os.path.join(ROOT, "tests", "fixtures", "dir", "timing_rt_full.json")
+        if os.path.exists(rt):
+            rj = _load_json(rt)
+            lost = [d["deck"] for d in rj.get("decks", [])
+                    if d.get("timing_lost") or d.get("trans_lost")]
+            check("归档：往返后没有任何一份丢块", not lost, str(lost))
+            orders = {d.get("order") for d in rj.get("decks", [])
+                      if d.get("after_transition") and d.get("after_timing")}
+            check("归档：两块都在时顺序是 transition 在前",
+                  orders and orders == {"transition-before-timing"},
+                  str(orders))
+    else:
+        check("timingdiff 归档存在", False, tfx)
+
+    check("目视对照图 timing_compare_full.png 已归档",
+          os.path.exists(os.path.join(ROOT, "tests", "fixtures", "dir",
+                                      "timing_compare_full.png")))
+
+    # 文档证据：机制层 §五 + pitfalls §51 + symptoms + facts
+    tmodel = os.path.join(ROOT, "reference", "transition-model.md")
+    if os.path.exists(tmodel):
+        tm = io.open(tmodel, encoding="utf-8").read()
+        check("机制层新增 §五（切换与动画串行）",
+              "## 五、" in tm and "不是正交" in tm)
+        check("机制层写明延迟 ≈ 切换时长 + 133 ms", "133 ms" in tm)
+        # 「与切换正交」只允许以**被引用的旧断言**形式存在（§五 的举证），
+        # 不允许作为正文断言。判据：该短语每一处都出现在引用块（> 「…」）里。
+        bad_ortho = []
+        for ln in tm.splitlines():
+            if "与切换正交" in ln and not ln.lstrip().startswith(">"):
+                bad_ortho.append(ln.strip()[:60])
+        check("机制层不再**无条件**断言『与切换正交』（只允许在引用旧断言处）",
+              not bad_ortho, str(bad_ortho))
+        check("机制层决策表已标注时间串行",
+              "时间上排在切换之后" in tm or "串行" in tm)
+    if os.path.exists(os.path.join(ROOT, "reference", "com-pitfalls.md")):
+        pd = io.open(os.path.join(ROOT, "reference", "com-pitfalls.md"),
+                     encoding="utf-8").read()
+        check("pitfalls 新增 §51（动画排队等切换）",
+              "## 51." in pd and "不是正交" in pd)
+        check("pitfalls §51 记下『能量指标对淡入全盲』",
+              "全盲" in pd)
+    if os.path.exists(os.path.join(ROOT, "reference", "symptoms.md")):
+        sd = io.open(os.path.join(ROOT, "reference", "symptoms.md"),
+                     encoding="utf-8").read()
+        check("symptoms 新增『动画像慢了半拍』",
+              "慢了半拍" in sd)
+    if os.path.exists(os.path.join(ROOT, "facts", "transitions.json")):
+        fx6 = _load_json(os.path.join(ROOT, "facts", "transitions.json"))
+        ids6 = {r["id"] for r in fx6["rules"]}
+        for want in ("transition-and-timing-are-not-time-orthogonal",
+                     "energy-thresholds-are-blind-to-fade-in",
+                     "trigger-with-means-with-the-animation-sequence-not-with-the-transition"):
+            check("facts 记着 %s" % want, want in ids6)
+
+    # timingdeck 生成器冒烟：文件名可配对 + 两块真写进 XML + 顺序正确
+    tprobe = os.path.join(ROOT, ".workbuddy", "_timingprobe_smoke")
+    try:
+        if not os.path.isdir(tprobe):
+            B.cmd_timingdeck(tprobe)
+        tmade = sorted(os.path.basename(p) for p in
+                       _glob.glob(os.path.join(tprobe, "*.pptx")))
+        check("timingdeck 生成的文件数正确",
+              len(tmade) == len(B.TIMING_PROBE),
+              "%d 个: %s" % (len(tmade), tmade[:3]))
+        import zipfile as _zip3
+        from lxml import etree as _et
+        tbad = []
+        for spec, tspec, label, _w in B.TIMING_PROBE:
+            fp = os.path.join(tprobe, "timing_%s.pptx" % label)
+            with _zip3.ZipFile(fp) as z:
+                x = z.read("ppt/slides/slide2.xml").decode("utf-8")
+            # 良构
+            try:
+                root = _et.fromstring(x.encode("utf-8"))
+            except Exception as exc:
+                tbad.append("%s 不良构: %s" % (label, exc))
+                continue
+            kids = [_et.QName(k).localname for k in root]
+            has_t = "<p:timing>" in x
+            has_x = bool(re.search(r"<p:transition\b", x))
+            want_t = label != "solo_trans" and label != "solo_trans_wipe" \
+                and label != "solo_fade_800"
+            want_x = tspec is not None
+            if has_t != want_t:
+                tbad.append("%s timing=%s 期望 %s" % (label, has_t, want_t))
+            if has_x != want_x:
+                tbad.append("%s transition=%s 期望 %s" % (label, has_x, want_x))
+            # 顺序：cSld → clrMapOvr → transition(AlternateContent) → timing
+            if has_t and has_x:
+                if kids.index("AlternateContent") > kids.index("timing"):
+                    tbad.append("%s 顺序错: %s" % (label, kids))
+        check("timingdeck 两块真写进 slide XML 且顺序正确",
+              not tbad, str(tbad[:4]))
+    finally:
+        import shutil as _sh3
+        if os.path.isdir(tprobe):
+            _sh3.rmtree(tprobe, ignore_errors=True)
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))

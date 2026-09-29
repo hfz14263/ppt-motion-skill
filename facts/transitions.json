@@ -32,6 +32,14 @@
    "location": "reference/transition-choice.md",
    "kind": "design-judgement",
    "note": "选择层：设计判断，非实测。所有 [实测] 引用回溯到 transition-shapes.md"
+  },
+  {
+   "id": "transition-timing-interaction",
+   "canonical_for": "同页 <p:transition> × <p:timing> 的配合：结构上互不占用、时间上串行（延迟 ≈ 切换时长 + 133 ms）；以及『能量指标对淡入全盲』这条仪器教训",
+   "location": "reference/transition-model.md §五、reference/com-pitfalls.md §51",
+   "regenerate_with": "python scripts/build_transition_table.py timingdeck <dir>；powershell -NoProfile -File scripts/probe_shapes.ps1 -Dir <dir>；powershell -NoProfile -File scripts/probe_timing_roundtrip.ps1 -Dir <dir>；python scripts/build_transition_table.py timingdiff <dir> --out j.json --png chart.png",
+   "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p, 每页停留 2s（边界固定 f60）",
+   "artifacts": "tests/fixtures/dir/timingdiff_full.json, tests/fixtures/dir/timing_compare_full.png"
   }
  ],
  "rules": [
@@ -254,6 +262,25 @@
    "statement": "『属性值有没有改变渲染』与『改变的是不是方向』是两个不同的问题，必须用不同判据回答。前者用逐帧像素差（不假设轴，通用）；后者要像素差 + 方向量（band_travel 反号 / tx）。glitter 的 pattern=hexagon 像素差 50.3（确实变了）但方向标签与默认相同（都不是方向变化）。",
    "the_trap": "拿『渲染差异很大』直接读成『方向变了』。spokes/pattern 根本不涉及方向，用轴判据会问错问题。",
    "how_to_verify": "attrdeck + attrdiff：像素差回答『变没变』，profile 的 direction/band_travel 回答『怎么变』。"
+  },
+  {
+   "id": "transition-and-timing-are-not-time-orthogonal",
+   "statement": "同一页上的 <p:transition> 与 <p:timing> 页内动画在 XML 结构上互不占用（9/9 deck 往返后两块都在、顺序都是 transition 在前），但在时间上是串行的：页内动画排队等切换演完才开始，延迟 ≈ 切换时长 + 133 ms。实测：无切换 +67 ms / fade 300ms +433 ms / push 800ms +933 ms / wipe 800ms +933 ms / fade 1500ms +1633 ms。",
+   "the_trap": "文档早先写『两者正交、不限名额』，其中『不限名额』是真的，『正交』是从 XML 位置推出来的 —— 位置不同不等于行为独立。结果：挂上切换后入场动画像慢了半拍，被误读成『动画设置丢了』。",
+   "how_to_verify": "timingdeck + probe_shapes.ps1 + probe_timing_roundtrip.ps1（结构）+ timingdiff --png（时间）。9 份 deck = 组合 + 各自对照，对照组必须用同一个切换元素（组合行与对照行之间只差一个变量）。",
+   "corollary": "动画自己的长度不受切换影响（五种组合下淡入斜坡都是 467 ms）。切换改的是动画的起点，不是长度。一页的时间总占用 ≈ 切换时长 + 页内动画总时长。"
+  },
+  {
+   "id": "energy-thresholds-are-blind-to-fade-in",
+   "statement": "逐帧能量/帧均值类指标对『淡入』是全盲的：中灰形状淡入到中灰背景上，整帧均值变化 < 2/255，落在任何合理阈值之下。实测 timing_solo_anim 用能量指标报出 0 个活跃帧，而动画确实在跑。",
+   "the_trap": "把『指标没反应』读成『什么都没发生』——这是看起来最像结论的错误答案。同类坑第三次出现：§47 旋转躲过位移/漂移/径向，§48 整页平移躲过变化重心，现在淡入躲过能量阈值。",
+   "how_to_verify": "换一个能看见这件事的仪器：让两页的标记用不同色相，把『新页形状出现了没有』变成直接的颜色测量 max(0, B-R) 的和，即可看到 14 帧线性斜坡。",
+   "generalisation": "每加一类『看的方式』都要问它看不见什么；指标盲区不报错，只给错答案。"
+  },
+  {
+   "id": "trigger-with-means-with-the-animation-sequence-not-with-the-transition",
+   "statement": "页内动画 trigger: with 里的 'with' 是『与本页动画序列的第一项同时』，不是『与切换同时』——切换不在那个序列里，它排在序列之前。",
+   "how_to_verify": "同页写 push 800ms + 单个 trigger=with 的 fade 动画，逐帧看进入形状何时出现：延迟 ≈ 933 ms（切换时长 + 133），说明动画起点被切换推后，而不是与切换同时。"
   }
  ]
 }

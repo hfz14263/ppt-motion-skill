@@ -1,0 +1,112 @@
+{
+    "decks":  [
+                  {
+                      "deck":  "timing_both_fade_long",
+                      "before_transition":  true,
+                      "before_timing":  true,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  true,
+                      "order":  "transition-before-timing",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_both_fade_short",
+                      "before_transition":  true,
+                      "before_timing":  true,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  true,
+                      "order":  "transition-before-timing",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_both_push",
+                      "before_transition":  true,
+                      "before_timing":  true,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  true,
+                      "order":  "transition-before-timing",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_both_wipe",
+                      "before_transition":  true,
+                      "before_timing":  true,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  true,
+                      "order":  "transition-before-timing",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_solo_anim",
+                      "before_transition":  false,
+                      "before_timing":  true,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  false,
+                      "after_timing":  true,
+                      "order":  "timing-only",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_solo_anim_wipe",
+                      "before_transition":  false,
+                      "before_timing":  true,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  false,
+                      "after_timing":  true,
+                      "order":  "timing-only",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_solo_fade_800",
+                      "before_transition":  true,
+                      "before_timing":  false,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  false,
+                      "order":  "transition-only",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_solo_trans",
+                      "before_transition":  true,
+                      "before_timing":  false,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  false,
+                      "order":  "transition-only",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  },
+                  {
+                      "deck":  "timing_solo_trans_wipe",
+                      "before_transition":  true,
+                      "before_timing":  false,
+                      "opened":  true,
+                      "saved":  true,
+                      "after_transition":  true,
+                      "after_timing":  false,
+                      "order":  "transition-only",
+                      "timing_lost":  false,
+                      "trans_lost":  false
+                  }
+              ]
+}
