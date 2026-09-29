@@ -223,6 +223,37 @@
    "statement": "效果的默认方向与“能否被 dir 改变”都只能靠渲染测量，不能按效果名或界面名推。本轮全量实测纠正了两处早先的错误：curtains 不是左右对称而是竖向条带对开；origami 默认是水平 l→r（早先误归 t→b 一组）。另外 spec=box（界面名「框」）写出的元素其实是 <p:zoom>，不是 <p:box>。",
    "the_trap": "按中文界面名或英文效果名猜 XML 元素与属性行为，看起来都对，实际会错。",
    "how_to_verify": "对照 tests/fixtures/dir/dirmirror_full.json 的 dirA/dirB 列与 reference/transition-choice.md §三 的方向语义速查表。"
+  },
+  {
+   "id": "invalid-attribute-value-silently-falls-back-to-default",
+   "statement": "属性值不在 PowerPoint 写的枚举里时，PowerPoint 不报错、文件照开、照常渲染 —— 但渲染出来的是【默认值】，你写的值被静默丢弃。实测 clock：spokes=\"6\"（enum 里没有）与不写 spokes、与 spokes=\"4\" 三者逐帧像素差 = 0.000。",
+   "the_trap": "只验证『文件能打开』就以为属性生效了。文件能打开只排除『写坏』，不证明『写对』。这是第三种失败形态（前两种：被忽略 / 打不开）。",
+   "how_to_verify": "attrdeck 烘每个取值 → probe_shapes.ps1 渲染 → attrdiff 比对。max_frame_diff=0.000 即『等于默认』。合法值请查 scripts/transition_reference.json 的 enum_by_child（149 个值），不要凭界面印象写。",
+   "related": "com-pitfalls §50"
+  },
+  {
+   "id": "clock-default-is-four-spokes",
+   "statement": "clock（<p:wheel/>）的 spokes 默认值是 4，不是 1。名字层长期记的是 <p:wheel spokes=\"1\"/>（界面枚举里 3857 那个 presetID），但那只是【一个取值】，不是默认。实测 <p:wheel/> 渲染出的圆盘被切成 4 条楔形。",
+   "the_trap": "把『枚举里第一个出现的形式』当成『默认』。枚举的顺序是 presetID 顺序，不是默认值顺序。",
+   "how_to_verify": "渲染 <p:wheel/> 与 <p:wheel spokes=\"4\"/>，逐帧像素差 0.000；目视末帧楔形数 = 4。合法取值只有 1/2/3/8（+ 默认 4）。"
+  },
+  {
+   "id": "attribute-values-that-change-shape",
+   "statement": "多个效果换属性值 = 换形态（也就 = 换界面项）：clock 的 spokes（1/2/3/8，默认 4）、split 的 orient(horz/vert) × dir(in/out) 四组合、comb 的 dir(horz 默认/vert)、p14:prism 的 isContent × isInverted 四组合、glitter/shred 的 pattern，以及 p15:prstTrans 系列的 invX（等价于反向）。",
+   "the_trap": "名字层每个效果只记一个子元素，会让人以为『一个效果一种形态』。实际上枚举里 149 个值有一大半是同一元素换属性值。",
+   "how_to_verify": "attrdeck + attrdiff，逐帧像素差判『变没变』；方向类问题另用 band_travel 反号（问题类型要先分清）。归档 tests/fixtures/dir/attrdiff_full.json。"
+  },
+  {
+   "id": "invX-is-the-reverse-for-p15-prsttrans-not-dir",
+   "statement": "p15:prstTrans 系列（wind / peel_off / fall_over 等）不吃 dir（实测被完全忽略，见 dir-ignored-by-most-directional-effects），要反向必须用它自己的 invX=\"1\"。实测 invX=1 的像素差：wind 82.5 / peel_off 42.4 / fall_over 12.4。",
+   "the_trap": "以为『反向』这件事全仓库都用 dir。同一个意图，不同元素用不同属性：core 元素用 dir，p15:prstTrans 用 invX。",
+   "how_to_verify": "同一个效果分别加 dir 与 invX 各烘一份比对：dir 那份像素差 0.000（被忽略），invX 那份显著不同。"
+  },
+  {
+   "id": "did-it-change-is-not-which-way-it-changed",
+   "statement": "『属性值有没有改变渲染』与『改变的是不是方向』是两个不同的问题，必须用不同判据回答。前者用逐帧像素差（不假设轴，通用）；后者要像素差 + 方向量（band_travel 反号 / tx）。glitter 的 pattern=hexagon 像素差 50.3（确实变了）但方向标签与默认相同（都不是方向变化）。",
+   "the_trap": "拿『渲染差异很大』直接读成『方向变了』。spokes/pattern 根本不涉及方向，用轴判据会问错问题。",
+   "how_to_verify": "attrdeck + attrdiff：像素差回答『变没变』，profile 的 direction/band_travel 回答『怎么变』。"
   }
  ]
 }

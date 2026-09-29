@@ -1402,6 +1402,138 @@ def _dir_pairs(probe=None):
     return out
 
 
+# ---------------------------------------------------------------------------
+# ATTR_PROBE: the "attribute value set" the mechanism layer never covered.
+#
+# HANDOVER 3a left this explicitly open: the name layer records ONE child per
+# effect (clock -> <p:wheel spokes="1"/>), but several effects take FURTHER
+# attributes, and nobody had measured what those values actually DO. The
+# PowerPoint-written presetID enum (scripts/transition_reference.json,
+# enum_by_child) turns out to enumerate every variant PowerPoint itself emits
+# in its UI, so it tells us the **domain** of each attribute exactly -- we do
+# not have to guess which values are legal.
+#
+# Each row is (spec, label, overrides, why):
+#   * `spec`  -- the effect's spec in HYPOTHESES (keeps the UI name + family)
+#   * `label` -- short tag used in the filename, e.g. "spokes1"
+#   * `overrides` -- (attr, value) pairs to FORCE onto the child element.
+#                    value=None means "strip the attribute" (the default form).
+#   * `why`   -- what decision this variant informs.
+ATTR_PROBE = (
+    # -- wheel spokes: interface「时钟」+「转盘」。enum lists 1/2/3/8, and
+    #    `<p:wheel/>` (no attr) is a SEPARATE presetID, so 4 is the default.
+    ("clock", "spokes1", (("spokes", "1"),), "名字层记的形式；一条线扫一圈"),
+    ("clock", "spokes2", (("spokes", "2"),), "界面「转盘 2 根」—— 真的是两根吗"),
+    ("clock", "spokes3", (("spokes", "3"),), "界面「转盘 3 根」"),
+    ("clock", "spokes4", (("spokes", "4"),), "显式写 4 —— 是否等于不写（默认）"),
+    ("clock", "spokes8", (("spokes", "8"),), "界面「转盘 8 根」"),
+    ("clock", "plain", (("spokes", None),), "不写 spokes —— 默认到底几根"),
+    ("clock", "spokes6", (("spokes", "6"),), "enum 里没有的值 —— 合法吗、等同什么"),
+    # -- split orient: horz/vert 在 enum 里是两个 presetID，必测
+    ("split", "horz", (("orient", "horz"), ("dir", "out")),
+     "名字层记的默认形式"),
+    ("split", "vert", (("orient", "vert"), ("dir", "out")),
+     "竖着开 —— 与横着开是否只是转了 90°"),
+    ("split", "in_horz", (("orient", "horz"), ("dir", "in")),
+     "反向：从边缘合拢"),
+    ("split", "in_vert", (("orient", "vert"), ("dir", "in")),
+     "竖着合拢"),
+    # -- comb 的 dir：enum 里 comb 的第二个 presetID 是 dir="vert"，
+    #    所以**不写 dir 才是默认**，必须把默认单独烘一份才能比。
+    ("comb", "plain", (("dir", None),), "默认（不写 dir）—— 基线"),
+    ("comb", "horz", (("dir", "horz"),), "显式 horz —— 是否等于默认"),
+    ("comb", "vert", (("dir", "vert"),), "竖向梳理（enum 记的第二个值）"),
+    # -- glitter pattern
+    ("glitter", "default", (("pattern", None),), "不写 pattern 的默认花纹"),
+    ("glitter", "hexagon", (("pattern", "hexagon"),), "菱形花纹是否只是换粒子形状"),
+    # -- prism isContent / isInverted（名字层 §3 已记 cube/rotate/orbit 三项，
+    #    但没点明是哪两个位；第四个组合只有 XML）
+    ("cube", "plain", (("isContent", None), ("isInverted", None)),
+     "裸 <p14:prism/> —— 界面「立方体」(3914)"),
+    ("cube", "content", (("isContent", "1"),),
+     "isContent=1 —— 界面「旋转」(3918)"),
+    ("cube", "inverted", (("isInverted", "1"),),
+     "isInverted=1 单独置位 —— 界面上没有这一项 (3922)"),
+    ("cube", "both", (("isContent", "1"), ("isInverted", "1")),
+     "两个都写 —— 界面「轨道」(3926)"),
+    # -- p15 prstTrans invX：与 dir 完全不同的一个反向属性
+    ("wind", "plain", (("invX", None),), "默认方向"),
+    ("wind", "invX", (("invX", "1"),), "invX=1 是不是横向镜像（与 dir 有别）"),
+    ("peel_off", "plain", (("invX", None),), "默认方向"),
+    ("peel_off", "invX", (("invX", "1"),), "invX=1 的反向"),
+    ("fall_over", "plain", (("invX", None),), "默认方向"),
+    ("fall_over", "invX", (("invX", "1"),), "invX=1 的反向"),
+)
+
+
+def _set_attrs(child, overrides):
+    """Force (attr, value) pairs onto a child element.
+
+    `value=None` REMOVES the attribute (so the row measures the default form).
+    Removal matters: an early version of the dir probe only ever ADDED, so
+    "default" rows silently carried whatever the HYPOTHESES child already had.
+    """
+    m = re.match(r"<([A-Za-z0-9:]+)((?:\s[^>]*)?)/>$", child)
+    if not m:
+        raise ValueError("cannot set attrs on %r" % child)
+    tag, attrs = m.group(1), m.group(2) or ""
+    for attr, val in overrides:
+        attrs = re.sub(r'\s+' + re.escape(attr) + r'="[^"]*"', "", attrs)
+        if val is not None:
+            attrs += ' %s="%s"' % (attr, val)
+    return "<%s%s/>" % (tag, attrs)
+
+
+def _probe_deck(out_dir, rows, tag_key, label_of):
+    """Shared writer for dirdeck / attrdeck: one deck per probe row."""
+    os.makedirs(out_dir, exist_ok=True)
+    by_spec = {h["spec"]: h for h in HYPOTHESES}
+    written = []
+    for spec, label, overrides, why in rows:
+        hyp = by_spec.get(spec)
+        if hyp is None:
+            raise RuntimeError("probe references unknown spec %r" % spec)
+        name = "%s_%s_%s" % (spec, tag_key, label)
+        path = os.path.join(out_dir, name + ".pptx")
+        child = _set_attrs(hyp["child"], overrides)
+        block = wrap_transition(hyp["family"], child, dur=DUR_MS)
+        n = _shape_deck(path, block)
+        if n != 1:
+            raise RuntimeError("%s: transition not written (n=%d)" % (name, n))
+        entry = {"spec": spec, tag_key: label, "label": label,
+                 "ui": hyp["ui"], "group": hyp["group"],
+                 "family": hyp["family"], "child": child, "why": why,
+                 "deck": name}
+        written.append(entry)
+        json.dump({"case": "%s probe: %s %s=%s" % (tag_key, spec, tag_key,
+                                                   label),
+                   "spec": spec, tag_key: label, "label": label,
+                   "ui": hyp["ui"], "group": hyp["group"],
+                   "family": hyp["family"], "child": child,
+                   "dur_ms": DUR_MS, "fps": FPS, "slides": 2,
+                   "transition_on": 2,
+                   "expected_boundary_frames": [SLIDE_SECONDS * FPS],
+                   "grid": [GRID_COLS, GRID_ROWS]},
+                  io.open(os.path.join(out_dir, name + ".manifest.json"),
+                          "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump({"decks": written, "fps": FPS, "dur_ms": DUR_MS,
+               "slide_seconds": SLIDE_SECONDS, "count": len(written)},
+              io.open(os.path.join(out_dir, "_index.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+    return written
+
+
+def cmd_attrdeck(out_dir):
+    """One deck per ATTR_PROBE row -- the "attribute value set" probe."""
+    rows = [(s, lab, ov, why) for (s, lab, ov, why) in ATTR_PROBE]
+    written = _probe_deck(out_dir, rows, "attr", lambda e: e["label"])
+    print("attrdeck -> %s" % out_dir)
+    print("  %d 份 deck（ATTR_PROBE：属性取值全集）" % len(written))
+    for e in written:
+        print("    %-22s %-46s %s" % (e["deck"], e["child"], e["why"]))
+    return 0
+
+
 def cmd_dirdeck(out_dir):
     """One deck per (spec, dir) row in DIR_PROBE.
 
@@ -1911,6 +2043,153 @@ def cmd_dirmirror(video_dir, out=None):
     return 0
 
 
+def _read_frames(path):
+    import cv2
+    cap = cv2.VideoCapture(path)
+    frames = []
+    while True:
+        ok, f = cap.read()
+        if not ok:
+            break
+        frames.append(f)
+    cap.release()
+    return frames
+
+
+def _window(frames, man):
+    fps = man.get("fps", FPS)
+    bnd = (man.get("expected_boundary_frames") or [SLIDE_SECONDS * fps])[0]
+    return frames[max(0, bnd - int(1.5 * fps)):min(len(frames), bnd + int(1.5 * fps))]
+
+
+def cmd_attrdiff(video_dir, out=None):
+    """Compare the attribute variants of each spec: does the attribute DO anything?
+
+    The question the name layer could not answer: it records ONE child per
+    effect (`clock -> <p:wheel spokes="1"/>`), while the PowerPoint-written
+    presetID enum shows several effects carry FURTHER attribute values. Two
+    distinct outcomes must be told apart, exactly as in the dir probe:
+
+      * the variants render IDENTICALLY  -> the attribute value is cosmetic /
+        ignored (or the value is equivalent to the default);
+      * the variants render DIFFERENTLY  -> the attribute really changes the
+        shape, and the shape layer must describe each value.
+
+    Uses a **third, independent instrument** as the primary signal: the
+    per-frame PIXEL DIFF of the two renderings. Unlike cx_trace / tx it needs
+    no axis assumption -- an attribute is not necessarily a direction
+    (spokes, orient, pattern, isContent are not), so an axis-based verdict
+    would be the wrong question. Shape metrics are reported alongside for
+    description, not for the "did it change" verdict.
+    """
+    import glob as _glob
+    import numpy as np
+    import cv2
+
+    videos = sorted(_glob.glob(os.path.join(video_dir, "*.mp4")))
+    if not videos:
+        print("!! %s 下没有 mp4" % video_dir)
+        return 1
+
+    by_spec = {}
+    for v in videos:
+        stem = os.path.splitext(os.path.basename(v))[0]
+        man = os.path.join(video_dir, stem + ".manifest.json")
+        if not os.path.exists(man):
+            print("-- %s: 无 manifest，跳过" % stem)
+            continue
+        m = _load_json(man)
+        frames = _read_frames(v)
+        if not frames:
+            continue
+        seg = _window(frames, m)
+        prof = _profile_metrics(seg) or {}
+        by_spec.setdefault(m.get("spec"), {})[m.get("label")] = {
+            "label": m.get("label"), "child": m.get("child"),
+            "ui": m.get("ui"), "deck": stem,
+            "frames": seg, "profile": prof}
+
+    rows = []
+    for spec in sorted(by_spec):
+        variants = by_spec[spec]
+        if len(variants) < 2:
+            rows.append({"spec": spec, "labels": sorted(variants),
+                         "verdict": "single",
+                         "note": "只有一个变体，无从比较"})
+            continue
+        labels = sorted(variants)
+        # baseline = a row that means "no attribute / the default form" if one
+        # exists, else the first alphabetically (stable, and reported
+        # explicitly). Order matters: `plain`/`default`/`spokesNONE` all mean
+        # "I stripped the attribute", and `horz` only means default for split
+        # -- it must NOT outrank `plain` (an earlier version had horz first and
+        # silently used <p:comb dir="horz"/> as comb's baseline).
+        base = next((l for l in ("plain", "default", "spokesNONE")
+                     if l in labels), None)
+        if base is None:
+            base = next((l for l in ("horz",) if l in labels), labels[0])
+        bf = variants[base]["frames"]
+        pairs = []
+        for l in labels:
+            if l == base:
+                continue
+            af = variants[l]["frames"]
+            n = min(len(af), len(bf))
+            diffs = [float(np.mean(cv2.absdiff(af[i], bf[i])))
+                     for i in range(n)]
+            mx = max(diffs) if diffs else 0.0
+            mean = sum(diffs) / len(diffs) if diffs else 0.0
+            p = variants[l]["profile"]
+            bp = variants[base]["profile"]
+            pairs.append({
+                "label": l, "child": variants[l]["child"],
+                "max_frame_diff": round(mx, 3),
+                "mean_frame_diff": round(mean, 3),
+                "changed_frames": sum(1 for x in diffs if x > 0.5),
+                "differs": bool(mx > 0.5),
+                "band_travel": p.get("band_travel"),
+                "base_band_travel": bp.get("band_travel"),
+                "direction": p.get("direction"),
+                "base_direction": bp.get("direction"),
+                "span": p.get("span"), "base_span": bp.get("span"),
+            })
+        rows.append({"spec": spec, "labels": labels, "base": base,
+                     "ui": variants[base]["ui"],
+                     "base_child": variants[base]["child"],
+                     "base_direction": variants[base]["profile"].get("direction"),
+                     "base_band": variants[base]["profile"].get("band_travel"),
+                     "pairs": pairs})
+
+    print("\n%-11s %-24s %-9s %-14s %-9s %s" % (
+        "spec", "variant", "differs?", "maxFrameDiff", "方向", "child"))
+    print("-" * 118)
+    for r in rows:
+        if r.get("verdict") == "single":
+            print("%-11s %-24s %-9s %-14s %-9s %s" % (
+                r["spec"], "-", "single", "-", "-", r.get("note", "")))
+            continue
+        print("%-11s %-24s %-9s %-14s %-9s %s" % (
+            r["spec"], "%s (base)" % r["base"], "-", "-",
+            r.get("base_direction"), r.get("base_child")))
+        for p in r["pairs"]:
+            print("%-11s %-24s %-9s %-14s %-9s %s" % (
+                "", p["label"], "DIFF" if p["differs"] else "same",
+                p["max_frame_diff"],
+                "%s->%s" % (r.get("base_direction"), p["direction"]),
+                p["child"]))
+
+    if out:
+        slim = []
+        for r in rows:
+            rr = {k: v for k, v in r.items() if k != "frames"}
+            slim.append(rr)
+        json.dump({"attrs": slim, "attr_probe": [list(x) for x in ATTR_PROBE]},
+                  io.open(out, "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+        print("\n-> %s" % out)
+    return 0
+
+
 def cmd_shapeanalyze(video, manifest, out=None):
     """Report the shape of one rendered transition."""
     import cv2
@@ -2069,6 +2348,11 @@ def main(argv=None):
     dm = sub.add_parser("dirmirror")
     dm.add_argument("video_dir")
     dm.add_argument("--out")
+    at = sub.add_parser("attrdeck")
+    at.add_argument("out_dir")
+    am = sub.add_parser("attrdiff")
+    am.add_argument("video_dir")
+    am.add_argument("--out")
     ns = ap.parse_args(argv)
     if ns.cmd == "build":
         return cmd_build(ns.case_dir)
@@ -2098,6 +2382,10 @@ def main(argv=None):
         return cmd_dirdeck(ns.out_dir)
     if ns.cmd == "dirmirror":
         return cmd_dirmirror(ns.video_dir, ns.out)
+    if ns.cmd == "attrdeck":
+        return cmd_attrdeck(ns.out_dir)
+    if ns.cmd == "attrdiff":
+        return cmd_attrdiff(ns.video_dir, ns.out)
     return cmd_sheets(ns.video, ns.out_dir, ns.want)
 
 
