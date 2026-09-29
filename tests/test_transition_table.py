@@ -469,11 +469,15 @@ def main():
             real = {h["spec"] for h in B.HYPOTHESES}
             # 只认反引号里的单个小写词，避免把 `dir`/`l→r`/代码片段当效果名
             cited = set(re.findall(r"`([a-z][a-z0-9_]{1,20})`", ctext))
-            # 那些明确不是效果名的反引号词：属性名、占位符、以及 `none`
-            # （`none` 是"无切换"，合法但不属于 48 个效果集）。注意 `fade`
+            # 那些明确不是效果名的反引号词：属性名、占位符、命令名、指标名，
+            # 以及 `none`（"无切换"，合法但不属于 48 个效果集）。注意 `fade`
             # 是**真实** spec，不在此列 —— 混进来会让这条检查失去意义。
-            NOT_SPEC = {"dir", "none", "auto", "true", "advtm", "advtm",
-                        "fallback", "choice", "xml", "pptx"}
+            NOT_SPEC = {"dir", "none", "auto", "true", "advtm",
+                        "fallback", "choice", "xml", "pptx",
+                        # 本轮为 dir 探测新增
+                        "dirdeck", "dirmirror",
+                        # 指标名（不是切换）
+                        "dx", "dy", "tx", "ty"}
             bogus = sorted(s for s in cited
                            if s not in real and s not in NOT_SPEC)
             check("选择层引用的切换名都是真实 spec", not bogus,
@@ -485,10 +489,22 @@ def main():
 
         # ④ 最关键：所有 [实测] 引用的数字与方向，必须逐字出现在形态层。
         #    这是"不能反驳"这句承诺的唯一技术保障。
+        #
+        #    比较前把 U+2212（真正的减号）归一化成 ASCII '-'：要求的是【数值
+        #    同源】，不是【字符编码相同】。全仓库排版用的是 U+2212，而 Python
+        #    的 \d 正则只认 ASCII '-'，不归一化会制造一堆假失败。
         if os.path.exists(shapes_doc):
-            stext = io.open(shapes_doc, encoding="utf-8").read()
+            def _norm_neg(t):
+                # ONLY U+2212 (the real minus sign). Do NOT fold U+2013
+                # (en-dash): it is used as a RANGE separator here ("0.6–0.8s"),
+                # and folding it turns the range into a negative number that
+                # then has no counterpart in the other document.
+                return t.replace("\u2212", "-")
+
+            stext = _norm_neg(io.open(shapes_doc, encoding="utf-8").read())
+            ctext_n = _norm_neg(ctext)
             drift = []
-            for num in re.findall(r"-?\d+\.\d+", ctext):
+            for num in re.findall(r"-?\d+\.\d+", ctext_n):
                 if num not in stext:
                     drift.append("数字 %s 形态层里没有" % num)
             for arrow in ("l→r", "r→l", "t→b", "b→t", "l↔r"):
@@ -531,6 +547,125 @@ def main():
     if os.path.exists(index_doc):
         itext = io.open(index_doc, encoding="utf-8").read()
         check("INDEX 能到达选择层文档", "transition-choice.md" in itext)
+
+    # ---- 12. 方向探测（补 3b §三 的缺口）--------------------------------
+    # 为什么需要这一组：选择层 §三 曾挂着一条诚实的 ⚠️ —— 形态层只量了每个
+    # 效果的【默认形态】，"把 dir 从 r 换成 l 就会镜像"是个假设，不是测量。
+    # 而 §二/§五 的整张推荐表都建在这个假设上（"递进必须显式写 dir=l→r"）。
+    # 现在把它变成可测的，并且用合成帧把判据本身先标定住 —— 否则"测了"
+    # 和"测对了"还是两回事。
+    if np is not None:
+        # 标定 1：两个互为镜像的扫过序列，必须被判成 mirror。
+        # sweep_frames(True) 从左侧生长，sweep_frames(False) 从右侧 —— 这就是
+        # 定义上的镜像，判据必须先在这个已知答案上成立。
+        ml = B._profile_metrics(sweep_frames(True))
+        mr = B._profile_metrics(sweep_frames(False))
+        v_mirror = B.mirror_verdict(ml, mr, axis="x")
+        check("镜像标定：左→右 vs 右→左 判成 mirror",
+              v_mirror.get("verdict") == "mirror",
+              "verdict=%s r=%s dirs=(%s,%s)" % (v_mirror.get("verdict"),
+                                                v_mirror.get("r"),
+                                                v_mirror.get("dir_a"),
+                                                v_mirror.get("dir_b")))
+        check("镜像标定：相关系数接近 -1",
+              (v_mirror.get("r") is not None) and v_mirror["r"] <= -0.7,
+              "r=%s" % v_mirror.get("r"))
+
+        # 标定 2：同一个序列与它自己必须【不】被判成 mirror。
+        # 这是负向对照 —— 少了它，"r 永远是负的"这种坏实现也能骗过标定 1。
+        v_same = B.mirror_verdict(ml, ml, axis="x")
+        check("负向对照：同一序列与自身不判 mirror",
+              v_same.get("verdict") != "mirror",
+              "verdict=%s r=%s" % (v_same.get("verdict"), v_same.get("r")))
+
+        # 标定 3：轨迹太短 / 无运动时必须说"判不了"，不能硬给一个结论。
+        # 形态层吃过这个亏：数据不足时静默给出错误分类（§47 盲区是静默的）。
+        still = [np.full((H, W, 3), 128, np.uint8) for _ in range(6)]
+        r_still = B._profile_metrics(still)
+        v_nm = B.mirror_verdict(r_still, r_still, axis="x")
+        check("静止/无轨迹时判成 no-motion（不硬下结论）",
+              v_nm.get("verdict") == "no-motion",
+              "verdict=%s" % v_nm.get("verdict"))
+
+        # 标定 4：判据必须真的用到轨迹，而不是只看汇总量标签。
+        # 若实现退化成"两个 direction 标签不同就算镜像"，这一条会碎。
+        check("镜像判据基于逐帧轨迹（cx_trace 被返回且非空）",
+              (ml or {}).get("cx_trace") and len(ml["cx_trace"]) >= 3,
+              "len=%s" % len((ml or {}).get("cx_trace") or []))
+
+    # DIR_PROBE 的名单必须都是真实 spec，且每条都说得出"为什么测它"
+    bad_dp = [s for s, _d, _w in B.DIR_PROBE
+              if s not in {h["spec"] for h in B.HYPOTHESES}]
+    check("DIR_PROBE 引用的 spec 都真实存在", not bad_dp, str(bad_dp))
+    check("DIR_PROBE 每条都写了理由（不能只列组合）",
+          all(w.strip() for _s, _d, w in B.DIR_PROBE))
+    # 范围纪律：这一组是为了补 §三 的缺口，不是把 48 个效果全测一遍。
+    # 失控会让"补缺口"变成"重做形态层"，那就不该叫补缺口了。
+    check("DIR_PROBE 范围收敛（≤12 份，只覆盖选择层用到的组合）",
+          0 < len(B.DIR_PROBE) <= 12, "len=%d" % len(B.DIR_PROBE))
+    # 每个 dir 取值都应只出现一次（重复 = 白渲染一份）
+    pairs = [(s, d) for s, d, _w in B.DIR_PROBE]
+    check("DIR_PROBE 无重复 (spec,dir) 组合",
+          len(pairs) == len(set(pairs)),
+          "重复: %s" % [p for p in set(pairs) if pairs.count(p) > 1])
+    # 选择层真正用到的四个效果必须在名单里（否则缺口没补到点上）
+    need = {"push", "wipe", "cover", "uncover"}
+    check("DIR_PROBE 覆盖选择层实际推荐的四个效果",
+          need <= {s for s, _d, _w in B.DIR_PROBE},
+          "缺 %s" % (need - {s for s, _d, _w in B.DIR_PROBE}))
+
+    # 缺口闭合的**文档证据**：§三 不能再挂着"没有实测证据"。
+    # 这条是负向检查 —— 防止有人回退文档、把已闭合的缺口又写回"未知"。
+    if os.path.exists(choice_doc):
+        ctext2 = io.open(choice_doc, encoding="utf-8").read()
+        check("§三 不再自称『没有实测证据』（缺口已闭合）",
+              "本文没有实测证据" not in ctext2,
+              "文档里还留着『没有实测证据』")
+        ctext2n = ctext2.replace("\u2212", "-")
+        for token, why in (("镜", "§三 要写出镜像结论"),
+                           ("-0.99", "wipe 的相关系数要可核对"),
+                           ("1.004", "push 的累积位移要可核对"),
+                           ("1.000", "curtains 对称性要可核对")):
+            check("§三 写着 %s（%s）" % (token, why), token in ctext2n)
+        # 两路判据的方法论必须留在文档里（不然下次又会只用一路）
+        check("§三 说明了为何 push 需要另一路判据",
+              "变化重心根本不动" in ctext2 or "重心根本不动" in ctext2)
+
+    # facts 必须记着这两条（否则"缺口已闭合"这件事会随时间丢失）
+    if os.path.exists(os.path.join(ROOT, "facts", "transitions.json")):
+        fx4 = _load_json(os.path.join(ROOT, "facts", "transitions.json"))
+        ids4 = {r["id"] for r in fx4["rules"]}
+        for want in ("mirroring-needs-two-instruments-not-one",
+                     "dir-mirrors-for-the-four-recommended-effects"):
+            check("facts 记着 %s" % want, want in ids4)
+
+    # 生成的 deck 文件名必须能直接配对（分析器靠文件名分 l/r）
+    import glob as _glob
+    probe_dir = os.path.join(ROOT, ".workbuddy", "_dirprobe_smoke")
+    try:
+        if not os.path.isdir(probe_dir):
+            B.cmd_dirdeck(probe_dir)
+        made = sorted(os.path.basename(p) for p in
+                      _glob.glob(os.path.join(probe_dir, "*.pptx")))
+        check("dirdeck 生成的文件名可配对（<spec>_dir_<l|r>）",
+              all(re.fullmatch(r"\w+_dir_[lrtb]\.pptx", n) for n in made)
+              and len(made) == len(B.DIR_PROBE),
+              "%d 个: %s" % (len(made), made[:4]))
+        # 生成器必须真的把 dir 写进 XML —— 文件名对但属性没写是最坏的假象
+        import zipfile as _zip
+        bad_xml = []
+        for s, d, _w in B.DIR_PROBE:
+            fp = os.path.join(probe_dir, "%s_dir_%s.pptx" % (s, d))
+            with _zip.ZipFile(fp) as z:
+                x = z.read("ppt/slides/slide2.xml").decode("utf-8")
+            m = re.search(r"<(p|p14|p15|p159):\w+[^>]*dir=\"%s\"[^>]*/>" % d, x)
+            if not m:
+                bad_xml.append("%s_dir_%s" % (s, d))
+        check("dirdeck 真的把 dir 写进了 slide XML", not bad_xml, str(bad_xml))
+    finally:
+        import shutil as _sh
+        if os.path.isdir(probe_dir):
+            _sh.rmtree(probe_dir, ignore_errors=True)
 
     print()
     if fails:

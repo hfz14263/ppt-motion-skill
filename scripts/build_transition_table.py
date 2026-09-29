@@ -71,6 +71,24 @@ NSDECL = " ".join('xmlns:%s="%s"' % kv for kv in sorted(NS.items()))
 # Everything else is left out ON PURPOSE so the roundtrip reveals PowerPoint's
 # own default.
 # --------------------------------------------------------------------------
+def _with_dir(child, direction):
+    """Return `child` with a `dir="..."` attribute injected.
+
+    `dir` goes on the CHILD element (`<p:push dir="l"/>`), not on
+    <p:transition> -- that is where PowerPoint itself writes it
+    (com-pitfalls §41/§42). Only used by the direction probe; the default
+    probe deliberately writes no dir at all.
+    """
+    if not direction:
+        return child
+    m = re.match(r"<([A-Za-z0-9:]+)((?:\s[^>]*)?)/>$", child)
+    if not m:
+        raise ValueError("cannot inject dir into %r" % child)
+    tag, attrs = m.group(1), m.group(2) or ""
+    attrs = re.sub(r'\s+dir="[^"]*"', "", attrs)      # replace, don't stack
+    return '<%s%s dir="%s"/>' % (tag, attrs, direction)
+
+
 HYPOTHESES = [
     # ---- 细微 (12, excluding 无) -----------------------------------------
     {"ui": "淡入/淡出", "group": "细微", "en": "Fade", "family": "core",
@@ -1262,9 +1280,9 @@ def cmd_shapedeck(out_dir):
     """One deck per effect in HYPOTHESES, for the shape (not the name) probe.
 
     Default attributes only: one deck per spec. Variants (push dir=l vs r,
-    wheel spokes=1 vs 4) are the SAME motion mirrored or re-parameterised, so
-    measuring them adds little; what the table needs first is "what does each
-    of the 47 do by default".
+    wheel spokes=1 vs 4) are handled by cmd_dirdeck -- measuring the DEFAULT
+    form first is what makes "what does each of the 47 do by default"
+    answerable, and the direction variants are a separate, narrower question.
     """
     os.makedirs(out_dir, exist_ok=True)
     written = []
@@ -1294,6 +1312,80 @@ def cmd_shapedeck(out_dir):
     print("shapedeck -> %s" % out_dir)
     print("  %d 份 deck（HYPOTHESES 全量，默认属性）" % len(written))
     print("  每份 2 页：第 1 页 FROM 网格、第 2 页 TO 网格 + 该效果")
+    return 0
+
+
+# Which (spec, dir) pairs to render for the DIRECTION probe.
+#
+# Scope is deliberately narrow: only the pairs that reference/transition-choice.md
+# actually recommends. The question is not "what does dir do in general" but
+# "is the claim we shipped true" -- and we only ship claims about these.
+#
+# Why this exists at all: transition-choice.md §三 carried an honest ⚠️ that
+# the shape layer had only ever measured each effect in its DEFAULT form, so
+# "dir=l→r means forwards" was an assumption, not a measurement. This probe
+# turns that assumption into data (or refutes it).
+#
+# `l` and `r` are the OOXML Dir values (left / right). What they DO to the
+# picture is exactly what we are measuring -- the whole point is that the
+# literal meaning of the attribute is not the same as the visual result.
+DIR_PROBE = (
+    # spec,     dir,  why we ship this pair
+    ("push",    "l",  "§二 递进/并列首选：章节页进来 push l→r"),
+    ("push",    "r",  "§二 回归首选：章节内回正文 push r→l"),
+    ("wipe",    "l",  "§二 并列首选：对比页 wipe l→r"),
+    ("wipe",    "r",  "§二 复位的『别用』一列与回归备选"),
+    ("cover",   "l",  "§二 并列备选 / 封面→正文"),
+    ("cover",   "r",  "§二 收尾页首选：cover r→l"),
+    ("uncover", "l",  "§三 方向语义表：默认 r→l，递进该写 l→r"),
+    ("uncover", "r",  "同上（默认形态，用于与 l 对照）"),
+    ("curtains", "l", "§三 声明『对称，加 dir 无方向』—— 必须验证它是否真被忽略"),
+    ("curtains", "r", "同上：有了 l/r 才能配对，否则『无方向』无法与『有方向』区分"),
+)
+
+
+def cmd_dirdeck(out_dir):
+    """One deck per (spec, dir) pair in DIR_PROBE.
+
+    Filenames are `<spec>_dir_<d>.pptx` so a plain directory listing shows
+    which pairs exist, and so the analyser can pair `x_dir_l` with `x_dir_r`
+    by filename without consulting the manifest.
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    by_spec = {h["spec"]: h for h in HYPOTHESES}
+    written = []
+    for spec, direction, why in DIR_PROBE:
+        hyp = by_spec.get(spec)
+        if hyp is None:
+            raise RuntimeError("DIR_PROBE references unknown spec %r" % spec)
+        name = "%s_dir_%s" % (spec, direction)
+        path = os.path.join(out_dir, name + ".pptx")
+        child = _with_dir(hyp["child"], direction)
+        block = wrap_transition(hyp["family"], child, dur=DUR_MS)
+        n = _shape_deck(path, block)
+        if n != 1:
+            raise RuntimeError("%s: transition not written (n=%d)" % (name, n))
+        entry = {"spec": spec, "dir": direction, "ui": hyp["ui"],
+                 "group": hyp["group"], "family": hyp["family"],
+                 "child": child, "why": why, "deck": name}
+        written.append(entry)
+        json.dump({"case": "dir probe: %s dir=%s" % (spec, direction),
+                   "spec": spec, "dir": direction, "ui": hyp["ui"],
+                   "group": hyp["group"], "family": hyp["family"],
+                   "child": child, "dur_ms": DUR_MS, "fps": FPS, "slides": 2,
+                   "transition_on": 2,
+                   "expected_boundary_frames": [SLIDE_SECONDS * FPS],
+                   "grid": [GRID_COLS, GRID_ROWS]},
+                  io.open(os.path.join(out_dir, name + ".manifest.json"),
+                          "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump({"decks": written, "fps": FPS, "dur_ms": DUR_MS,
+               "slide_seconds": SLIDE_SECONDS, "count": len(written)},
+              io.open(os.path.join(out_dir, "_index.json"), "w",
+                      encoding="utf-8"), ensure_ascii=False, indent=1)
+    print("dirdeck -> %s" % out_dir)
+    print("  %d 份 deck（DIR_PROBE：选择层真正用到的 dir 组合）" % len(written))
+    for e in written:
+        print("    %-14s %s" % (e["deck"], e["why"]))
     return 0
 
 
@@ -1359,7 +1451,7 @@ def _profile_metrics(frames):
                     "span": 0, "dx": 0.0, "dy": 0.0, "translate": "none",
                     "tx": 0.0, "ty": 0.0, "symmetry_v": 0.0, "symmetry_h": 0.0,
                     "rot_span": 0, "rot_mono": 0.0, "is_rotation": False,
-                    "ang_trace": [],
+                    "ang_trace": [], "cx_trace": [], "cy_trace": [],
                     "radial_profile": [], "coverage": 0.0,
                     "peak_to_mean": 0.0, "band_travel": 0.0,
                     "active_frames": int(hot.size)}
@@ -1368,7 +1460,7 @@ def _profile_metrics(frames):
                 "dx": 0.0, "dy": 0.0, "translate": "none",
                 "symmetry_v": 0.0, "symmetry_h": 0.0,
                 "rot_span": 0, "rot_mono": 0.0, "is_rotation": False,
-                "ang_trace": [],
+                "ang_trace": [], "cx_trace": [], "cy_trace": [],
                 "radial_profile": [], "active_frames": 0}
     # Strongest run by integrated energy.
     a, b = max(runs, key=lambda r: energy[r[0]:r[1] + 1].sum())
@@ -1548,8 +1640,201 @@ def _profile_metrics(frames):
             "coverage": round(coverage, 3),
             "peak_to_mean": round(peak_to_mean, 2),
             "band_travel": round(band_travel, 3),
+            # Per-frame change centroid over the DENSE window. Exposed so the
+            # mirror test can compare two runs frame-by-frame instead of
+            # comparing two summary numbers (a summary can agree while the
+            # trajectories disagree, and vice versa).
+            "cx_trace": [round(v, 4) for v in cxs],
+            "cy_trace": [round(v, 4) for v in cys],
             "peak_frame": a, "span": b - a, "active_frames": n_active,
             "energy": energy.tolist()}
+
+
+def mirror_verdict(a_res, b_res, axis="x"):
+    """Decide whether two runs of the same effect are MIRROR IMAGES.
+
+    The question transition-choice.md §三 could not answer: if you take
+    `<p:push dir="l"/>` and flip it to `dir="r"`, do you get the same motion
+    backwards, or something else entirely?
+
+    TWO COMPLEMENTARY INSTRUMENTS, because each is blind to one family:
+
+    * `cx_trace` -- the per-frame CHANGE CENTROID. Sees a travelling reveal
+      front (wipe, cover, uncover). BLIND to whole-page translation: every
+      column changes equally so the centroid never moves. Measured on push:
+      dx = 0.011 (i.e. "stationary") while the page demonstrably slid.
+    * `tx` -- the ACCUMULATED per-frame shift from phase correlation. Sees
+      whole-page translation (push) in one number. Blind to a sweep: a wipe
+      front crossing the frame moves very little total mass.
+
+    So we run both and take whichever one actually has signal. This is the
+    §八 lesson restated: every instrument has a family it cannot see, and the
+    failure is silent -- push came back "stationary / ambiguous" purely
+    because the first instrument was the wrong one, not because push is odd.
+
+    A true mirror means: one run goes the other way at the corresponding
+    moment. We accept it if EITHER instrument shows that, and we record which.
+    """
+    import numpy as np
+
+    out = {"axis": axis,
+           "dir_a": a_res.get("direction"), "dir_b": b_res.get("direction"),
+           "translate_a": a_res.get("translate"),
+           "translate_b": b_res.get("translate")}
+
+    # ---- instrument 2: accumulated shift (works for whole-page moves) ----
+    # `tx`/`ty` are already normalised by frame width/height, so their
+    # magnitude is comparable across effects. Signal threshold mirrors the one
+    # `_profile_metrics` itself uses to call something a translation (0.15).
+    txa, txb = a_res.get("tx") or 0.0, b_res.get("tx") or 0.0
+    tya, tyb = a_res.get("ty") or 0.0, b_res.get("ty") or 0.0
+    shift_mag = max((txa ** 2 + tya ** 2) ** 0.5, (txb ** 2 + tyb ** 2) ** 0.5)
+    out["tx_a"], out["tx_b"] = txa, txb
+    out["shift_mag"] = round(shift_mag, 3)
+    by_shift = None
+    if shift_mag > 0.15:
+        # Opposite signs = the two runs travelled opposite ways. Ratio near 1
+        # means they travelled the SAME DISTANCE, which is what "mirror" means
+        # -- a l→r that goes 3x as far as its r→l twin is not a mirror.
+        opp = (txa * txb) < 0
+        denom = max(abs(txa), abs(txb))
+        ratio = min(abs(txa), abs(txb)) / denom if denom > 1e-9 else 0.0
+        by_shift = bool(opp and ratio >= 0.7)
+        out["shift_opposite"] = bool(opp)
+        out["shift_ratio"] = round(ratio, 3)
+
+    # ---- instrument 1: change-centroid trajectory ------------------------
+    ta = a_res.get("cx_trace" if axis == "x" else "cy_trace") or []
+    tb = b_res.get("cx_trace" if axis == "x" else "cy_trace") or []
+    out["n_a"], out["n_b"] = len(ta), len(tb)
+    r = None
+    if len(ta) >= 4 and len(tb) >= 4:
+        n = 24
+        ya = np.interp(np.linspace(0, 1, n), np.linspace(0, 1, len(ta)),
+                       np.array(ta, dtype=float))
+        yb = np.interp(np.linspace(0, 1, n), np.linspace(0, 1, len(tb)),
+                       np.array(tb, dtype=float))
+        if ya.std() >= 1e-4 and yb.std() >= 1e-4:
+            r = float(np.corrcoef(ya, yb)[0, 1])
+    out["r"] = None if r is None else round(r, 3)
+
+    da, db = a_res.get("direction"), b_res.get("direction")
+    opposite = (da != db) or "stationary" in (da, db)
+    out["labels_opposite"] = bool(opposite)
+
+    # ---- combine: either instrument may carry the verdict ----------------
+    by_trace = None
+    if r is not None and r <= -0.7 and opposite:
+        by_trace = True
+    elif r is not None and r >= 0.7 and not opposite:
+        by_trace = False
+    if by_shift is True:
+        out["verdict"] = "mirror"
+        out["via"] = "shift" if not by_trace else "both"
+    elif by_trace is True:
+        out["verdict"] = "mirror"
+        out["via"] = "trace"
+    elif by_trace is False:
+        out["verdict"] = "same"
+        out["via"] = "trace"
+    elif shift_mag <= 0.15 and r is None:
+        out["verdict"] = "no-motion"
+    else:
+        out["verdict"] = "ambiguous"
+        out["via"] = "none"
+    return out
+
+
+def cmd_dirmirror(video_dir, out=None):
+    """Pair up <spec>_dir_<l|r> renders and judge whether dir mirrors.
+
+    Reads the manifest to learn each deck's spec/dir, runs the SAME shape
+    analyser the default probe uses (so the two layers cannot drift), then
+    compares the l/r trajectories.
+    """
+    import glob as _glob
+    import cv2
+
+    videos = sorted(_glob.glob(os.path.join(video_dir, "*.mp4")))
+    if not videos:
+        print("!! %s 下没有 mp4" % video_dir)
+        return 1
+
+    by_spec = {}
+    for v in videos:
+        stem = os.path.splitext(os.path.basename(v))[0]
+        man = os.path.join(video_dir, stem + ".manifest.json")
+        if not os.path.exists(man):
+            print("-- %s: 无 manifest，跳过" % stem)
+            continue
+        m = _load_json(man)
+        cap = cv2.VideoCapture(v)
+        frames = []
+        while True:
+            ok, f = cap.read()
+            if not ok:
+                break
+            frames.append(f)
+        cap.release()
+        if not frames:
+            continue
+        fps = m.get("fps", FPS)
+        bnd = (m.get("expected_boundary_frames") or [SLIDE_SECONDS * fps])[0]
+        # Window centred on the slide boundary, +/- 1.5 s. An earlier
+        # -2s..+3s window silently swallowed the WHOLE clip on these renders
+        # (148 frames: bnd=60, so bnd+3*fps=150 > 148 and bnd-2*fps=0), which
+        # dragged the dwell of slide 1 into the analysis and made `curtains`
+        # read as t->b on a one-frame active window. A transition is a
+        # ~0.5-1.0 s event; the window has to be tight around it.
+        seg = frames[max(0, bnd - int(1.5 * fps)):
+                     min(len(frames), bnd + int(1.5 * fps))]
+        res = _profile_metrics(seg) or {}
+        res.update({"spec": m.get("spec"), "dir": m.get("dir"),
+                    "ui": m.get("ui"), "deck": stem})
+        by_spec.setdefault(m.get("spec"), {})[m.get("dir")] = res
+
+    rows = []
+    for spec in sorted(by_spec):
+        pair = by_spec[spec]
+        if "l" not in pair or "r" not in pair:
+            # e.g. curtains only has an l deck: report it alone so a missing
+            # half is visible instead of silently absent.
+            rows.append({"spec": spec, "dir": sorted(pair),
+                         "verdict": "unpaired",
+                         "note": "只有 %s，无法配对比较" % "/".join(sorted(pair))})
+            continue
+        v = mirror_verdict(pair["l"], pair["r"], axis="x")
+        v.update({"spec": spec, "ui": pair["l"].get("ui"),
+                  "translate_l": pair["l"].get("translate"),
+                  "translate_r": pair["r"].get("translate"),
+                  "band_l": pair["l"].get("band_travel"),
+                  "band_r": pair["r"].get("band_travel")})
+        rows.append(v)
+
+    print("\n%-10s %-8s %-9s %-6s %-7s %-11s %-11s %s" % (
+        "spec", "界面名", "判定", "via", "r", "l 位移", "r 位移", "备注"))
+    print("-" * 100)
+    for r in rows:
+        if r.get("verdict") == "unpaired":
+            print("%-10s %-8s %-9s %-6s %-7s %-11s %-11s %s" % (
+                r["spec"], "", "unpaired", "-", "-", "-", "-",
+                r.get("note", "")))
+            continue
+        print("%-10s %-8s %-9s %-6s %-7s %-11s %-11s %s" % (
+            r["spec"], r.get("ui") or "", r.get("verdict"), r.get("via") or "-",
+            r.get("r"),
+            r.get("translate_l") or r.get("translate_a"),
+            r.get("translate_r") or r.get("translate_b"),
+            "tx=(%+.3f,%+.3f) shift=%s" % (r.get("tx_a") or 0,
+                                           r.get("tx_b") or 0,
+                                           r.get("shift_mag"))))
+
+    if out:
+        json.dump({"mirror": rows, "dir_probe": list(DIR_PROBE)},
+                  io.open(out, "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1)
+        print("\n-> %s" % out)
+    return 0
 
 
 def cmd_shapeanalyze(video, manifest, out=None):
@@ -1629,7 +1914,14 @@ def cmd_shapes(video_dir, out):
         m = _load_json(man)
         fps = m.get("fps", FPS)
         bnd = (m.get("expected_boundary_frames") or [SLIDE_SECONDS * fps])[0]
-        seg = frames[max(0, bnd - 2 * fps):min(len(frames), bnd + 3 * fps)]
+        # Window centred on the slide boundary, +/- 1.5 s. An earlier
+        # -2s..+3s window silently swallowed the WHOLE clip on these renders
+        # (148 frames: bnd=60, so bnd+3*fps=150 > 148 and bnd-2*fps=0), which
+        # dragged the dwell of slide 1 into the analysis and made `curtains`
+        # read as t->b on a one-frame active window. A transition is a
+        # ~0.5-1.0 s event; the window has to be tight around it.
+        seg = frames[max(0, bnd - int(1.5 * fps)):
+                     min(len(frames), bnd + int(1.5 * fps))]
         res = _profile_metrics(seg) or {}
         res.update({"spec": m.get("spec"), "ui": m.get("ui"),
                     "group": m.get("group"), "family": m.get("family"),
@@ -1698,6 +1990,11 @@ def main(argv=None):
     sh = sub.add_parser("shapes")
     sh.add_argument("video_dir")
     sh.add_argument("--out")
+    dd = sub.add_parser("dirdeck")
+    dd.add_argument("out_dir")
+    dm = sub.add_parser("dirmirror")
+    dm.add_argument("video_dir")
+    dm.add_argument("--out")
     ns = ap.parse_args(argv)
     if ns.cmd == "build":
         return cmd_build(ns.case_dir)
@@ -1723,6 +2020,10 @@ def main(argv=None):
         return cmd_shapeanalyze(ns.video, ns.manifest, ns.out)
     if ns.cmd == "shapes":
         return cmd_shapes(ns.video_dir, ns.out)
+    if ns.cmd == "dirdeck":
+        return cmd_dirdeck(ns.out_dir)
+    if ns.cmd == "dirmirror":
+        return cmd_dirmirror(ns.video_dir, ns.out)
     return cmd_sheets(ns.video, ns.out_dir, ns.want)
 
 

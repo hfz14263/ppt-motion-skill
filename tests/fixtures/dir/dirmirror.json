@@ -1,0 +1,172 @@
+{
+ "mirror": [
+  {
+   "axis": "x",
+   "dir_a": "r->l",
+   "dir_b": "l->r",
+   "translate_a": "l->r",
+   "translate_b": "none",
+   "tx_a": 0.516,
+   "tx_b": -0.117,
+   "shift_mag": 0.516,
+   "shift_opposite": true,
+   "shift_ratio": 0.227,
+   "n_a": 10,
+   "n_b": 9,
+   "r": -0.978,
+   "labels_opposite": true,
+   "verdict": "mirror",
+   "via": "trace",
+   "spec": "cover",
+   "ui": "覆盖",
+   "translate_l": "l->r",
+   "translate_r": "none",
+   "band_l": -0.356,
+   "band_r": 0.311
+  },
+  {
+   "axis": "x",
+   "dir_a": "t->b",
+   "dir_b": "t->b",
+   "translate_a": "none",
+   "translate_b": "none",
+   "tx_a": 0.0,
+   "tx_b": 0.0,
+   "shift_mag": 0.0,
+   "n_a": 17,
+   "n_b": 17,
+   "r": 1.0,
+   "labels_opposite": false,
+   "verdict": "same",
+   "via": "trace",
+   "spec": "curtains",
+   "ui": "帘式",
+   "translate_l": "none",
+   "translate_r": "none",
+   "band_l": -0.08,
+   "band_r": -0.08
+  },
+  {
+   "axis": "x",
+   "dir_a": "stationary",
+   "dir_b": "stationary",
+   "translate_a": "r->l",
+   "translate_b": "l->r",
+   "tx_a": -1.004,
+   "tx_b": 1.009,
+   "shift_mag": 1.009,
+   "shift_opposite": true,
+   "shift_ratio": 0.995,
+   "n_a": 19,
+   "n_b": 19,
+   "r": 0.565,
+   "labels_opposite": true,
+   "verdict": "mirror",
+   "via": "shift",
+   "spec": "push",
+   "ui": "推入",
+   "translate_l": "r->l",
+   "translate_r": "l->r",
+   "band_l": 0.011,
+   "band_r": -0.011
+  },
+  {
+   "axis": "x",
+   "dir_a": "r->l",
+   "dir_b": "l->r",
+   "translate_a": "r->l",
+   "translate_b": "none",
+   "tx_a": -0.359,
+   "tx_b": -0.026,
+   "shift_mag": 0.359,
+   "shift_opposite": false,
+   "shift_ratio": 0.072,
+   "n_a": 11,
+   "n_b": 12,
+   "r": -0.986,
+   "labels_opposite": true,
+   "verdict": "mirror",
+   "via": "trace",
+   "spec": "uncover",
+   "ui": "揭开",
+   "translate_l": "r->l",
+   "translate_r": "none",
+   "band_l": -0.349,
+   "band_r": 0.396
+  },
+  {
+   "axis": "x",
+   "dir_a": "r->l",
+   "dir_b": "l->r",
+   "translate_a": "none",
+   "translate_b": "none",
+   "tx_a": 0.003,
+   "tx_b": 0.003,
+   "shift_mag": 0.006,
+   "n_a": 14,
+   "n_b": 13,
+   "r": -0.994,
+   "labels_opposite": true,
+   "verdict": "mirror",
+   "via": "trace",
+   "spec": "wipe",
+   "ui": "擦除",
+   "translate_l": "none",
+   "translate_r": "none",
+   "band_l": -0.403,
+   "band_r": 0.406
+  }
+ ],
+ "dir_probe": [
+  [
+   "push",
+   "l",
+   "§二 递进/并列首选：章节页进来 push l→r"
+  ],
+  [
+   "push",
+   "r",
+   "§二 回归首选：章节内回正文 push r→l"
+  ],
+  [
+   "wipe",
+   "l",
+   "§二 并列首选：对比页 wipe l→r"
+  ],
+  [
+   "wipe",
+   "r",
+   "§二 复位的『别用』一列与回归备选"
+  ],
+  [
+   "cover",
+   "l",
+   "§二 并列备选 / 封面→正文"
+  ],
+  [
+   "cover",
+   "r",
+   "§二 收尾页首选：cover r→l"
+  ],
+  [
+   "uncover",
+   "l",
+   "§三 方向语义表：默认 r→l，递进该写 l→r"
+  ],
+  [
+   "uncover",
+   "r",
+   "同上（默认形态，用于与 l 对照）"
+  ],
+  [
+   "curtains",
+   "l",
+   "§三 声明『对称，加 dir 无方向』—— 必须验证它是否真被忽略"
+  ],
+  [
+   "curtains",
+   "r",
+   "同上：有了 l/r 才能配对，否则『无方向』无法与『有方向』区分"
+  ]
+ ]
+}
