@@ -477,7 +477,10 @@ def main():
                         # 本轮为 dir 探测新增
                         "dirdeck", "dirmirror",
                         # 指标名（不是切换）
-                        "dx", "dy", "tx", "ty"}
+                        "dx", "dy", "tx", "ty",
+                        # §三 全量实测引用的指标名与样本目录名
+                        "band_travel", "max_frame_diff", "dirprobe2",
+                        "page_curl", "peel_off", "shape", "wind"}
             bogus = sorted(s for s in cited
                            if s not in real and s not in NOT_SPEC)
             check("选择层引用的切换名都是真实 spec", not bogus,
@@ -594,25 +597,72 @@ def main():
               "len=%s" % len((ml or {}).get("cx_trace") or []))
 
     # DIR_PROBE 的名单必须都是真实 spec，且每条都说得出"为什么测它"
-    bad_dp = [s for s, _d, _w in B.DIR_PROBE
+    bad_dp = [s for s, _d, _a, _w in B.DIR_PROBE
               if s not in {h["spec"] for h in B.HYPOTHESES}]
     check("DIR_PROBE 引用的 spec 都真实存在", not bad_dp, str(bad_dp))
     check("DIR_PROBE 每条都写了理由（不能只列组合）",
-          all(w.strip() for _s, _d, w in B.DIR_PROBE))
-    # 范围纪律：这一组是为了补 §三 的缺口，不是把 48 个效果全测一遍。
-    # 失控会让"补缺口"变成"重做形态层"，那就不该叫补缺口了。
-    check("DIR_PROBE 范围收敛（≤12 份，只覆盖选择层用到的组合）",
-          0 < len(B.DIR_PROBE) <= 12, "len=%d" % len(B.DIR_PROBE))
+          all(w.strip() for _s, _d, _a, w in B.DIR_PROBE))
+    # 范围纪律：这一组是补 §三 的缺口，不是把 48 个效果全测一遍。
+    # 判据不是拍一个"份数上限"，而是【有原则地圈定范围】：
+    #   只测两个方向性族（整页平移 + 方向揭示）的成员，减去禁配清单。
+    #   禁配的效果商务场景不许用，测它的镜像性没有决策价值。
+    # 这样以后加成员时，判据会问"它属于这两族吗、它被禁了吗"，而不是"数量超了吗"。
+    #
+    # 族名从 transition-shapes.md §一 的族表里【读】出来，不在测试里另抄 ——
+    # 抄一份就会漂。行格式：| **族名** | 在做什么 | 成员 | 指标 |
+    dir_fams = {"整页平移", "方向揭示"}
+    fam_members = set()
+    if os.path.exists(shapes_doc):
+        stext_f = io.open(shapes_doc, encoding="utf-8").read()
+        for line in stext_f.splitlines():
+            m = re.match(r"\|\s*\*\*(.+?)\*\*\s*\|[^|]*\|([^|]+)\|", line)
+            if m and m.group(1).strip() in dir_fams:
+                for tok in re.findall(r"`(\w+)`", m.group(2)):
+                    fam_members.add(tok)
+    check("从形态层读到了两个方向性族的成员表",
+          len(fam_members) >= 10, "读到 %d 个" % len(fam_members))
+    ztext = ""
+    if os.path.exists(choice_doc):
+        ztext = io.open(choice_doc, encoding="utf-8").read()
+    # 禁配清单在 §四：从文档里读，不在测试里另抄一份（抄了就会漂）。
+    # 行格式是一串反引号词，用空格分隔：`random` `checkerboard` `blinds` ...
+    ban = set()
+    m_ban = re.search(r"### 商务场合默认禁用[^\n]*\n\n(.+)", ztext)
+    if m_ban:
+        ban = set(re.findall(r"`(\w+)`", m_ban.group(1)))
+    check("从选择层读到了 §四 禁配清单", len(ban) >= 5, "读到 %s" % sorted(ban))
+    probe_specs = {s for s, _d, _a, _w in B.DIR_PROBE}
+    outside = sorted(s for s in probe_specs if s not in fam_members)
+    check("DIR_PROBE 只含两个方向性族的成员（不越界到中心扩散/旋转等）",
+          not outside, "越界: %s" % outside)
+    banned_in = sorted(probe_specs & ban)
+    check("DIR_PROBE 不含 §四 禁配效果（禁配的测了也没决策价值）",
+          not banned_in, "混入禁配: %s" % banned_in)
+    # 另外：只测了方向的那些效果，必须真的【两个方向都测】才能判镜像
+    from collections import Counter as _C
+    cnt = _C(s for s, _d, _a, _w in B.DIR_PROBE)
+    lonely = sorted(s for s, c in cnt.items() if c < 2)
+    check("DIR_PROBE 每个效果都测了两个方向（单方向判不了镜像）",
+          not lonely, "只测一个方向: %s" % lonely)
     # 每个 dir 取值都应只出现一次（重复 = 白渲染一份）
-    pairs = [(s, d) for s, d, _w in B.DIR_PROBE]
+    pairs = [(s, d) for s, d, _a, _w in B.DIR_PROBE]
     check("DIR_PROBE 无重复 (spec,dir) 组合",
           len(pairs) == len(set(pairs)),
           "重复: %s" % [p for p in set(pairs) if pairs.count(p) > 1])
+    # 垂直效果必须用 u/d 测，水平效果必须用 l/r 测 —— 混了等于没测
+    axis_bad = []
+    for s, d, a, _w in B.DIR_PROBE:
+        if a == "y" and d not in ("u", "d"):
+            axis_bad.append("%s dir=%s axis=y" % (s, d))
+        if a == "x" and d not in ("l", "r"):
+            axis_bad.append("%s dir=%s axis=x" % (s, d))
+    check("DIR_PROBE 轴与 dir 取值自洽（垂直用 u/d、水平用 l/r）",
+          not axis_bad, str(axis_bad[:4]))
     # 选择层真正用到的四个效果必须在名单里（否则缺口没补到点上）
     need = {"push", "wipe", "cover", "uncover"}
     check("DIR_PROBE 覆盖选择层实际推荐的四个效果",
-          need <= {s for s, _d, _w in B.DIR_PROBE},
-          "缺 %s" % (need - {s for s, _d, _w in B.DIR_PROBE}))
+          need <= probe_specs,
+          "缺 %s" % (need - probe_specs))
 
     # 缺口闭合的**文档证据**：§三 不能再挂着"没有实测证据"。
     # 这条是负向检查 —— 防止有人回退文档、把已闭合的缺口又写回"未知"。
@@ -623,21 +673,67 @@ def main():
               "文档里还留着『没有实测证据』")
         ctext2n = ctext2.replace("\u2212", "-")
         for token, why in (("镜", "§三 要写出镜像结论"),
-                           ("-0.99", "wipe 的相关系数要可核对"),
+                           ("-0.99", "wipe/reveal 的相关系数要可核对"),
                            ("1.004", "push 的累积位移要可核对"),
-                           ("1.000", "curtains 对称性要可核对")):
+                           ("+0.406", "wipe 的 band_travel 要可核对"),
+                           ("+0.671", "glitter 的 band_travel 要可核对")):
             check("§三 写着 %s（%s）" % (token, why), token in ctext2n)
         # 两路判据的方法论必须留在文档里（不然下次又会只用一路）
         check("§三 说明了为何 push 需要另一路判据",
               "变化重心根本不动" in ctext2 or "重心根本不动" in ctext2)
+        # 负向检查：§三 不能再把 split 列进"能定向"（实测它是中心扩散、dir 无效）
+        check("§三 不再把 split 说成能定向",
+              "`push` `wipe` `cover` `uncover` `split` `reveal`" not in ctext2,
+              "§三 还留着把 split 列进能定向的旧表")
+        # 全量实测后，必须写出"多少会被忽略"这件事
+        check("§三 写出 dir 被忽略的一类（不是所有效果都能定向）",
+              "被忽略" in ctext2)
+    # 形态层 §九 也要有全量结论（不能只在选择层写）
+    if os.path.exists(shapes_doc):
+        stext9 = io.open(shapes_doc, encoding="utf-8").read()
+        stext9n = stext9.replace("\u2212", "-")
+        check("§九 写出被 dir 忽略的成员", "被忽略" in stext9 or "被**忽略**" in stext9)
+        check("§九 写出 box/comb 加了 dir 会打不开",
+              "打开" in stext9 and ("9.4" in stext9 or "打不开" in stext9))
+        check("§九 保留 wipe 的 band_travel 数字", "+0.406" in stext9n)
 
-    # facts 必须记着这两条（否则"缺口已闭合"这件事会随时间丢失）
+    # facts 必须记着这几条（否则"缺口已闭合"这件事会随时间丢失）
     if os.path.exists(os.path.join(ROOT, "facts", "transitions.json")):
         fx4 = _load_json(os.path.join(ROOT, "facts", "transitions.json"))
         ids4 = {r["id"] for r in fx4["rules"]}
         for want in ("mirroring-needs-two-instruments-not-one",
-                     "dir-mirrors-for-the-four-recommended-effects"):
+                     "dir-mirrors-for-the-four-recommended-effects",
+                     "dir-ignored-by-most-directional-effects",
+                     "adding-dir-can-make-the-file-unopenable",
+                     "direction-must-be-measured-not-inferred-from-effect-name"):
             check("facts 记着 %s" % want, want in ids4)
+
+    # 全量实测的归档必须留着 —— 这是 §九 结论的可回溯证据。
+    fxfull = os.path.join(ROOT, "tests", "fixtures", "dir", "dirmirror_full.json")
+    if os.path.exists(fxfull):
+        ffull = _load_json(fxfull)
+        frows = {r["spec"]: r for r in ffull.get("rows", [])}
+        check("归档 dirmirror_full 覆盖 19 个效果", len(frows) >= 19,
+              "只有 %d 条" % len(frows))
+        # 会镜像的 8 个：像素不同且 band_travel 反号
+        mirror8 = {"push", "pan", "switch", "wipe", "cover", "uncover",
+                   "reveal", "glitter"}
+        got = {s for s, r in frows.items() if r.get("band_flip")}
+        check("归档里 band_travel 反号的正是 8 个", got == mirror8,
+              "多/少: %s" % ((got - mirror8) | (mirror8 - got)))
+        # 被忽略的：像素逐帧相同 —— 这是另一路独立判据，必须与上一条同为 8 个
+        same = {s for s, r in frows.items() if r.get("pix_identical")}
+        check("归档里像素逐帧相同的正是另外 11 个",
+              same == set(frows) - mirror8,
+              "不一致: %s" % ((same ^ (set(frows) - mirror8))))
+        # 分离度：没有灰色地带 —— 被忽略的全是 0.000
+        nofloor = [s for s in same if (frows[s].get("max_frame_diff") or 0) > 0.05]
+        check("被忽略的效果逐帧像素差都是 0.000（无灰色地带）", not nofloor,
+              str(nofloor))
+        # 目视对照图也要在
+        check("目视对照图 dir_compare_full.png 已归档",
+              os.path.exists(os.path.join(ROOT, "tests", "fixtures", "dir",
+                                          "dir_compare_full.png")))
 
     # 生成的 deck 文件名必须能直接配对（分析器靠文件名分 l/r）
     import glob as _glob
@@ -647,14 +743,14 @@ def main():
             B.cmd_dirdeck(probe_dir)
         made = sorted(os.path.basename(p) for p in
                       _glob.glob(os.path.join(probe_dir, "*.pptx")))
-        check("dirdeck 生成的文件名可配对（<spec>_dir_<l|r>）",
-              all(re.fullmatch(r"\w+_dir_[lrtb]\.pptx", n) for n in made)
+        check("dirdeck 生成的文件名可配对（<spec>_dir_<两个 dir 值>）",
+              all(re.fullmatch(r"\w+_dir_[lrud]\.pptx", n) for n in made)
               and len(made) == len(B.DIR_PROBE),
               "%d 个: %s" % (len(made), made[:4]))
         # 生成器必须真的把 dir 写进 XML —— 文件名对但属性没写是最坏的假象
         import zipfile as _zip
         bad_xml = []
-        for s, d, _w in B.DIR_PROBE:
+        for s, d, _a, _w in B.DIR_PROBE:
             fp = os.path.join(probe_dir, "%s_dir_%s.pptx" % (s, d))
             with _zip.ZipFile(fp) as z:
                 x = z.read("ppt/slides/slide2.xml").decode("utf-8")

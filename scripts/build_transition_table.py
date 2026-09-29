@@ -1315,37 +1315,95 @@ def cmd_shapedeck(out_dir):
     return 0
 
 
-# Which (spec, dir) pairs to render for the DIRECTION probe.
+# Which (spec, dir, axis) triples to render for the DIRECTION probe.
 #
-# Scope is deliberately narrow: only the pairs that reference/transition-choice.md
-# actually recommends. The question is not "what does dir do in general" but
-# "is the claim we shipped true" -- and we only ship claims about these.
+# Scope: the members of the two directional families in
+# reference/transition-shapes.md §一 -- **整页平移** (push/pan/switch/
+# page_curl/window) and **方向揭示** (19 members) -- MINUS the ones §四 of
+# transition-choice.md forbids in business decks (checkerboard / honeycomb /
+# window). Testing an effect nobody is allowed to use buys no decision value;
+# this is a scope rule, not an oversight.
 #
 # Why this exists at all: transition-choice.md §三 carried an honest ⚠️ that
 # the shape layer had only ever measured each effect in its DEFAULT form, so
-# "dir=l→r means forwards" was an assumption, not a measurement. This probe
+# "dir flips the motion" was an assumption, not a measurement. This probe
 # turns that assumption into data (or refutes it).
 #
-# `l` and `r` are the OOXML Dir values (left / right). What they DO to the
-# picture is exactly what we are measuring -- the whole point is that the
-# literal meaning of the attribute is not the same as the visual result.
+# ⚠️ TWO NOTATIONS, and they must never be mixed up again:
+#   * `dir` here is the RAW OOXML ATTRIBUTE VALUE (`l`/`r`/`u`/`d`).
+#   * `画面 x→y` is the OBSERVED MOTION, which is the OPPOSITE reading:
+#     `dir=l` makes the picture travel r→l (l is the TARGET side the picture
+#     moves toward, not the side it enters from). Measured on push:
+#     dir=l → tx -1.004 (画面 r→l); dir=r → +1.009 (画面 l→r).
+#   * An early version of this table annotated pairs as "push l→r" using the
+#     SEMANTIC arrow for the ATTRIBUTE value -- literally backwards. The
+#     `why` strings below now spell out the direction each pair is FOR.
+#
+# `axis` picks which trace mirror_verdict correlates: horizontal effects
+# (default 画面 r→l / l→r) use "x"; vertical ones (comb/prestige 画面 b→t,
+# airplane/crush/drape/fall_over 画面 t→b) use "y" and are probed with u/d --
+# flipping an l/r attribute on a vertical effect tests nothing.
 DIR_PROBE = (
-    # spec,     dir,  why we ship this pair
-    ("push",    "l",  "§二 递进/并列首选：章节页进来 push l→r"),
-    ("push",    "r",  "§二 回归首选：章节内回正文 push r→l"),
-    ("wipe",    "l",  "§二 并列首选：对比页 wipe l→r"),
-    ("wipe",    "r",  "§二 复位的『别用』一列与回归备选"),
-    ("cover",   "l",  "§二 并列备选 / 封面→正文"),
-    ("cover",   "r",  "§二 收尾页首选：cover r→l"),
-    ("uncover", "l",  "§三 方向语义表：默认 r→l，递进该写 l→r"),
-    ("uncover", "r",  "同上（默认形态，用于与 l 对照）"),
-    ("curtains", "l", "§三 声明『对称，加 dir 无方向』—— 必须验证它是否真被忽略"),
-    ("curtains", "r", "同上：有了 l/r 才能配对，否则『无方向』无法与『有方向』区分"),
+    # ---- 整页平移族：水平轴 --------------------------------------------
+    ("push", "l", "x", "默认值。画面 r→l"),
+    ("push", "r", "x", "画面 l→r（§二 递进要的就是这个）"),
+    ("pan", "l", "x", "同 push 族：默认 画面 r→l"),
+    ("pan", "r", "x", "画面 l→r"),
+    ("switch", "l", "x", "同 push 族：默认 画面 r→l"),
+    ("switch", "r", "x", "画面 l→r"),
+    ("page_curl", "l", "x", "卷曲带方向；默认 画面 r→l"),
+    ("page_curl", "r", "x", "画面 l→r"),
+    # ---- 方向揭示族：水平轴 --------------------------------------------
+    ("wipe", "l", "x", "默认值。画面 r→l（形态层 band_travel −0.747）"),
+    ("wipe", "r", "x", "画面 l→r（§二 并列首选）"),
+    ("cover", "l", "x", "默认值。画面 r→l"),
+    ("cover", "r", "x", "画面 l→r"),
+    ("uncover", "l", "x", "默认值。画面 r→l"),
+    ("uncover", "r", "x", "画面 l→r"),
+    ("reveal", "l", "x", "§三 语义表标默认 r→l"),
+    ("reveal", "r", "x", "画面 l→r（对照）"),
+    ("box", "l", "x", "§三 语义表标默认 l→r，形态层却量到 stationary —— 必测"),
+    ("box", "r", "x", "同上（对照）"),
+    ("shape", "l", "x", "同 box：文档与形态层不一致"),
+    ("shape", "r", "x", "同上（对照）"),
+    ("wind", "l", "x", "§三 语义表标默认 r→l（形态层实测 画面 r→l ✓）"),
+    ("wind", "r", "x", "画面 l→r（对照）"),
+    ("glitter", "l", "x", "§三 语义表标默认 r→l（形态层实测 画面 r→l ✓）"),
+    ("glitter", "r", "x", "画面 l→r（对照）"),
+    ("peel_off", "l", "x", "§三 语义表标默认 r→l（形态层实测 画面 l→r，待校）"),
+    ("peel_off", "r", "x", "画面 r→l（对照）"),
+    ("curtains", "l", "x", "§三 声明『对称，加 dir 无方向』—— 验证是否真被忽略"),
+    ("curtains", "r", "x", "同上：有了 l/r 才能配对"),
+    # ---- 方向揭示族：垂直轴（默认就不是水平的）-------------------------
+    ("comb", "u", "y", "默认 画面 b→t（形态层实测）—— 垂直轴，不能测 l/r"),
+    ("comb", "d", "y", "画面 t→b"),
+    ("prestige", "u", "y", "默认 画面 b→t（形态层实测）"),
+    ("prestige", "d", "y", "画面 t→b"),
+    ("airplane", "u", "y", "默认 画面 t→b（形态层实测）"),
+    ("airplane", "d", "y", "画面 b→t"),
+    ("crush", "u", "y", "默认 画面 t→b"),
+    ("crush", "d", "y", "画面 b→t"),
+    ("drape", "u", "y", "默认 画面 t→b"),
+    ("drape", "d", "y", "画面 b→t"),
+    ("fall_over", "u", "y", "默认 画面 t→b"),
+    ("fall_over", "d", "y", "画面 b→t"),
+    ("origami", "u", "y", "形态层实测 画面 t→b（§三 语义表把它归在 l→r 一组，待校）"),
+    ("origami", "d", "y", "画面 b→t"),
 )
 
 
+def _dir_pairs(probe=None):
+    """Group DIR_PROBE rows into {spec: {axis, dirs, why}} for pairing."""
+    out = {}
+    for spec, d, axis, why in (probe or DIR_PROBE):
+        e = out.setdefault(spec, {"axis": axis, "dirs": [], "why": []})
+        e["dirs"].append(d)
+        e["why"].append("%s: %s" % (d, why))
+    return out
+
+
 def cmd_dirdeck(out_dir):
-    """One deck per (spec, dir) pair in DIR_PROBE.
+    """One deck per (spec, dir) row in DIR_PROBE.
 
     Filenames are `<spec>_dir_<d>.pptx` so a plain directory listing shows
     which pairs exist, and so the analyser can pair `x_dir_l` with `x_dir_r`
@@ -1354,7 +1412,7 @@ def cmd_dirdeck(out_dir):
     os.makedirs(out_dir, exist_ok=True)
     by_spec = {h["spec"]: h for h in HYPOTHESES}
     written = []
-    for spec, direction, why in DIR_PROBE:
+    for spec, direction, axis, why in DIR_PROBE:
         hyp = by_spec.get(spec)
         if hyp is None:
             raise RuntimeError("DIR_PROBE references unknown spec %r" % spec)
@@ -1365,12 +1423,13 @@ def cmd_dirdeck(out_dir):
         n = _shape_deck(path, block)
         if n != 1:
             raise RuntimeError("%s: transition not written (n=%d)" % (name, n))
-        entry = {"spec": spec, "dir": direction, "ui": hyp["ui"],
+        entry = {"spec": spec, "dir": direction, "axis": axis, "ui": hyp["ui"],
                  "group": hyp["group"], "family": hyp["family"],
                  "child": child, "why": why, "deck": name}
         written.append(entry)
         json.dump({"case": "dir probe: %s dir=%s" % (spec, direction),
-                   "spec": spec, "dir": direction, "ui": hyp["ui"],
+                   "spec": spec, "dir": direction, "axis": axis,
+                   "ui": hyp["ui"],
                    "group": hyp["group"], "family": hyp["family"],
                    "child": child, "dur_ms": DUR_MS, "fps": FPS, "slides": 2,
                    "transition_on": 2,
@@ -1746,11 +1805,14 @@ def mirror_verdict(a_res, b_res, axis="x"):
 
 
 def cmd_dirmirror(video_dir, out=None):
-    """Pair up <spec>_dir_<l|r> renders and judge whether dir mirrors.
+    """Pair up the two dir renders of each spec and judge whether dir mirrors.
 
-    Reads the manifest to learn each deck's spec/dir, runs the SAME shape
+    Reads the manifest to learn each deck's spec/dir/axis, runs the SAME shape
     analyser the default probe uses (so the two layers cannot drift), then
-    compares the l/r trajectories.
+    compares the two trajectories along that spec's axis.
+
+    Pairing is by spec (whatever two dir values DIR_PROBE declared for it), not
+    hard-coded to l/r -- horizontal effects are probed l/r, vertical ones u/d.
     """
     import glob as _glob
     import cv2
@@ -1760,6 +1822,7 @@ def cmd_dirmirror(video_dir, out=None):
         print("!! %s 下没有 mp4" % video_dir)
         return 1
 
+    want_axis = {s: e["axis"] for s, e in _dir_pairs().items()}
     by_spec = {}
     for v in videos:
         stem = os.path.splitext(os.path.basename(v))[0]
@@ -1790,44 +1853,55 @@ def cmd_dirmirror(video_dir, out=None):
                      min(len(frames), bnd + int(1.5 * fps))]
         res = _profile_metrics(seg) or {}
         res.update({"spec": m.get("spec"), "dir": m.get("dir"),
+                    "axis": m.get("axis") or want_axis.get(m.get("spec"), "x"),
                     "ui": m.get("ui"), "deck": stem})
         by_spec.setdefault(m.get("spec"), {})[m.get("dir")] = res
 
     rows = []
     for spec in sorted(by_spec):
         pair = by_spec[spec]
-        if "l" not in pair or "r" not in pair:
-            # e.g. curtains only has an l deck: report it alone so a missing
-            # half is visible instead of silently absent.
-            rows.append({"spec": spec, "dir": sorted(pair),
+        if len(pair) < 2:
+            # Report a lone deck so a missing half is visible instead of
+            # silently absent.
+            rows.append({"spec": spec, "dirs": sorted(pair),
                          "verdict": "unpaired",
-                         "note": "只有 %s，无法配对比较" % "/".join(sorted(pair))})
+                         "note": "只有 %s，无法配对比较"
+                                 % "/".join(sorted(pair))})
             continue
-        v = mirror_verdict(pair["l"], pair["r"], axis="x")
-        v.update({"spec": spec, "ui": pair["l"].get("ui"),
-                  "translate_l": pair["l"].get("translate"),
-                  "translate_r": pair["r"].get("translate"),
-                  "band_l": pair["l"].get("band_travel"),
-                  "band_r": pair["r"].get("band_travel")})
+        # Take the two dir values DIR_PROBE declared, in a stable order.
+        decl = [d for d, _w in
+                [(d, w) for _s, d, _a, w in DIR_PROBE if _s == spec]]
+        keys = [d for d in decl if d in pair] or sorted(pair)
+        ka, kb = keys[0], keys[1]
+        ra, rb = pair[ka], pair[kb]
+        axis = ra.get("axis") or "x"
+        v = mirror_verdict(ra, rb, axis=axis)
+        v.update({"spec": spec, "ui": ra.get("ui"), "axis": axis,
+                  "dir_a": ka, "dir_b": kb,
+                  "translate_a": ra.get("translate"),
+                  "translate_b": rb.get("translate"),
+                  "band_a": ra.get("band_travel"),
+                  "band_b": rb.get("band_travel")})
         rows.append(v)
 
-    print("\n%-10s %-8s %-9s %-6s %-7s %-11s %-11s %s" % (
-        "spec", "界面名", "判定", "via", "r", "l 位移", "r 位移", "备注"))
-    print("-" * 100)
+    print("\n%-10s %-8s %-6s %-9s %-6s %-7s %-10s %-10s %s" % (
+        "spec", "界面名", "轴", "判定", "via", "r",
+        "dir_a 位移", "dir_b 位移", "位移量(tx,ty)"))
+    print("-" * 108)
     for r in rows:
         if r.get("verdict") == "unpaired":
-            print("%-10s %-8s %-9s %-6s %-7s %-11s %-11s %s" % (
-                r["spec"], "", "unpaired", "-", "-", "-", "-",
+            print("%-10s %-8s %-6s %-9s %-6s %-7s %-10s %-10s %s" % (
+                r["spec"], "", "-", "unpaired", "-", "-", "-", "-",
                 r.get("note", "")))
             continue
-        print("%-10s %-8s %-9s %-6s %-7s %-11s %-11s %s" % (
-            r["spec"], r.get("ui") or "", r.get("verdict"), r.get("via") or "-",
-            r.get("r"),
-            r.get("translate_l") or r.get("translate_a"),
-            r.get("translate_r") or r.get("translate_b"),
-            "tx=(%+.3f,%+.3f) shift=%s" % (r.get("tx_a") or 0,
-                                           r.get("tx_b") or 0,
-                                           r.get("shift_mag"))))
+        print("%-10s %-8s %-6s %-9s %-6s %-7s %-10s %-10s %s" % (
+            r["spec"], r.get("ui") or "", r.get("axis") or "-",
+            r.get("verdict"), r.get("via") or "-", r.get("r"),
+            r.get("translate_a") or "-", r.get("translate_b") or "-",
+            "dir=%-6s tx=(%+.3f,%+.3f) shift=%s"
+            % ("%s/%s" % (r.get("dir_a"), r.get("dir_b")),
+               r.get("tx_a") or 0, r.get("tx_b") or 0,
+               r.get("shift_mag"))))
 
     if out:
         json.dump({"mirror": rows, "dir_probe": list(DIR_PROBE)},

@@ -1,202 +1,228 @@
 {
-  "what": "切换效果层的索引：界面库里一个名字，在【界面】、【OOXML】、【COM 属性模型】三套世界里分别是什么。",
-  "rule": "本文件【不存数据】。48 项实测对照表在 canonical 里，这里只记【跨三套世界的规则】和【哪些结论只有测量能给出、查文档查不到】。",
-  "sources": [
-    {
-      "id": "transition-reference",
-      "canonical_for": "48 个界面切换项、PowerPoint 实际写出的子元素、完整 XML 块、EntryEffect 复核值",
-      "location": "reference/transitions.md",
-      "machine_readable": "scripts/transition_reference.json",
-      "regenerate_with": "python scripts/build_transition_table.py（配合 scripts/probe_transitions.ps1 与 scripts/probe_enum_scan.ps1）",
-      "measured_on": "PowerPoint 16.0 build 17928",
-      "enum_range_scanned": "1..4200，3956 以上无切换"
-    },
-    {
-      "id": "transition-model",
-      "canonical_for": "切换的机制层：挂在终点页（渲染帧实测）、一个槽位、spd 与 p14:dur 谁生效、快慢中三档的实际毫秒、为什么它看不见形状",
-      "location": "reference/transition-model.md",
-      "regenerate_with": "python scripts/build_transition_table.py anchordeck <dir>；powershell -NoProfile -File scripts/probe_anchor.ps1 -Dir <dir>；python scripts/build_transition_table.py anchors <video> <manifest>",
-      "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p",
-      "replication": "每个时长结论都在「每页停留 2s」与「5s」两种设置下各测一遍并互相复核"
-    },
-    {
-      "id": "transition-shapes",
-      "canonical_for": "切换的形态层：48 个效果各自的运动方向、对称性、推进方式（硬切/整页平移/方向揭示/中心扩散/均匀淡变/随机），以及每种判定用的统计指标",
-      "location": "reference/transition-shapes.md",
-      "regenerate_with": "python scripts/build_transition_table.py shapedeck <dir1> && shapedeck2 <dir2>；powershell -NoProfile -File scripts/probe_shapes.ps1 -Dir <dir>（两次）；python scripts/build_transition_table.py shapes <dir> --out shapes.json",
-      "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p, 每页停留 2s",
-      "caveat": "形态数字来自渲染帧的统计剖面，能回答「有没有方向/往哪边/整页还是局部」，不能回答「好不好看」；morph 不适用（形态由内容决定）",
-      "note": "2026-09-29: dir 镜像性已实测（另有 mirror_verdict 两路判据）"
-    },
-    {
-      "location": "reference/transition-choice.md",
-      "kind": "design-judgement",
-      "note": "选择层：设计判断，非实测。所有 [实测] 引用回溯到 transition-shapes.md"
-    }
-  ],
-  "rules": [
-    {
-      "id": "ui-group-is-not-namespace",
-      "statement": "界面分组 ≠ XML 命名空间。细微组混着 core / p14 / p159；华丽组混着 p15 prstTrans 与 p14；动态内容组全是 p14。",
-      "the_trap": "按界面分组去猜元素所在的命名空间，四个组里至少有三个会猜错。",
-      "how_to_verify": "写一个候选，让 PowerPoint 保存一遍，读回来看它留在哪个命名空间",
-      "evidence": "reference/transitions.md §2 规则 1"
-    },
-    {
-      "id": "all-transitions-are-wrapped",
-      "statement": "每个切换最终都包在 mc:AlternateContent 里，连最普通的 core 切换也是。",
-      "why": "p14:dur 是 2010 年的属性，PowerPoint 选择把整个 <p:transition> 包起来，而不是丢掉时长。",
-      "the_trap": "以为只有 morph 需要包 —— 于是手写的 <p:fade/> 虽然能打开，却不是 PowerPoint 自己写的形式。",
-      "evidence": "reference/transitions.md §2 规则 2"
-    },
-    {
-      "id": "fallback-is-not-always-fade",
-      "statement": "mc:Fallback 不总是 <p:fade/>。core 元素在 Fallback 里重复自己；只有 p14/p15/p159 的子元素降级为 fade。",
-      "the_trap": "给 <p:push/> 配 <p:fade/> 的 Fallback：会被接受，但 PowerPoint 保存时改掉 —— 于是往返比对报「被改写」，看起来像 bug 其实只是没按它的规矩写。",
-      "measured": "第一批 48 个候选里有 16 个纯粹因为这个被判「被改写」",
-      "evidence": "reference/transitions.md §2 规则 3"
-    },
-    {
-      "id": "default-valued-attributes-are-deleted",
-      "statement": "PowerPoint 保存时会删掉值等于默认值的属性：<p:push dir=\"l\"/> → <p:push/>，<p:split orient=\"horz\" dir=\"out\"/> → <p:split/>。",
-      "the_trap": "以为写了 dir=\"l\" 就锁定了方向。它没有害处，但也不会留下 —— 想改方向必须写一个非默认值。",
-      "evidence": "reference/transitions.md §2 规则 4"
-    },
-    {
-      "id": "dir-is-mandatory-on-five-p14",
-      "statement": "切换 / 翻转 / 库 / 摩天轮 / 传送带 缺 dir 属性会让 PowerPoint 拒开【整份文件】，不是丢掉那一页。",
-      "the_trap": "拒开无法归因：不知道是元素名错了、还是缺属性、还是别的地方坏了。必须一个候选一份 deck 去探，让「拒开」成为可归因的结论。",
-      "how_to_verify": "枚举扫描：让 PowerPoint 自己写一遍，它永远写 dir=\"l\"",
-      "evidence": "reference/transitions.md §2 规则 5"
-    },
-    {
-      "id": "compare-structure-not-string",
-      "statement": "命名空间声明会挂在不同元素上（AlternateContent / Choice / transition），PowerPoint 还会加多余的 xmlns=\"\"。按字符串比较保存前后的 XML 会报一堆假差异。",
-      "fix": "比较元素结构，不比较文本",
-      "evidence": "reference/transitions.md §2 规则 6"
-    },
-    {
-      "id": "duplicate-xmlns-refuses-whole-deck",
-      "statement": "在 <p:sld> 上重复声明 xmlns 会让 part 不合法，PowerPoint 拒开整份 deck。",
-      "the_trap": "python-pptx 已经在 <p:sld> 上写了 xmlns:a / xmlns:p / xmlns:r，补扩展命名空间时不检查就会重复声明 xmlns:a。症状是「48 个候选全部拒开」，包括最普通的 <p:fade/> —— 这时该怀疑的是构建器，不是候选。",
-      "fix": "只补缺失的前缀",
-      "evidence": "reference/transitions.md §2 规则 7"
-    },
-    {
-      "id": "enum-cannot-establish-mapping",
-      "statement": "SlideShowTransition.EntryEffect 无法建立「界面名 → 元素」的映射。",
-      "why": "它是 2003 年代的枚举，本机映射与直觉差很远（0x0A01 名曰 fade 实际产出 <p:strips/>），而且多个元素会读回同一个值。",
-      "measured": "本机实测：fade=3849、strips=2561、push(dir=u)=3855、push(dir=l)=3853、zoom(dir=in)=3074、wipe=2817 —— 与旧表里 0x0A01/0x0901/0x0C01 那套完全不同，且旧表让 fade 与 strips 撞成同一个值",
-      "use_it_for": "只用于复核「这一页有没有切换」，不要拿它去同步",
-      "evidence": "reference/mso-primitives.md §5"
-    },
-    {
-      "id": "transition-anchors-on-the-target-page",
-      "statement": "<p:transition> 写在第 N 页，动的是「进入第 N 页」（N-1 → N），不是「离开第 N 页」。",
-      "why_it_matters": "写错页不报错，效果是整体往前挪一个边界：想让第 5→6 页动画化却写在第 5 页，会得到 5→6 硬切、4→5 意外动起来。",
-      "the_trap": "两种说法下「切换在第 N 页上」都成立，所以读 XML 什么都不能证明，必须数渲染出来的帧。",
-      "measured": "3 页 deck、只有第 2 页写 push 800ms：burst 62–85 帧 = 24 帧 = 800ms，落在边界 1（1→2）；边界 2（2→3）第 148 帧是单帧硬切",
-      "corollary_first_page": "第 1 页没有前驱页，它的切换只用在放映起步从黑场进入开场那一次（实测渲染出 767ms 的真 wipe），此后真正的第 1→2 边界是硬切",
-      "evidence": "reference/transition-model.md 一、com-pitfalls §43.1"
-    },
-    {
-      "id": "one-transition-one-slot",
-      "statement": "一个 <p:transition> 只接受一个子元素。放两个会让 PowerPoint 拒开整份文件。",
-      "measured": "push+morph 拒开、push+wipe 也拒开 —— 两组都试是为了排除「p159 特有」这种解释",
-      "the_trap": "不是丢一个、也不是留第一个，是整份打不开；与缺 dir 那五个同一类失败，所以还是要一份候选一个 deck 地探。",
-      "consequence": "「整页怎么过去」与「形状怎么形变」抢同一个名额，不可同时表达；页内个体行为只能走 <p:timing>",
-      "evidence": "reference/transition-model.md 二、com-pitfalls §43.2"
-    },
-    {
-      "id": "duration-truth-is-milliseconds",
-      "statement": "spd（三档粗调）与 p14:dur（毫秒）是同一个量的两种写法；并存的条件下听毫秒。",
-      "measured": "spd=\"slow\"+dur=200 → 6 帧 = 200ms；spd=\"fast\"+dur=1500 → 44 帧 = 1467ms",
-      "the_trap": "mc:Fallback 里不可能有 p14:dur（2010 属性），所以 WPS / 旧版 / 在线预览只认 spd —— 写死 spd=\"med\" 会让任何时长在那个世界里塌回 ~767ms。",
-      "fallback_world_ms": "slow≈1000ms、med≈733–767ms、fast≈467–500ms（不是界面上传说的 3s/2s/1s）",
-      "powerpoint_recomputes_spd": "往返会把 mc:Choice 的 spd 按它的粒度重算（写 spd=\"med\"+dur=800，存回 spd=\"slow\"），而 p14:dur 原样保留 —— 看到 spd 变化不等于时长丢了",
-      "how_the_engine_handles_it": "spd 由 duration 就近取档（≤633→fast、634–883→med、≥884→slow）；显式 speed= 被尊重；Fallback 不得携带 p14:dur；附加属性（advTm/advClick）必须与占位符一起合流，否则会写出半成品",
-      "evidence": "reference/transition-model.md 三、com-pitfalls §43.3"
-    },
-    {
-      "id": "transition-cannot-address-a-shape",
-      "statement": "<p:transition> 是 <p:sld> 的直接子元素、与 <p:cSld> 平级，所以在形状容器之外，天生看不见任何形状。",
-      "consequence": "切换只能陈述「整页被怎样替换掉」；「某一个形状怎么动」必须走 <p:timing>。两套机制正交，可同时存在于一页。",
-      "evidence": "reference/transition-model.md 四、reference/architecture.md"
-    },
-    {
-      "id": "frames-not-total-length",
-      "statement": "可从渲染帧断言「某个页边界上有没有 burst、多少毫秒」，不可断言「第 N 页从第几帧开始、全片多长」。",
-      "why": "页边界的实际帧号 = Σ各页停留 + Σ之前所有过渡；而导出总长在同一参数下也 deck 间不一致（同一批里一个被截短 23 帧、另一个完整）。",
-      "detector_caveat": "整帧 absdiff 均值会放过慢速 wipe（只移动一条边），也会把 wipe 读成淡入。判断有没有用「平均色变没变」，判断是哪种要看空间剖面。",
-      "evidence": "reference/transition-model.md 七/八、com-pitfalls §43.5"
-    },
-    {
-      "id": "shape-needs-two-complementary-probes",
-      "statement": "没有一个探测 deck 能同时看清全部 48 个效果：「变化在哪」和「变化怎么扩散」需要两种不同的画。",
-      "measured": "deck1（网格+一个移动标记）下 fade/wipe/dissolve/split/shape/randombar/box 的径向剖面差值 <0.03，根本分不开；deck2（满屏随机噪点）才把 wipe（band_travel=−0.747）与 fade（0.015）分开",
-      "the_trap": "第一版 deck 让每格都变色，结果差异图均匀，push 被测成「无方向」—— 探测画面必须「只有一个变量在动」。",
-      "how_to_choose_deck2_specs": "对 deck1 结果聚类，剖面差值 <0.05 的那组就是要重测的名单（DECK2_SPECS），不是猜的",
-      "evidence": "reference/transition-shapes.md 四、com-pitfalls §44.1/§44.4"
-    },
-    {
-      "id": "measurement-needs-the-right-instrument-per-effect-family",
-      "statement": "不同运动类型必须用不同指标：整页平移靠「逐帧累积相位相关」，方向揭示靠「差异重心轨迹」，中心/均匀靠「径向剖面」。单一指标一定会漏掉一整族。",
-      "measured": "push 的变化重心全程停在 ~0.5（指标A看不见它），但逐帧相位相关给出稳定 −4~−5px/帧；反之 wipe 只有一条边在动，全局相位相关读不到，重心却从 0.87 走到 0.43",
-      "the_trap": "用首尾两帧做相位相关：滑入类效果的首尾两帧都是「运动中途」的样子，净位移读成 0。必须逐帧累加。",
-      "evidence": "reference/transition-shapes.md 二、com-pitfalls §44.5"
-    },
-    {
-      "id": "random-transition-has-no-stable-shape",
-      "statement": "<p:random/> 每次放映随机挑一个效果，所以「random 的形态」没有稳定答案 —— 不是测不出来，是它不存在。",
-      "measured": "两次探测给出不同结果；random 与 clock 的 mp4 大小完全相同（186,629 字节）但 md5 不同，说明 random 那次恰好抽到了与 clock 相同的效果",
-      "consequence": "用 random 无法保证任何观感一致性，商务场合不要用；需要「不重复」就手动轮换几个确定的切换",
-      "evidence": "reference/transition-shapes.md 三、com-pitfalls §44.3"
-    },
-    {
-      "id": "dont-write-i-cant-measure-as-it-has-no-direction",
-      "statement": "指标给不出信号时，必须标注「该指标看不见它」，不能写成「它没有方向」。",
-      "measured": "honeycomb/shred/doors/window 的位移指标是噪声级（不是 push 那种稳定 −4~−5px/帧），真实形态是内部纹理在变；这四个的形态在现有 probe 下不可靠，表里如实标注",
-      "evidence": "reference/transition-shapes.md 五、com-pitfalls §44.6"
-    },
-    {
-      "id": "an-instrument-blind-spot-is-silent",
-      "claim": "指标漏掉一类形态时不会报错，而是安静地给出错误分类 —— 旋转就同时躲过了位移、漂移、径向三类指标，导致 clock 被归进中心扩散族",
-      "evidence": "reference/transition-shapes.md §八 + com-pitfalls §47",
-      "consequence": "每新增一类指标必须同时问它看不见什么；用户目视发现的分类错误按一等证据处理，回到原始帧重量"
-    },
-    {
-      "id": "direction-start-must-come-from-the-first-frame",
-      "claim": "判“起点在哪”必须回到过渡的第一帧，只看轨迹后半段会把起点写错 —— uncover 因此被误写成“起点在中间”",
-      "evidence": "reference/transition-shapes.md 五 + com-pitfalls §47.4",
-      "consequence": "用基准帧差（首帧 vs 各帧）而不是相邻帧差来定位起点；能量峰值位置才是真正的中点"
-    },
-    {
-      "id": "choice-layer-is-judgement-not-measurement",
-      "statement": "选择层（reference/transition-choice.md）的每条建议都没有渲染帧支撑 —— 它回答的是“该用什么”，而“该用什么”取决于场景、观众与表达意图。它是四层里唯一的【设计判断】层。",
-      "the_trap": "把选择层的建议当成实测结论去引用。它引用的数字/方向来自形态层（可回溯、不可反驳），但建议本身是可反驳的。",
-      "how_to_verify": "看标记：[实测] 的条目必须能在 reference/transition-shapes.md 里逐字找到它的数字与方向符号（tests 第 11 组自动校验）；［判断］ 的条目只要求给出理由。",
-      "evidence": "reference/transition-choice.md 顶部标记说明 + §六"
-    },
-    {
-      "id": "choice-layer-cannot-override-shape-layer",
-      "statement": "当选择层的建议与形态层实测冲突时，改选择层，不改实测。真实观测 > 设计意见。",
-      "the_trap": "为了让某条选型建议讲得通，去回改形态层的数字或方向 —— 那是在用设计意见污染测量结果，而测量结果有帧为证。",
-      "how_to_verify": "形态层的每个数字都应能由 scripts/build_transition_table.py 重新跑出来；若选择层的引用对不上，先怀疑选择层。",
-      "evidence": "reference/transition-choice.md §六「方向不可倒推」与「本层不能改上层」"
-    },
-    {
-      "id": "mirroring-needs-two-instruments-not-one",
-      "statement": "判「换 dir 是否镜像」必须两路并行：重心轨迹看揭示类（wipe/cover/uncover），累积位移看整页移动类（push）。任一单路都有一族看不见。",
-      "the_trap": "只用变化重心（cx_trace）判。整页平移时每列变化量相等 → 重心根本不动，push 被读成 dx=0.011「静止」，进而被判成 ambiguous —— 错的不是 push，是仪器。",
-      "how_to_verify": "两路都跑，取有信号的那路；实测 push 靠 tx=∓1.0 判镜像，wipe/cover/uncover 靠 r≈-0.98~-0.99 判镜像。见 scripts/build_transition_table.py mirror_verdict。",
-      "evidence": "scripts/build_transition_table.py mirror_verdict + reference/transition-choice.md §三"
-    },
-    {
-      "id": "dir-mirrors-for-the-four-recommended-effects",
-      "statement": "实测：push/wipe/cover/uncover 换 dir 后运动确实镜像；curtains 的 dir 被完全忽略（两个方向轨迹相关系数 +1.000、位移均为 0）。",
-      "the_trap": "把这条推广到全部「能定向」的成员（split/reveal/box/shape 等）—— 它们没有测过，镜像性仍是推断。",
-      "how_to_verify": "跑 build_transition_table.py dirdeck <dir> 再 dirmirror <dir>（各约 1 分钟）即可扩展覆盖。",
-      "evidence": "reference/transition-choice.md §三 + HANDOVER 3b 缺口闭合条"
-    }
-  ]
+ "what": "切换效果层的索引：界面库里一个名字，在【界面】、【OOXML】、【COM 属性模型】三套世界里分别是什么。",
+ "rule": "本文件【不存数据】。48 项实测对照表在 canonical 里，这里只记【跨三套世界的规则】和【哪些结论只有测量能给出、查文档查不到】。",
+ "sources": [
+  {
+   "id": "transition-reference",
+   "canonical_for": "48 个界面切换项、PowerPoint 实际写出的子元素、完整 XML 块、EntryEffect 复核值",
+   "location": "reference/transitions.md",
+   "machine_readable": "scripts/transition_reference.json",
+   "regenerate_with": "python scripts/build_transition_table.py（配合 scripts/probe_transitions.ps1 与 scripts/probe_enum_scan.ps1）",
+   "measured_on": "PowerPoint 16.0 build 17928",
+   "enum_range_scanned": "1..4200，3956 以上无切换"
+  },
+  {
+   "id": "transition-model",
+   "canonical_for": "切换的机制层：挂在终点页（渲染帧实测）、一个槽位、spd 与 p14:dur 谁生效、快慢中三档的实际毫秒、为什么它看不见形状",
+   "location": "reference/transition-model.md",
+   "regenerate_with": "python scripts/build_transition_table.py anchordeck <dir>；powershell -NoProfile -File scripts/probe_anchor.ps1 -Dir <dir>；python scripts/build_transition_table.py anchors <video> <manifest>",
+   "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p",
+   "replication": "每个时长结论都在「每页停留 2s」与「5s」两种设置下各测一遍并互相复核"
+  },
+  {
+   "id": "transition-shapes",
+   "canonical_for": "切换的形态层：48 个效果各自的运动方向、对称性、推进方式（硬切/整页平移/方向揭示/中心扩散/均匀淡变/随机），以及每种判定用的统计指标",
+   "location": "reference/transition-shapes.md",
+   "regenerate_with": "python scripts/build_transition_table.py shapedeck <dir1> && shapedeck2 <dir2>；powershell -NoProfile -File scripts/probe_shapes.ps1 -Dir <dir>（两次）；python scripts/build_transition_table.py shapes <dir> --out shapes.json",
+   "measured_on": "PowerPoint 16.0 build 17928, 30fps, CreateVideo 720p, 每页停留 2s",
+   "caveat": "形态数字来自渲染帧的统计剖面，能回答「有没有方向/往哪边/整页还是局部」，不能回答「好不好看」；morph 不适用（形态由内容决定）",
+   "note": "2026-09-29: dir 镜像性已实测（另有 mirror_verdict 两路判据）"
+  },
+  {
+   "location": "reference/transition-choice.md",
+   "kind": "design-judgement",
+   "note": "选择层：设计判断，非实测。所有 [实测] 引用回溯到 transition-shapes.md"
+  }
+ ],
+ "rules": [
+  {
+   "id": "ui-group-is-not-namespace",
+   "statement": "界面分组 ≠ XML 命名空间。细微组混着 core / p14 / p159；华丽组混着 p15 prstTrans 与 p14；动态内容组全是 p14。",
+   "the_trap": "按界面分组去猜元素所在的命名空间，四个组里至少有三个会猜错。",
+   "how_to_verify": "写一个候选，让 PowerPoint 保存一遍，读回来看它留在哪个命名空间",
+   "evidence": "reference/transitions.md §2 规则 1"
+  },
+  {
+   "id": "all-transitions-are-wrapped",
+   "statement": "每个切换最终都包在 mc:AlternateContent 里，连最普通的 core 切换也是。",
+   "why": "p14:dur 是 2010 年的属性，PowerPoint 选择把整个 <p:transition> 包起来，而不是丢掉时长。",
+   "the_trap": "以为只有 morph 需要包 —— 于是手写的 <p:fade/> 虽然能打开，却不是 PowerPoint 自己写的形式。",
+   "evidence": "reference/transitions.md §2 规则 2"
+  },
+  {
+   "id": "fallback-is-not-always-fade",
+   "statement": "mc:Fallback 不总是 <p:fade/>。core 元素在 Fallback 里重复自己；只有 p14/p15/p159 的子元素降级为 fade。",
+   "the_trap": "给 <p:push/> 配 <p:fade/> 的 Fallback：会被接受，但 PowerPoint 保存时改掉 —— 于是往返比对报「被改写」，看起来像 bug 其实只是没按它的规矩写。",
+   "measured": "第一批 48 个候选里有 16 个纯粹因为这个被判「被改写」",
+   "evidence": "reference/transitions.md §2 规则 3"
+  },
+  {
+   "id": "default-valued-attributes-are-deleted",
+   "statement": "PowerPoint 保存时会删掉值等于默认值的属性：<p:push dir=\"l\"/> → <p:push/>，<p:split orient=\"horz\" dir=\"out\"/> → <p:split/>。",
+   "the_trap": "以为写了 dir=\"l\" 就锁定了方向。它没有害处，但也不会留下 —— 想改方向必须写一个非默认值。",
+   "evidence": "reference/transitions.md §2 规则 4"
+  },
+  {
+   "id": "dir-is-mandatory-on-five-p14",
+   "statement": "切换 / 翻转 / 库 / 摩天轮 / 传送带 缺 dir 属性会让 PowerPoint 拒开【整份文件】，不是丢掉那一页。",
+   "the_trap": "拒开无法归因：不知道是元素名错了、还是缺属性、还是别的地方坏了。必须一个候选一份 deck 去探，让「拒开」成为可归因的结论。",
+   "how_to_verify": "枚举扫描：让 PowerPoint 自己写一遍，它永远写 dir=\"l\"",
+   "evidence": "reference/transitions.md §2 规则 5"
+  },
+  {
+   "id": "compare-structure-not-string",
+   "statement": "命名空间声明会挂在不同元素上（AlternateContent / Choice / transition），PowerPoint 还会加多余的 xmlns=\"\"。按字符串比较保存前后的 XML 会报一堆假差异。",
+   "fix": "比较元素结构，不比较文本",
+   "evidence": "reference/transitions.md §2 规则 6"
+  },
+  {
+   "id": "duplicate-xmlns-refuses-whole-deck",
+   "statement": "在 <p:sld> 上重复声明 xmlns 会让 part 不合法，PowerPoint 拒开整份 deck。",
+   "the_trap": "python-pptx 已经在 <p:sld> 上写了 xmlns:a / xmlns:p / xmlns:r，补扩展命名空间时不检查就会重复声明 xmlns:a。症状是「48 个候选全部拒开」，包括最普通的 <p:fade/> —— 这时该怀疑的是构建器，不是候选。",
+   "fix": "只补缺失的前缀",
+   "evidence": "reference/transitions.md §2 规则 7"
+  },
+  {
+   "id": "enum-cannot-establish-mapping",
+   "statement": "SlideShowTransition.EntryEffect 无法建立「界面名 → 元素」的映射。",
+   "why": "它是 2003 年代的枚举，本机映射与直觉差很远（0x0A01 名曰 fade 实际产出 <p:strips/>），而且多个元素会读回同一个值。",
+   "measured": "本机实测：fade=3849、strips=2561、push(dir=u)=3855、push(dir=l)=3853、zoom(dir=in)=3074、wipe=2817 —— 与旧表里 0x0A01/0x0901/0x0C01 那套完全不同，且旧表让 fade 与 strips 撞成同一个值",
+   "use_it_for": "只用于复核「这一页有没有切换」，不要拿它去同步",
+   "evidence": "reference/mso-primitives.md §5"
+  },
+  {
+   "id": "transition-anchors-on-the-target-page",
+   "statement": "<p:transition> 写在第 N 页，动的是「进入第 N 页」（N-1 → N），不是「离开第 N 页」。",
+   "why_it_matters": "写错页不报错，效果是整体往前挪一个边界：想让第 5→6 页动画化却写在第 5 页，会得到 5→6 硬切、4→5 意外动起来。",
+   "the_trap": "两种说法下「切换在第 N 页上」都成立，所以读 XML 什么都不能证明，必须数渲染出来的帧。",
+   "measured": "3 页 deck、只有第 2 页写 push 800ms：burst 62–85 帧 = 24 帧 = 800ms，落在边界 1（1→2）；边界 2（2→3）第 148 帧是单帧硬切",
+   "corollary_first_page": "第 1 页没有前驱页，它的切换只用在放映起步从黑场进入开场那一次（实测渲染出 767ms 的真 wipe），此后真正的第 1→2 边界是硬切",
+   "evidence": "reference/transition-model.md 一、com-pitfalls §43.1"
+  },
+  {
+   "id": "one-transition-one-slot",
+   "statement": "一个 <p:transition> 只接受一个子元素。放两个会让 PowerPoint 拒开整份文件。",
+   "measured": "push+morph 拒开、push+wipe 也拒开 —— 两组都试是为了排除「p159 特有」这种解释",
+   "the_trap": "不是丢一个、也不是留第一个，是整份打不开；与缺 dir 那五个同一类失败，所以还是要一份候选一个 deck 地探。",
+   "consequence": "「整页怎么过去」与「形状怎么形变」抢同一个名额，不可同时表达；页内个体行为只能走 <p:timing>",
+   "evidence": "reference/transition-model.md 二、com-pitfalls §43.2"
+  },
+  {
+   "id": "duration-truth-is-milliseconds",
+   "statement": "spd（三档粗调）与 p14:dur（毫秒）是同一个量的两种写法；并存的条件下听毫秒。",
+   "measured": "spd=\"slow\"+dur=200 → 6 帧 = 200ms；spd=\"fast\"+dur=1500 → 44 帧 = 1467ms",
+   "the_trap": "mc:Fallback 里不可能有 p14:dur（2010 属性），所以 WPS / 旧版 / 在线预览只认 spd —— 写死 spd=\"med\" 会让任何时长在那个世界里塌回 ~767ms。",
+   "fallback_world_ms": "slow≈1000ms、med≈733–767ms、fast≈467–500ms（不是界面上传说的 3s/2s/1s）",
+   "powerpoint_recomputes_spd": "往返会把 mc:Choice 的 spd 按它的粒度重算（写 spd=\"med\"+dur=800，存回 spd=\"slow\"），而 p14:dur 原样保留 —— 看到 spd 变化不等于时长丢了",
+   "how_the_engine_handles_it": "spd 由 duration 就近取档（≤633→fast、634–883→med、≥884→slow）；显式 speed= 被尊重；Fallback 不得携带 p14:dur；附加属性（advTm/advClick）必须与占位符一起合流，否则会写出半成品",
+   "evidence": "reference/transition-model.md 三、com-pitfalls §43.3"
+  },
+  {
+   "id": "transition-cannot-address-a-shape",
+   "statement": "<p:transition> 是 <p:sld> 的直接子元素、与 <p:cSld> 平级，所以在形状容器之外，天生看不见任何形状。",
+   "consequence": "切换只能陈述「整页被怎样替换掉」；「某一个形状怎么动」必须走 <p:timing>。两套机制正交，可同时存在于一页。",
+   "evidence": "reference/transition-model.md 四、reference/architecture.md"
+  },
+  {
+   "id": "frames-not-total-length",
+   "statement": "可从渲染帧断言「某个页边界上有没有 burst、多少毫秒」，不可断言「第 N 页从第几帧开始、全片多长」。",
+   "why": "页边界的实际帧号 = Σ各页停留 + Σ之前所有过渡；而导出总长在同一参数下也 deck 间不一致（同一批里一个被截短 23 帧、另一个完整）。",
+   "detector_caveat": "整帧 absdiff 均值会放过慢速 wipe（只移动一条边），也会把 wipe 读成淡入。判断有没有用「平均色变没变」，判断是哪种要看空间剖面。",
+   "evidence": "reference/transition-model.md 七/八、com-pitfalls §43.5"
+  },
+  {
+   "id": "shape-needs-two-complementary-probes",
+   "statement": "没有一个探测 deck 能同时看清全部 48 个效果：「变化在哪」和「变化怎么扩散」需要两种不同的画。",
+   "measured": "deck1（网格+一个移动标记）下 fade/wipe/dissolve/split/shape/randombar/box 的径向剖面差值 <0.03，根本分不开；deck2（满屏随机噪点）才把 wipe（band_travel=−0.747）与 fade（0.015）分开",
+   "the_trap": "第一版 deck 让每格都变色，结果差异图均匀，push 被测成「无方向」—— 探测画面必须「只有一个变量在动」。",
+   "how_to_choose_deck2_specs": "对 deck1 结果聚类，剖面差值 <0.05 的那组就是要重测的名单（DECK2_SPECS），不是猜的",
+   "evidence": "reference/transition-shapes.md 四、com-pitfalls §44.1/§44.4"
+  },
+  {
+   "id": "measurement-needs-the-right-instrument-per-effect-family",
+   "statement": "不同运动类型必须用不同指标：整页平移靠「逐帧累积相位相关」，方向揭示靠「差异重心轨迹」，中心/均匀靠「径向剖面」。单一指标一定会漏掉一整族。",
+   "measured": "push 的变化重心全程停在 ~0.5（指标A看不见它），但逐帧相位相关给出稳定 −4~−5px/帧；反之 wipe 只有一条边在动，全局相位相关读不到，重心却从 0.87 走到 0.43",
+   "the_trap": "用首尾两帧做相位相关：滑入类效果的首尾两帧都是「运动中途」的样子，净位移读成 0。必须逐帧累加。",
+   "evidence": "reference/transition-shapes.md 二、com-pitfalls §44.5"
+  },
+  {
+   "id": "random-transition-has-no-stable-shape",
+   "statement": "<p:random/> 每次放映随机挑一个效果，所以「random 的形态」没有稳定答案 —— 不是测不出来，是它不存在。",
+   "measured": "两次探测给出不同结果；random 与 clock 的 mp4 大小完全相同（186,629 字节）但 md5 不同，说明 random 那次恰好抽到了与 clock 相同的效果",
+   "consequence": "用 random 无法保证任何观感一致性，商务场合不要用；需要「不重复」就手动轮换几个确定的切换",
+   "evidence": "reference/transition-shapes.md 三、com-pitfalls §44.3"
+  },
+  {
+   "id": "dont-write-i-cant-measure-as-it-has-no-direction",
+   "statement": "指标给不出信号时，必须标注「该指标看不见它」，不能写成「它没有方向」。",
+   "measured": "honeycomb/shred/doors/window 的位移指标是噪声级（不是 push 那种稳定 −4~−5px/帧），真实形态是内部纹理在变；这四个的形态在现有 probe 下不可靠，表里如实标注",
+   "evidence": "reference/transition-shapes.md 五、com-pitfalls §44.6"
+  },
+  {
+   "id": "an-instrument-blind-spot-is-silent",
+   "claim": "指标漏掉一类形态时不会报错，而是安静地给出错误分类 —— 旋转就同时躲过了位移、漂移、径向三类指标，导致 clock 被归进中心扩散族",
+   "evidence": "reference/transition-shapes.md §八 + com-pitfalls §47",
+   "consequence": "每新增一类指标必须同时问它看不见什么；用户目视发现的分类错误按一等证据处理，回到原始帧重量"
+  },
+  {
+   "id": "direction-start-must-come-from-the-first-frame",
+   "claim": "判“起点在哪”必须回到过渡的第一帧，只看轨迹后半段会把起点写错 —— uncover 因此被误写成“起点在中间”",
+   "evidence": "reference/transition-shapes.md 五 + com-pitfalls §47.4",
+   "consequence": "用基准帧差（首帧 vs 各帧）而不是相邻帧差来定位起点；能量峰值位置才是真正的中点"
+  },
+  {
+   "id": "choice-layer-is-judgement-not-measurement",
+   "statement": "选择层（reference/transition-choice.md）的每条建议都没有渲染帧支撑 —— 它回答的是“该用什么”，而“该用什么”取决于场景、观众与表达意图。它是四层里唯一的【设计判断】层。",
+   "the_trap": "把选择层的建议当成实测结论去引用。它引用的数字/方向来自形态层（可回溯、不可反驳），但建议本身是可反驳的。",
+   "how_to_verify": "看标记：[实测] 的条目必须能在 reference/transition-shapes.md 里逐字找到它的数字与方向符号（tests 第 11 组自动校验）；［判断］ 的条目只要求给出理由。",
+   "evidence": "reference/transition-choice.md 顶部标记说明 + §六"
+  },
+  {
+   "id": "choice-layer-cannot-override-shape-layer",
+   "statement": "当选择层的建议与形态层实测冲突时，改选择层，不改实测。真实观测 > 设计意见。",
+   "the_trap": "为了让某条选型建议讲得通，去回改形态层的数字或方向 —— 那是在用设计意见污染测量结果，而测量结果有帧为证。",
+   "how_to_verify": "形态层的每个数字都应能由 scripts/build_transition_table.py 重新跑出来；若选择层的引用对不上，先怀疑选择层。",
+   "evidence": "reference/transition-choice.md §六「方向不可倒推」与「本层不能改上层」"
+  },
+  {
+   "id": "mirroring-needs-two-instruments-not-one",
+   "statement": "判「换 dir 是否镜像」必须两路并行：重心轨迹看揭示类（wipe/cover/uncover），累积位移看整页移动类（push）。任一单路都有一族看不见。",
+   "the_trap": "只用变化重心（cx_trace）判。整页平移时每列变化量相等 → 重心根本不动，push 被读成 dx=0.011「静止」，进而被判成 ambiguous —— 错的不是 push，是仪器。",
+   "how_to_verify": "两路都跑，取有信号的那路；实测 push 靠 tx=∓1.0 判镜像，wipe/cover/uncover 靠 r≈-0.98~-0.99 判镜像。见 scripts/build_transition_table.py mirror_verdict。",
+   "evidence": "scripts/build_transition_table.py mirror_verdict + reference/transition-choice.md §三"
+  },
+  {
+   "id": "dir-mirrors-for-the-four-recommended-effects",
+   "statement": "实测：push/wipe/cover/uncover 换 dir 后运动确实镜像；curtains 的 dir 被完全忽略（两个方向轨迹相关系数 +1.000、位移均为 0）。",
+   "the_trap": "把这条推广到全部「能定向」的成员（split/reveal/box/shape 等）—— 它们没有测过，镜像性仍是推断。",
+   "how_to_verify": "跑 build_transition_table.py dirdeck <dir> 再 dirmirror <dir>（各约 1 分钟）即可扩展覆盖。",
+   "evidence": "reference/transition-choice.md §三 + HANDOVER 3b 缺口闭合条"
+  },
+  {
+   "id": "dir-attribute-value-is-the-target-side-not-the-entry-side",
+   "statement": "dir=\"l\" 表示画面【朝左移动】（目标边），不是【从左边进入】。实测 push：dir=l → 画面 r→l；dir=r → 画面 l→r；dir=u → 画面 b→t。不写 dir 与 dir=l 完全相同（l 是该属性的默认值，PowerPoint 保存时会把它删掉）。",
+   "the_trap": "按字面把 dir=l 读成“从左进入”，于是以为 dir=l 等于画面 l→r —— 方向恰好反了。写文档时尤其容易犯：语义记号 l→r（表示“前进”）与属性值 dir=l 字形相同、含义相反。",
+   "how_to_verify": "渲染 <p:push/>、<p:push dir=\"l\"/>、<p:push dir=\"r\"/>、<p:push dir=\"u\"/> 四份 deck，读累积位移 tx/ty。实测：无 dir 与 dir=l 都是 tx=-1.004（画面 r→l），dir=r 是 tx=+1.009，dir=u 是 ty=-1.090。",
+   "evidence": "scripts/build_transition_table.py（DIR_PROBE/dirdeck）+ reference/transition-choice.md §三"
+  },
+  {
+   "id": "dir-ignored-by-most-directional-effects",
+   "statement": "19 个方向性效果里，只有 8 个真的会被 dir 反向：push / pan / switch / wipe / cover / uncover / reveal / glitter。其余 11 个（page_curl / peel_off / shape / wind / curtains / airplane / crush / drape / fall_over / prestige / origami）加 dir 后渲染出的画面【逐帧完全相同】，最大逐帧像素差 = 0.000。",
+   "the_trap": "把效果名当能力：以为凡是记录里带默认方向的效果都能被 dir 反转。实测 page_curl / peel_off / shape / wind 四个方向都非常明确（band_travel 显著非零），但那个方向【写死在效果里，dir 拧不动】。要反向只能换效果。",
+   "how_to_verify": "dirdeck 烘 42 份 deck（21 效果 × 2 向），渲染后逐帧像素比对 + band_travel 反号判据。两路 19/19 一致；max_frame_diff 的取值是 0.000（11 个）→ 4.10 → 23.9+，没有灰色地带。归档 tests/fixtures/dir/dirmirror_full.json。"
+  },
+  {
+   "id": "adding-dir-can-make-the-file-unopenable",
+   "statement": "不是所有效果都能加 dir，而且失败有两种：【被忽略】（多数）与【文件直接打不开】（box 的 <p:zoom/> 与 comb 的 <p:comb/>）。后一种在生成阶段一切正常，只有让 PowerPoint 真正打开才暴露。",
+   "the_trap": "以为“不支持 dir”一律等于“加了被忽略、无害”。dir 加在非接受该属性的元素上属于写坏文件。不能因为同族别的元素接受 dir 就推过来。",
+   "how_to_verify": "单变量隔离：box 不写 dir 能打开、写了打不开；comb 不写 dir 能打开、写了打不开。只差一个属性，变量唯一。",
+   "related": "com-pitfalls §49"
+  },
+  {
+   "id": "direction-must-be-measured-not-inferred-from-effect-name",
+   "statement": "效果的默认方向与“能否被 dir 改变”都只能靠渲染测量，不能按效果名或界面名推。本轮全量实测纠正了两处早先的错误：curtains 不是左右对称而是竖向条带对开；origami 默认是水平 l→r（早先误归 t→b 一组）。另外 spec=box（界面名「框」）写出的元素其实是 <p:zoom>，不是 <p:box>。",
+   "the_trap": "按中文界面名或英文效果名猜 XML 元素与属性行为，看起来都对，实际会错。",
+   "how_to_verify": "对照 tests/fixtures/dir/dirmirror_full.json 的 dirA/dirB 列与 reference/transition-choice.md §三 的方向语义速查表。"
+  }
+ ]
 }
