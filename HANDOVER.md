@@ -463,8 +463,33 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
      正是 `recipe-library.md`「按原理不按效果」要防的那件事。
    - **范围界定**（回答"机制层是否覆盖了 48 项全部"）：否。机制层是 47 个普通切换
      **共用**的 4 条底层机制，**一个具体效果的"长相"都没描述**；
-     属性取值全集（如 `<p:wheel spokes>` 可 1/2/3/4/8）、
      48 项之间的取舍、`<p:timing>` × 切换的配合，都还没有。
+     - **3a 遗留之一「属性取值全集」** —— ✅ **已做（2026-09-29）**。
+       名字层原先每个效果只记一个子元素（如 `clock -> <p:wheel spokes="1"/>`），
+       但枚举里 149 个值有一大半是**同一元素换属性值**，此前没人量过它们干什么。
+       - **做法**：新增 `ATTR_PROBE`（26 份 deck）+ `attrdeck` / `attrdiff`。
+         判据用**第三路仪器：逐帧像素差** —— `spokes`/`pattern`/`isContent`
+         本来就不是方向，用轴判据会**问错问题**。
+       - **⭐ 最重要的发现：非法属性值静默退回默认**（com-pitfalls **§50**）。
+         `clock` 的 `spokes="6"`（enum 里没有）与不写、与 `spokes="4"`
+         **逐帧像素差 0.000** —— 文件照开照渲染，你写的值被悄悄丢掉。
+         这是第三种"写了不生效"（前两种：被忽略 / 打不开）。**只验"能打开"不够。**
+       - **clock 默认是 4 根**，不是名字层原先记的 1 根（`spokes="1"` 只是
+         **一个取值**，不是默认）。
+       - **多个效果换属性值 = 换界面项**：`split` 的 `orient`×`dir` 四组合全不同、
+         `comb` 的 `dir`（horz=默认 / vert 差 64.0）、`p14:prism` 的
+         `isContent`×`isInverted` 四组合（像素差 62–105）全不同、
+         `glitter`/`shred` 的 `pattern` 换粒子形状但**不改方向**。
+       - **⭐ `invX` 才是 `p15:prstTrans` 系列的反向属性**（wind 82.5 /
+         peel_off 42.4 / fall_over 12.4），配合 §九 的"`dir` 对它们无效"，
+         得到完整规则：**同一个"反向"意图，core 元素用 `dir`，`prstTrans` 用 `invX`。**
+       - **纠正名字层一处含糊**：原写"prism 靠 isContent/isInverted 区分三个界面项"，
+         **没点明是哪两个位**。实测「轨道」= 两个都置位，而 `isInverted` 单独置位
+         是**界面上没有的第四形态**。已写准。
+       - 产物：`transitions.md` **§5.5 属性取值全集**、`transition-shapes.md`
+         **§十**、`com-pitfalls` **§50**、facts +5 条（32 条）、测试**第 13 组**。
+         归档 `tests/fixtures/dir/attrdiff_full.json` + `attr_compare_full.png`。
+     - **仍剩**：48 项之间的取舍（属选择层）、`<p:timing>` × 切换的配合。
 
 **验证文化（请保持）**
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
