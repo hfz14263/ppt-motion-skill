@@ -506,8 +506,25 @@ def main():
 
             stext = _norm_neg(io.open(shapes_doc, encoding="utf-8").read())
             ctext_n = _norm_neg(ctext)
+            #    只扫**量出来的数字**。必须排除两类"看起来像小数、其实是编号"的串：
+            #      ① 本文件自己的小节号（2.1 / 2.6 …）—— 小节号是导航，不是实测值；
+            #      ② 形如 `cut`(0.6) 这类**效果名紧邻的括号**写法也不会出现，
+            #         因为跨度都写成整数（见下）。
+            #    判据：小节号紧跟在"### "或"2." 这样的小节上下文里。用简单的
+            #    位置规则：`\d+\.\d+` 前面若是行首/空白且后跟空格+中文标题，则跳过。
+            def _measures(t):
+                out = []
+                for m in re.finditer(r"-?\d+\.\d+", t):
+                    # 往前看这一行，若是 markdown 小节标题则不算测量值
+                    line_start = t.rfind("\n", 0, m.start()) + 1
+                    line = t[line_start:t.find("\n", m.start())]
+                    if re.match(r"\s*#{2,4}\s+\d+\.\d+", line):
+                        continue
+                    out.append(m.group(0))
+                return out
+
             drift = []
-            for num in re.findall(r"-?\d+\.\d+", ctext_n):
+            for num in _measures(ctext_n):
                 if num not in stext:
                     drift.append("数字 %s 形态层里没有" % num)
             for arrow in ("l→r", "r→l", "t→b", "b→t", "l↔r"):
@@ -1072,6 +1089,71 @@ def main():
         import shutil as _sh3
         if os.path.isdir(tprobe):
             _sh3.rmtree(tprobe, ignore_errors=True)
+
+    # ------------------------------------------------------------------
+    # 15 组：48 项之间的取舍（选择层 §二·补）
+    #
+    # 这一组守的是"选择层的数字必须可回溯到形态层"这条承诺。
+    # 选择层是判断层，但它引用的每一个 [实测] 数字都必须逐字活在形态层里 ——
+    # 否则判断就建在编出来的数据上，而这恰恰是判断层最容易出的错。
+    # ------------------------------------------------------------------
+    print("\n== 15. 48 项之间的取舍：引用可回溯 + 无自造效果名 ==")
+
+    choice_p = os.path.join(ROOT, "reference", "transition-choice.md")
+    shapes_p = os.path.join(ROOT, "reference", "transition-shapes.md")
+    if os.path.exists(choice_p) and os.path.exists(shapes_p):
+        ch = io.open(choice_p, encoding="utf-8").read()
+        shp = io.open(shapes_p, encoding="utf-8").read()
+
+        check("选择层新增 §二·补（48 项之间的取舍）",
+              "## 二·补" in ch and "48 个名字 ≠ 48 种选择" in ch)
+
+        # 形态层 48 项表的 span 数据（唯一真相源）
+        spans = {m[0]: int(m[5]) for m in re.findall(
+            r"^\| \`(\w+)\` \| ([^|]+)\| *([^|]*)\| *([^|]*)\| *\*{0,2}([^|*]+?)\*{0,2} *\| *(\d+) \|",
+            shp, re.M)}
+        check("形态层能解析出跨度数据（>=45 项）", len(spans) >= 45,
+              "%d 项" % len(spans))
+
+        # 每个 `spec`(NNN) 形式的跨度断言，必须与形态层逐字一致
+        claimed = re.findall(r"`(\w+)`\((\d+)\)", ch)
+        mism = []
+        for spec, num in claimed:
+            if spans.get(spec) != int(num):
+                mism.append("%s cited %s actual %s" % (spec, num, spans.get(spec)))
+        check("选择层引用的跨度数字全部与形态层一致（%d 处）" % len(claimed),
+              not mism, str(mism))
+
+        # 选择层里的每个反引号效果名都必须是真实 spec（不许自造）
+        known = set(spans) | set(re.findall(r"^\| \`(\w+)\`", shp, re.M))
+        NOT_EFFECT = {"none", "dir", "spec", "spd", "dur", "advTm", "morph",
+                      "option", "xml", "l", "r", "u", "d", "t", "b", "x", "y",
+                      "w", "h", "box", "comb"} | {"cut"}
+        # 收窄到 §二·补 这一段，避免把别处的普通词当效果名
+        sec = ch[ch.index("## 二·补"):ch.index("## 三、")]
+        sec_specs = set(re.findall(r"`([a-z_0-9]+)`", sec))
+        invented = sorted(s for s in sec_specs
+                          if s not in known and s not in NOT_EFFECT)
+        check("§二·补 里没有自造的效果名", not invented, str(invented))
+
+        # ⚠️ 关键：clock 的跨度是"指标看不见旋转"的伪值，必须被标为不可用
+        check("§二·补 标出 clock 跨度是伪值（不可拿它比大小）",
+              "指标看不见旋转" in sec and "clock" in sec)
+
+        # 硬约束必须在取舍一节里也出现（不能只在 §三）
+        check("§二·补 复述 dir 会让 box/comb 打不开",
+              "打不开" in sec and "comb" in sec and "box" in sec)
+
+        # 三层口径一致：族名不许自造
+        fam_names = ["硬切", "整页平移", "方向揭示", "中心扩散", "旋转",
+                     "均匀淡变", "随机"]
+        for f in fam_names:
+            check("§二·补 沿用形态层族名「%s」" % f, f in shp)
+        used_bad = [f for f in ("扫描族", "淡入族", "平移族")
+                    if f in ch and f not in shp]
+        check("§二·补 没自造族名", not used_bad, str(used_bad))
+    else:
+        check("选择层与形态层都可读", False)
 
     print()
     if fails:
