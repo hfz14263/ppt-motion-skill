@@ -25,7 +25,6 @@
     成败；要比 **tree 哈希**（相等即内容逐字节一致）。
 """
 import base64
-import io
 import json
 import os
 import subprocess
@@ -65,33 +64,8 @@ def git(*args):
 
 
 # GitHub 返回的新 commit sha 只在远端存在，本地 ls-tree 看不到。
-# 维护 远端sha -> 本地sha 的映射，用于拿"父 commit 的 tree"做差集，
-# 也用于把【上一次 API 推送产生的远端 tip】翻译回本地 commit —— 否则下一次
-# `rev-list <远端sha>..HEAD` 会因为本地没有那个对象而 "fatal: bad object"。
-#
-# 每推送成功一次，脚本自己会把新产生的 (远端sha -> 本地sha) 追加进这里并
-# 落盘，所以正常流程下这个字典会自己长大，不用手填。
-SHA_MAP = {
-    # 远端(API 造的) sha                          -> 本地对应 commit
-    "16677f60c5282b73395367126d29d85d3bc6cc36": "c714354306afca1a36a7b9e63cbe9db45de8a417",
-    "b0cf7ea06636eca4f9d3d257ebf55db275715648": "90da4618e79629f16194ce84662d406b7f9d194a",
-}
-_SHA_MAP_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             ".push_sha_map.json")
-
-
-def _load_sha_map():
-    if os.path.exists(_SHA_MAP_FILE):
-        try:
-            data = json.load(io.open(_SHA_MAP_FILE, encoding="utf-8"))
-            SHA_MAP.update({k: v for k, v in data.items() if k not in SHA_MAP})
-        except Exception:
-            pass
-
-
-def _save_sha_map():
-    json.dump(SHA_MAP, io.open(_SHA_MAP_FILE, "w", encoding="utf-8"),
-              ensure_ascii=False, indent=1)
+# 维护 远端sha -> 本地sha 的映射，用于拿"父 commit 的 tree"做差集。
+SHA_MAP = {}
 
 
 def _local_of(sha):
@@ -113,7 +87,6 @@ def _tree_files(sha):
 
 def main():
     repo_dir = os.environ["REPO_DIR"]
-    _load_sha_map()
     # 远端当前 main
     st, ref = api("GET", "/repos/%s/git/ref/heads/main" % REPO)
     assert st == 200, (st, ref)
@@ -124,19 +97,8 @@ def main():
         print("远端已是最新，无需推送")
         return 0
 
-    # 远端 -> HEAD 之间的提交，从旧到新。
-    #
-    # ⚠️ 远端 tip 是上一次用 API 造的 commit，**本地没有这个对象**，直接拿它
-    # 做 rev-list 会 "fatal: bad object"。要先把远端 sha 翻译成本地等价的
-    # 祖先（SHA_MAP 里记着），再用那个祖先去算差集。
-    base = _local_of(remote_sha)
-    if subprocess.run(("git", "cat-file", "-e", base),
-                      cwd=repo_dir).returncode != 0:
-        raise SystemExit(
-            "远端 tip %s 不在本地，也没有映射到本地 commit。\n"
-            "先确认远端 tip 是上次 API 推送产生的，并把它加进 SHA_MAP。"
-            % remote_sha[:7])
-    chain = git("rev-list", "--reverse", "%s..%s" % (base, local_sha)).split()
+    # 远端 -> HEAD 之间的提交，从旧到新
+    chain = git("rev-list", "--reverse", "%s..%s" % (remote_sha, local_sha)).split()
     if not chain:
         print("没有需要推送的提交")
         return 0
@@ -189,7 +151,6 @@ def main():
         assert st in (200, 201), (st, cres)
         parent = cres["sha"]
         SHA_MAP[parent] = sha
-        _save_sha_map()
         print("  -> 新 commit %s（本地 %s）" % (parent[:7], sha[:7]))
 
     st, res = api("PATCH", "/repos/%s/git/refs/heads/main" % REPO,
