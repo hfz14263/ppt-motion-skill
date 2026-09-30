@@ -32,6 +32,10 @@ ROOT = os.path.dirname(HERE)
 # 与之相对，`scripts/` 是运行时工具，必须随包分发。这条界线由本集合表达。
 DEV_ONLY = {"tests", "tools", "__pycache__", "probe-createvideo", ".workbuddy"}
 
+# 同上，但针对**顶层文件**。会话交接文档记的是"某一次会话做到哪了"，
+# 对使用者没有意义，而且会过期 —— 不该装出去。
+DEV_ONLY_FILES = {"SESSION-HANDOVER.md"}
+
 
 def install_items():
     """Parse the `foreach ($item in 'a', 'b', ...)` list out of install.ps1."""
@@ -56,7 +60,8 @@ def main():
 
     # 2. every shipped top-level entry must be listed
     top = sorted(e for e in os.listdir(ROOT)
-                 if not e.startswith(".") and e not in DEV_ONLY)
+                 if not e.startswith(".") and e not in DEV_ONLY
+                 and e not in DEV_ONLY_FILES)
     for e in top:
         if e not in items:
             fails.append("顶层项 %r 没有进复制清单 —— 装出去会缺它" % e)
