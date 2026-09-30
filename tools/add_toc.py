@@ -56,16 +56,28 @@ def main(argv=None):
             continue
         text = io.open(rel, encoding="utf-8").read()
         fname = os.path.basename(rel)
-        inside = in_code_blocks_finder(text)
+
+        # ⚠️ **YAML frontmatter 必须先跳过。** `SKILL.md` 头部的 `---` 是
+        # frontmatter 的分隔符，不是正文分隔线；不跳过的话目录会被插到
+        # frontmatter 和 H1 之间 —— 那会破坏 skill 定义。
+        fm_end = 0
+        if text.startswith("---\n"):
+            m = re.search(r"\n---\s*\n", text[4:])
+            if m:
+                fm_end = 4 + m.end()
+        body_text = text[fm_end:]
+        inside = in_code_blocks_finder(body_text)
+        # 后续所有位置都以 body_text 为坐标系
+        text_off = fm_end
 
         # 标题层级自适应：优先用 H2；H2 太少说明这份文档是**一个 H2 装一叠 H3**
         # （拆出来的 pitfall-*/symptom-* 都是这种：`## 文件打不开` 下面挂一列
         #  `### §1 / §2 / …`）。那种情况只有 H3 能当目录，否则目录只有一行。
         h2 = [(m.start(), m.group(1).strip())
-              for m in re.compile(r"^## (?!#)(.+)$", re.M).finditer(text)
+              for m in re.compile(r"^## (?!#)(.+)$", re.M).finditer(body_text)
               if not inside(m.start())]
         h3 = [(m.start(), m.group(1).strip())
-              for m in re.compile(r"^### (?!#)(.+)$", re.M).finditer(text)
+              for m in re.compile(r"^### (?!#)(.+)$", re.M).finditer(body_text)
               if not inside(m.start())]
         if len(h2) >= 4:
             heads, level = h2, 2
@@ -79,10 +91,10 @@ def main(argv=None):
         #   marked=True  本工具生成的（有 <!-- toc -->）→ **重新生成**，便于改格式
         #   handwritten  人写的目录（无标记）        → **跳过**，别在好目录上叠一张
         #   neither      没有目录                    → 生成
-        marked = BEGIN in text
+        marked = BEGIN in body_text
         handwritten = False
         if not marked:
-            head40 = "\n".join(text.splitlines()[:40])
+            head40 = "\n".join(body_text.splitlines()[:40])
             handwritten = bool(re.search(r"^\|.*\]\(#", head40, re.M))
         if check:
             state = "有(本工具)" if marked else ("有(手写)" if handwritten else "**缺**")
@@ -93,11 +105,11 @@ def main(argv=None):
             continue
 
         # 1) 补锚点：每个标题之后插入 <a id="sN"></a>（已存在则跳过）
-        out = text
+        #    坐标始终是 body_text（已剔除 frontmatter）
+        out = body_text
         rows = []
         for i, (pos, title) in enumerate(heads, 1):
             aid = "s%d" % i
-            # 计算标题行结束位置
             line_end = out.index("\n", pos) + 1
             nxt = out[line_end:line_end + 80]
             if not re.match(r"\s*<a id=\"s\d+\"></a>", nxt):
@@ -114,6 +126,8 @@ def main(argv=None):
 
         # 3) 插在**第一个标题之前**；若它前面不远处有 `---` 分隔线，就插在分隔线
         #    之前（和 transition-model.md 的手写目录位置一致：导言 → 目录 → 分隔线）
+        #    注意：此时 out 里**没有** frontmatter（第 0 步已剥离），所以
+        #    rfind 不会撞上 frontmatter 的分隔符。
         if BEGIN in out:
             out = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END) + r"\n",
                          toc, out, flags=re.S)
@@ -128,6 +142,14 @@ def main(argv=None):
             else:
                 out = out[:first + 1] + "\n" + toc + "\n---\n" + out[first + 1:]
 
+        # 4) 归一化目录块周围的空行 —— 插进去的块容易留下"两个空行"或
+        #    "`---` 紧贴下一个标题"。这两处都不影响渲染，但会越攒越乱，
+        #    而这份文件的存在意义就是让文档保持整洁。
+        out = re.sub(r"\n{3,}(?=" + re.escape(BEGIN) + ")", "\n\n", out)
+        out = re.sub(re.escape(END) + r"\n+---\n*\n*(?=#)", END + "\n\n---\n\n", out)
+
+        # 5) 把 frontmatter 原样拼回去
+        out = text[:text_off] + out
         io.open(rel, "w", encoding="utf-8", newline="\n").write(out)
         print("%-40s 已加目录（%d 节）" % (rel, len(rows)))
 

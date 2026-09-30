@@ -19,7 +19,9 @@ motion-design-spec*，这里沿用。
 > **接手这个项目本身？**（上面六个都答不了这个问题）
 > [`README.md`](README.md) 是对外说明；
 > [`HANDOVER.md`](HANDOVER.md) 是长期交接 —— 架构四层、目录地图、
-> **四次真实误判**、环境依赖、**还没做的**。
+> **四次真实误判**、环境依赖、**还没做的**；
+> [`CONTRIBUTING.md`](CONTRIBUTING.md) 是**变更规范** ——
+> 体积上限、拆/加目录/归档的分诊、命名与登记规则。
 > 某件事**当时怎么做的 / 怎么想错的**，在归档 [`history/`](history/README.md)。
 
 ---

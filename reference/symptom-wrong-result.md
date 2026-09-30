@@ -27,6 +27,7 @@
 - [§38 页间差值**有方向**：y 轴向下，别把加减号写反](#s18)
 - [§39 露出的底（BG）**必须有可辨认的内容**，否则就是一块空白板](#s19)
 <!-- /toc -->
+
 ---
 
 ## 文件正常但结果不对
@@ -62,6 +63,8 @@ python scripts/motion.py preview --pptx animated.pptx --out static.pptx
 
 ### §6 颜色是 BGR，且不能用算术表达式生成
 
+<a id="s2"></a>
+
 - `Shape.Fill.ForeColor.RGB = 0x0B1020`（想要深蓝）→ XML 里存成 `20100B`（红蓝互换）。
   想显示 `#FFD24A` 必须传 `0x4AD2FF`。
 - `0x30 * $i * 65536 + …` 这类算术，PowerPoint 收到 Double 会**截断**：
@@ -75,6 +78,8 @@ function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
 ```
 
 <p align="right"><sub>来源 com-pitfalls §6</sub></p>
+
+<a id="s3"></a>
 
 <a id="s3"></a>
 
@@ -119,6 +124,8 @@ lat = 360 - |RotationY|        （RotationY 为负时）
 
 <a id="s5"></a>
 投影 = orthographicFront，即平行投影，不是透视
+
+<a id="s5"></a>
 ```
 
 ### 两个会静默产生错误结果的写法
@@ -131,6 +138,8 @@ lat = 360 - |RotationY|        （RotationY 为负时）
 <a id="s6"></a>
 
 **两种写法都结构合法、PowerPoint 都正常打开**，所以什么都不会报错。
+
+<a id="s6"></a>
 只有**渲染出来看**才能发现。
 
 ### 正确做法
@@ -143,6 +152,8 @@ $sh.ThreeD.RotationY = -20
 
 <a id="s7"></a>
 $pres.SaveAs("out.pptx")        # 它自己会转成合法的 lat/lon
+
+<a id="s7"></a>
 ```
 
 它的输出就是权威；`lat/lon` 只用于**读**和**校核**，不用于猜。
@@ -158,6 +169,8 @@ $pres.SaveAs("out.pptx")        # 它自己会转成合法的 lat/lon
 
 <a id="s8"></a>
 **左右竖边是否向上收敛**（俯角方向）、**板面是否被压扁**（倾角大小）。
+
+<a id="s8"></a>
 
 <p align="right"><sub>来源 com-pitfalls §23</sub></p>
 
@@ -176,6 +189,8 @@ $pres.SaveAs("out.pptx")        # 它自己会转成合法的 lat/lon
 再多迭代角度也出不来那个感觉。
 
 **推论**：做立体页之前先问「这张图有没有地平线」。没有的话，
+
+<a id="s9"></a>
 要么换图，要么先给图加一条。
 
 <p align="right"><sub>来源 com-pitfalls §24</sub></p>
@@ -228,6 +243,8 @@ $sh.ThreeD.RotationY = -20
 
 **315° 是平衡点**：收敛明显，但没压扁到看不出是一块面。
 
+<a id="s10"></a>
+
 **怎么判断"躺下了没有"**：不要看"像不像平行四边形"。
 **量远边是不是明显比近边窄。** 等宽就是没躺下。
 
@@ -259,6 +276,8 @@ $sh.ThreeD.RotationY = -20
 
 <a id="s11"></a>
 §25 的结论要按这条修正：**"必须手写 XML"不成立；手写只是更可控**（可以直接选
+
+<a id="s11"></a>
 `perspectiveFront` 等现代预设，而不是被限制在 `legacyPerspectiveFront`）。
 
 <p align="right"><sub>来源 com-pitfalls §27</sub></p>
@@ -295,6 +314,8 @@ $sh.ThreeD.RotationY = -20
 <a id="s12"></a>
 
 **反面教材是我自己**：我先用"像不像平行四边形"挑姿态，而平行投影的矩形**在任何角度
+
+<a id="s12"></a>
 都像平行四边形**，所以这个判据零区分力，直接导致选中了一个根本没躺下的姿态。
 **换成"量远边是不是更窄"之后，一次就选中了。**
 
@@ -322,6 +343,8 @@ b = -(picture.y + picture.h - window.y - window.h) / window.h * 100000
 
 <a id="s13"></a>
 `l=-30000/-190000/-350000`，渲染后三个窗口恰好显示**红/绿/蓝**三条不同色带 ——
+
+<a id="s13"></a>
 **位置与部位同时正确**。公式的独立推导也已与 PowerPoint 自己写的数值对齐
 （对照见 `tests/test_fill_window.py`）。
 
@@ -350,6 +373,8 @@ b = -(picture.y + picture.h - window.y - window.h) / window.h * 100000
 <a id="s14"></a>
 4. 判断"3D 旋转生效没"：`ThreeD.PresetCamera` = `62`（`-2` = 被拒）+ **渲染目检**。
 
+<a id="s14"></a>
+
 <p align="right"><sub>来源 com-pitfalls §33</sub></p>
 
 > 下面 §34–§39 是同一件事的六层：**复现 template1 的"翻页"封面**。
@@ -374,6 +399,8 @@ b = -(picture.y + picture.h - window.y - window.h) / window.h * 100000
 
 <a id="s15"></a>
 3. 抄相对量用**比例**（`dx/宽`、`dy/高`）：template1 是 `24.1/800=0.0302`、`126.3/450=0.2807`。
+
+<a id="s15"></a>
 
 推翻误判只需要**下沿的算术**：`172.6+450=622.6 > 540`。
 **不需要渲染、不需要 COM，只要把两页的 `a:off` 各读一遍。**
@@ -412,6 +439,8 @@ photo_small = Image.composite(soft, photo_small, m)
 <a id="s16"></a>
 - 第 2 帧：露出柔和残影 → 与 template1 同观感
 
+<a id="s16"></a>
+
 配套两条：第 1 帧抠图须 `>= 1.0x` 照片里那个人（实测本人 y `116.2..327.8`，
 `1.06x` 抠图 y `109.9..334.1`，余量 ~6pt）；**抠图不要跟着 LAYER 的位移走**
 （试过同步位移 132.5pt → COM 读回 `y=-41`，"无头人"）。
@@ -433,6 +462,8 @@ photo_small = Image.composite(soft, photo_small, m)
 <a id="s17"></a>
 
 LAYER 里**照片只占中央 `x 24.3%..78.6%`、`y 25.0%..81.4%`**，其余全是界面白/灰。
+
+<a id="s17"></a>
 用干净照片当 LAYER，压扁后露出**照片纹理**；用界面截图，露出**白** ——
 这是"翻过去"能不能读出"白背面"的**决定因素**。
 
@@ -452,6 +483,8 @@ LAYER 里**照片只占中央 `x 24.3%..78.6%`、`y 25.0%..81.4%`**，其余全�
 
 <a id="s18"></a>
 **统计量对得上，观感完全不对**。差别在**细节密度**：工具栏图标、缩略图、
+
+<a id="s18"></a>
 面板控件、参考线、选中控制点……这些高频纹理压扁后**仍在**，
 它们承担了"这是一张纸"的**全部**信号。
 

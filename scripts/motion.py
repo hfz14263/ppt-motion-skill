@@ -17,6 +17,25 @@ Effect parameters come from motion_catalog.json, which was extracted from real
 PowerPoint output (presetID / presetClass / presetSubtype plus the exact timing
 XML each effect emits), not from a guessed enum table.
 
+模块内容表（按出现顺序，不写行号 —— 行号会漂，名字不会）
+--------------------------------------------------------
+  1. 常量与 transition_reference.json 装载
+  2. zip 读写        read_parts / write_parts（不编辑的 part 逐字节复制）
+  3. XML 基础        xml_escape / element_spans（前缀安全的字符串手术）
+  4. slide 子元素顺序  insert_in_slide_order / replace_or_insert
+                     —— `<p:sld>` 是 sequence 不是 bag，位置错了元素会被静默丢弃
+  5. 单例元素         set_singleton / find_duplicate_singletons
+                     —— **本项目所有损坏文件都是"同一元素出现两次"**
+  6. 形状索引         index_shapes / resolve_targets（elementId → shape id）
+  7. timing 生成      build_effect_node / build_timing / apply_overrides
+  8. 切换             build_transition / drop_transition_alternate_content
+  9. 3D 相机          build_camera / insert_scene3d
+ 10. 图片填充         build_fill_window / insert_blip_fill（窗口化 = 给负偏移）
+ 11. 几何指纹         geometry_fingerprint（证明没动版面）
+ 12. spec 处理        normalize_spec（YAML → 内部结构）
+ 13. apply           —— 主流程
+ 14. CLI             子命令分发
+
 Usage:
     python motion.py apply   --pptx IN.pptx --spec motion.yaml --out OUT.pptx [--assert-geometry]
     python motion.py inspect --pptx IN.pptx [--json]

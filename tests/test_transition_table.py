@@ -8,6 +8,30 @@ PowerPoint 会悄悄改掉的块** —— 看起来一切正常，文件就是�
 "表还成立"和"motion.py 还认这张表"钉住。
 
 不测的东西：本测试**不**打开 PowerPoint。真机验证在 tests/smoke.py。
+
+模块内容表（19 组；组号是稳定接口，别重排）
+------------------------------------------------
+   1  表本身（48 项齐全、字段完整）
+   2  motion.py 认这张表（表和引擎不能漂）
+   3  每个切换算"一个"，不是两个
+   4  重新生成的表不会重复累积
+   5  Choice 说毫秒、Fallback 说 spd，两者讲同一个故事
+  5b  附加属性必须和占位符一起合流
+   6  机制层文档 + facts 与引擎一致
+   7  形态探测 deck 生成器
+   8  形态分析器：方向必须真的被量出来
+  8b  旋转指标（第四类）—— 前三类都看不见它
+   9  形态层文档 + facts 一致
+  10  证据 deck 的断言必须与形态文档同源
+  11  选择层：判断可以反驳，引用不能漂移
+  12  方向探测（补 3b §三 的缺口）
+  13  属性取值全集（attrdeck / attrdiff）
+  14  切换 × 页内动画：结构平行、时间串行
+  15  48 项之间的取舍：引用可回溯 + 无自造效果名
+  16  踩坑手册拆分后，§编号必须仍然可解析
+  17  症状文档拆分后，现象栏必须仍能找到
+  18  配方文档拆分：文件名必须对上内容
+  19  长文档必须有目录（导航不该靠滚）
 """
 import io
 import json
@@ -1386,6 +1410,71 @@ def main():
         # 必须幂等：已有标记就替换，而不是叠加
         check("加目录脚本是幂等的（有 toc 标记就替换）",
               "<!-- toc -->" in src and "--check" in src)
+
+    # ---- 20. 规范与实现不能漂 ----------------------------------------------
+    # 为什么需要这一组：`CONTRIBUTING.md` 是一份**声明式**规范，而
+    # `scripts/check_structure.py` 是它的**可执行实现**。两者写了同一组数字
+    # （10000 / 20000 / 800 / 2000 / 6000）—— 这正是"细节只写一次"要禁的事，
+    # 但规范必须给人读、实现必须给机器读，只能各写一份。
+    # **那就用测试把它们钉在一起。** 数字漂了，这里立刻报。
+    print()
+    print("== 20. 规范与实现：同一组数字，三处一致 ==")
+    std_p = os.path.join(ROOT, "CONTRIBUTING.md")
+    chk_p = os.path.join(ROOT, "scripts", "check_structure.py")
+    check("变更有规范（CONTRIBUTING.md）", os.path.exists(std_p))
+    check("规范有可执行实现（check_structure.py）", os.path.exists(chk_p))
+
+    if os.path.exists(std_p) and os.path.exists(chk_p):
+        std = io.open(std_p, encoding="utf-8").read()
+        chk = io.open(chk_p, encoding="utf-8").read()
+        # 规范里写的是 `20,000`（给人读加千分位），实现里写 `20_000`（Python 数字分隔符）。
+        # 比对前把两种都归一化掉 —— 要比的是**数值**，不是排版。
+        std_n = std.replace(",", "")
+
+        # ① 规范必须声明决策树的三种治法 —— 缺一种，读者就会只想到"拆"
+        for word, why in (("拆", "装了多件事"), ("加目录", "内聚长文档"),
+                          ("归档", "会无限增长的内容")):
+            check("规范声明了「%s」这条治法（%s）" % (word, why), word in std)
+        check("规范声明了「拆分产物不再二次拆」", "二次拆" in std)
+
+        # ② 实现必须**只读** —— 这是它能无人值守的唯一前提
+        writes = re.findall(r"open\([^)]*,\s*[\"']w", chk)
+        check("结构体检是只读的（能无人值守）", not writes,
+              "发现写操作: %s" % writes[:3])
+        check("结构体检是只读的（注释也这么写）",
+              "只读" in chk or "不改文件" in chk)
+
+        # ③ 阈值：规范里的数字必须与实现里的常量一致
+        def _nums(text):
+            return set(re.findall(r"\b(\d{1,3}(?:_\d{3})+|\d{4,6})\b",
+                                  text.replace(",", "")))
+        chk_consts = dict(re.findall(
+            r"^(DOC_TOC_CHARS|DOC_SPLIT_CHARS|INDEX_BUDGET|"
+            r"CODE_MAP_LINES|CODE_SPLIT_LINES)\s*=\s*([\d_]+)",
+            chk, re.M))
+        check("实现里五个阈值常量都在", len(chk_consts) == 5,
+              str(sorted(chk_consts)))
+        for name, val in sorted(chk_consts.items()):
+            v = val.replace("_", "")
+            check("规范写到了 %s=%s" % (name, v), v in std_n,
+                  "CONTRIBUTING.md 里找不到这个数字")
+
+        # ④ INDEX 预算是三处共用：规范 / 体检 / 文档校验器 —— 必须同值
+        vd = io.open(os.path.join(ROOT, "scripts", "verify_docs.py"),
+                     encoding="utf-8").read()
+        vd_budget = re.search(r"INDEX_BUDGET\s*=\s*([\d_]+)", vd)
+        chk_budget = chk_consts.get("INDEX_BUDGET", "").replace("_", "")
+        check("INDEX 预算在体检与文档校验器里同值",
+              vd_budget and vd_budget.group(1).replace("_", "") == chk_budget,
+              "verify_docs=%s check_structure=%s"
+              % (vd_budget and vd_budget.group(1), chk_budget))
+
+        # ⑤ 豁免必须带理由（否则下一个看的人只会照抄）
+        m = re.search(r"CODE_SPLIT_EXEMPT\s*=\s*\{(.*?)\n\}", chk, re.S)
+        if m and m.group(1).strip():
+            check("代码例外条目都写了理由", '"why"' in m.group(1))
+            check("代码例外条目都带待办（豁免不等于遗忘）",
+                  '"todo"' in m.group(1))
 
     print()
     if fails:

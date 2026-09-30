@@ -8,7 +8,21 @@ whenToUse: 需要给已定稿的 PPT 动态化时——加入场/强调/动作�
 
 把一个已经过版面校验的 `.pptx` **动起来**，而不破坏它的版面。
 
+<!-- toc -->
+- [1. 为什么不是"再用 PowerPoint 加工一遍"](#s1)
+- [2. 标准作业流程](#s2)
+- [3. motion spec](#s3)
+- [4. 命令](#s4)
+- [5. 九个必须知道的坑](#s5)
+- [6. 给"静态模板"做动画](#s6)
+- [7. 与 dsh-ppt-studio 的对接契约](#s7)
+<!-- /toc -->
+
+---
+
 ## 1. 为什么不是"再用 PowerPoint 加工一遍"
+
+<a id="s1"></a>
 
 用 PowerPoint 打开→编辑→保存会触发 PowerPoint 自己的排版引擎（字体解析、auto-fit 重排），
 上游刚通过的重叠/溢出/门禁结论就作废了。本 skill 的分工是：
@@ -22,6 +36,8 @@ whenToUse: 需要给已定稿的 PPT 动态化时——加入场/强调/动作�
 
 因为注入只碰 `ppt/slides/slideN.xml` 的 `<p:timing>` / `<p:transition>` 和 `[Content_Types].xml`，
 spTree 的形状及其 `a:xfrm` 原封不动，所以 **`ppt_verify` 的通过结论可以直接继承**，不必重跑。
+
+<a id="s2"></a>
 
 ## 2. 标准作业流程
 
@@ -110,6 +126,8 @@ S3 的 `--assert-geometry`、S4 的 `verify_motion`、S5 的往返普查，
 - **A1**：spec 的形状 id **禁止手写**，必须由实测几何生成。deck 一改版式 id 就重排，
   手写的会静默指向别的形状（曾出现"正好差一位"，导致整张卡没动画）。
 - **G**：改了 deck 就必须**重新生成 spec**。"觉得 spec 没动"就复用旧的，是上面那个 bug 的成因。
+
+<a id="s3"></a>
 
 ## 3. motion spec
 
@@ -256,6 +274,8 @@ effects:
   COM 导出看不到动画中间态、截屏拿不到画面（三条死路见
   `reference/authoring-rules.md` §I3）。**交付前必须人眼看一次方向**（同文件 §H）。
 - `player` 会按方向渲染起始裁剪（`player.py` 的 `WIPE_CLIP`）。这一步是必须的：如果
+
+<a id="s4"></a>
   预览把所有擦除都画成"从左边长出来"，那它验证的就是错的东西。
 
 ## 4. 命令
@@ -325,6 +345,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps
 | `-Media map.json` | 用显式媒体 map，而不从 spec 推导 |
 
 因为 `Slide.Export` 是 COM 调用，**`OutDir` 传相对路径会按 PowerPoint 自己的工作目录解析**
+
+<a id="s5"></a>
 （不是当前 shell 的目录）；脚本会自己绝对化，但你自己调 COM 时要留意。
 
 ## 5. 九个必须知道的坑
@@ -351,6 +373,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps
    以 `<p:transition>` 元素为准，COM 属性只用于复核——**不要用枚举去「同步」**，那会把正确的元素
    覆盖成错的（`-SyncTransitions` 默认关闭）。
 9. **媒体需要真 PowerPoint**：`AddMediaObject2` 依赖 PowerPoint 自己的转码管线，手写 OOXML 做不到；
+
+<a id="s6"></a>
    MP4/WAV 可用，未压缩 AVI 会因缺解码器失败。
 
 ## 6. 给"静态模板"做动画
@@ -365,6 +389,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/probe_createvideo.ps
 
 完整方法、形状分类脚本、以及"怎么让人看见动效"（本机导不出 MP4，改用逐形状图层 +
 自包含 HTML 播放器）见 `reference/template-patterns.md`；
+
+<a id="s7"></a>
 **写 spec 的硬约束见 `reference/authoring-rules.md`**；
 静态/逐形状导出的 COM 坑见 `reference/com-pitfalls.md` §16。
 

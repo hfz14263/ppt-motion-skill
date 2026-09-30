@@ -77,6 +77,7 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 | --- | --- |
 | [`INDEX.md`](INDEX.md) | **★ 唯一入口**：六个「我想 ____」+ 项目自身 |
 | [`HANDOVER.md`](HANDOVER.md) | **交接文档**:当前能力状态、架构四层、目录地图、四次真实误判、环境依赖、**还没做的** |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | **变更规范**：体积上限、拆 / 加目录 / 归档的分诊、命名与登记规则 —— **加东西前先读这个** |
 | [`history/README.md`](history/README.md) | **归档**：已做完的事**以及当时怎么想错的**（不是待办） |
 | [`SKILL.md`](SKILL.md) | **操作手册**:分层职责、S0–S8 流程、spec 全文、命令、九条坑 |
 | [`reference/architecture.md`](reference/architecture.md) | 为什么这样设计:OOXML / COM / 渲染行为的知识构成 |

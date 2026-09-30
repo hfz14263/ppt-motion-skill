@@ -131,6 +131,7 @@ SKILL.md                      操作手册：S0–S8 流程、spec 全文、命�
 README.md                     项目说明与文档索引（对外）
 INDEX.md                      ★ 唯一入口 —— 六个「我想 ____」+ 项目自身
 HANDOVER.md                   本文：长期交接
+CONTRIBUTING.md               ★ 变更规范 —— 体积上限 / 分诊 / 命名 / 登记（加东西前先读）
 install.ps1                   安装到 DSH skill 目录 + 环境预检
 requirements.txt              PyYAML / lxml
 
@@ -153,8 +154,22 @@ scripts/
   make_calibration.ps1        生成已知答案的标定样本
   probe_createvideo.ps1       探测本机 CreateVideo 是否可用
   build_camera_table.py       3D 相机参数实测表生成
+  build_transition_table.py   切换实测的**探针工具**（deck 生成 → 渲染 → 分析）
+  build_shape_evidence.py     形态层正确性证据（左栏判定 + 右栏真实渲染 GIF）
+  build_pitfall_map.py        ★ `§n` → 文件的映射表**生成器**（表不能手抄）
+  verify_docs.py              ★ 文档结构校验：悬空引用 / 孤儿 / 入口预算
+  check_structure.py          ★ 结构体检：体积上限 / 索引 / 目录登记（**只读**）
+  push_via_api.py             github.com 被挡时走 API 推送
   vendor_themes.py            批量下载上游设计系统
   motion_catalog.json         137 个效果的真实 presetID + XML 模板
+
+tools/                        **不随包分发** —— 开发期一次性脚本（见 CONTRIBUTING §五）
+  add_toc.py                  给长文档加目录（幂等 + 标题层级自适应）
+  split_pitfalls.py           踩坑手册 → 10 份（一次性）
+  split_symptoms.py           症状文档 → 6 份（一次性）
+  split_morph_recipes.py      配方文档 → 3 份（一次性）
+  archive_handover_backlog.py HANDOVER §8 → history/（一次性）
+  rewrite_*.py                拆分后改写目录页（一次性）
 
 reference/
   authoring-rules.md          13 条硬约束（每条对应一次真实翻车）
@@ -345,12 +360,15 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 
 ### 8.2 验证文化（请保持）
 
+- **加任何东西之前先读 [`CONTRIBUTING.md`](CONTRIBUTING.md)** ——
+  体积上限、拆/加目录/归档的分诊、新目录必须登记两处。
+  它和 `check_structure.py` 的数字由测试第 20 组钉在一起，**不会各说各话**。
 - 改 OOXML 后**必须**过 PowerPoint 真开一次 —— 不是可选步骤
 - 改分析器/判据后**必须**用已知答案样本对表
   （`make_calibration.ps1` 生成标定视频；`tests/` 里有回归样本）
 - 提交前跑：`selftest` + `test_morph` + `test_camera` + `test_dual_photo` + `smoke`
   + `privacy_audit` + **`verify_docs`** + **`test_install_manifest`**
-  + **`test_transition_table`**
+  + **`test_transition_table`** + **`check_structure`**
   （`test_dual_photo` 是版式校验器「同图双版本」的回归，自带正负对照，不需要 PowerPoint）
 - 后两个是 2026-09-28 复验时才补的，补它们是因为**前六个一项都没报错、问题却真的存在**：
   - `verify_docs` 新增第 5 条规则：**旧目录名不得作为路径存活**（旧名是复数拼写）。
@@ -377,7 +395,55 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
   后者让我照着 morph 存回来的数字形态给 `spd` 写了个 `spd="800"`，
   直接让 PowerPoint 拒开整份 —— 一个元素的 saved 形态不构成另一个元素的契约。
 
----
+### 8.3 无人值守：能做哪一半，为什么另一半不能
+
+有用户问过：**"这套整理能不能在我下班后自动跑完？"**
+**答案：检查能，改动不能。**
+
+| 动作 | 无人值守 | 为什么 |
+| --- | --- | --- |
+| 跑体检（`check_structure` / `verify_docs` / 各测试） | ✅ **能** | **只读**。最坏结果是打一份报告 |
+| 按报告去拆 / 归档 / 重构 | ❌ **不能** | 见下面三条 |
+
+**三条理由（不是"我做不到"，是"这么做会出事"）：**
+
+**① 这些动作本质是删除。** "拆"把 683 行的文件变成 74 行；"归档"把 299 行
+从概览里搬走。**内容没丢**（每一步都有逐字节校验），但**读者看到的东西变了** ——
+而"变得对不对"要靠人看。在无人确认时执行删除类操作，
+等于把不可逆的那部分留给一个不在场的人。
+
+**② 有些判据在这里根本跑不了。** 本项目的验证有一半依赖**真 PowerPoint**
+（渲染帧、往返比对）。而代码拆分最需要的正是这半边 ——
+搬完 3000 行，只能验到"会写 XML"那一半，"写完 PowerPoint 认不认"验不了。
+**验不全的重构不能自动做**：它会带着一个看不见的坏点合进主干。
+
+**③ 分诊是判断题，不是计算题。** 同一份 600 行文档，"该拆"还是"该加目录"
+取决于**它是不是某一层架构的骨架** —— 这需要理解上下文，
+而体检报告只能给出体积和标题数。`tools/add_toc.py` 能算目录，
+**算不出"这份该不该拆"**。
+
+**所以约定是：**
+
+- **定时任务只跑检查**，把结果写进报告（`check_structure.py --json`），
+  **绝不动文件** —— 这样它半夜出错的代价只是报告写歪。
+- **改动一律在有人时做，一步一提交** —— 拆 / 归档 / 加目录各一个 commit，
+  出问题能精确回滚。
+- **豁免不会悄悄消失**：写进例外清单的条目，每次体检都以 ADVISE 重新报出来，
+  直到待办被清掉（见 `CODE_SPLIT_EXEMPT` 的 `todo` 字段）。
+
+**当前挂着的豁免**（对应 §8 的"还没做的"）：
+
+| 项 | 超限 | 为什么先不动 |
+| --- | --- | --- |
+| `scripts/build_transition_table.py` | 3048 行 / 上限 2000 | 探针工具，关键路径需真 PowerPoint；拆包要在能跑 PowerPoint 的会话里做，每步跑一次完整测试 |
+| `reference/symptom-*.md` 与 `reference/pitfall-*.md` 有 **50% 段落逐字重复** | —— | 这是**规范与既有设计的冲突**，不是疏漏：`symptoms.md` 诞生时就写着"每节保留原文"，而 `CONTRIBUTING.md` 要求"细节只写一次"。**往哪边靠是内容决策，需要人来定**（见下） |
+
+> **`symptom-*` 那一条值得单独说**：两份文档约有 50% 的段落一字不差。
+> 好处是读者不必跳转；代价是**改一处要改两处**，漏一处就自相矛盾 ——
+> 这正是本项目最怕的"一处说 X、另一处说 not-X"。
+> 两个方向都成立：**（a）** 症状页瘦身成"现象 → 根因"的转诊页，正文只留在
+> pitfall；**（b）** 承认这是"同一内容的两种排序"，并加一条机器检查保证两边同步。
+> **这需要你选**，选完我才能动手 —— 而且往 (a) 走要删掉约一半正文，属删除类。
 
 ---
 
