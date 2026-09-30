@@ -880,9 +880,12 @@ def main():
         check("名字层写明非法值退回默认", "静默退回默认" in tdoc or "退回默认" in tdoc)
         check("名字层写明 invX 不是 dir",
               "`invX` 不是 `dir`" in tdoc or "invX" in tdoc)
-    if os.path.exists(os.path.join(ROOT, "reference", "com-pitfalls.md")):
-        pdoc = io.open(os.path.join(ROOT, "reference", "com-pitfalls.md"),
-                       encoding="utf-8").read()
+    # ⚠️ §50 已随踩坑手册拆分搬到 pitfall-silent-drop.md。断言要跟着走 ——
+    # "静默失败"这一类归那一份。旧写法读 com-pitfalls.md 会因为文件里不再有
+    # 正文而假失败（见第 16 组：manifest 保留，但正文已迁走）。
+    _psd = os.path.join(ROOT, "reference", "pitfall-silent-drop.md")
+    if os.path.exists(_psd):
+        pdoc = io.open(_psd, encoding="utf-8").read()
         check("pitfalls 新增 §50（非法值静默退回默认）",
               "## 50." in pdoc and "静默退回默认" in pdoc)
     if os.path.exists(os.path.join(ROOT, "facts", "transitions.json")):
@@ -1026,9 +1029,10 @@ def main():
               not bad_ortho, str(bad_ortho))
         check("机制层决策表已标注时间串行",
               "时间上排在切换之后" in tm or "串行" in tm)
-    if os.path.exists(os.path.join(ROOT, "reference", "com-pitfalls.md")):
-        pd = io.open(os.path.join(ROOT, "reference", "com-pitfalls.md"),
-                     encoding="utf-8").read()
+    # ⚠️ §51 拆到了 pitfall-transition.md（切换类），"全盲"那条也在同一节里。
+    _ptr = os.path.join(ROOT, "reference", "pitfall-transition.md")
+    if os.path.exists(_ptr):
+        pd = io.open(_ptr, encoding="utf-8").read()
         check("pitfalls 新增 §51（动画排队等切换）",
               "## 51." in pd and "不是正交" in pd)
         check("pitfalls §51 记下『能量指标对淡入全盲』",
@@ -1154,6 +1158,134 @@ def main():
         check("§二·补 没自造族名", not used_bad, str(used_bad))
     else:
         check("选择层与形态层都可读", False)
+
+    # ---- 16. 踩坑手册拆分后，§编号必须仍然可解析 -----------------------------
+    # 为什么需要这一组：com-pitfalls.md 从 1 份 / 51 节拆成 10 份之后，
+    # 全仓库 90+ 处引用还写着 `com-pitfalls.md §44`。**编号是接口**，
+    # 拆分不能让它失效 —— 一旦某个编号在两份文件里同时出现，或者某节
+    # 漏进回收站，那些引用就会静默指向错误的地方（比 404 更难发现）。
+    #
+    # 这一组不检查"哪一节该在哪份文件"（那是设计判断，会变），只钉三件
+    # 机械可判的事：编号完整、编号唯一、映射表与真实文件一致。
+    print()
+    print("== 16. 踩坑手册拆分：编号完整性 ==")
+    ref_dir = os.path.join(ROOT, "reference")
+    pit_files = sorted(f for f in os.listdir(ref_dir)
+                       if f.startswith("pitfall-") and f.endswith(".md"))
+    check("踩坑已拆成多份（>=8）", len(pit_files) >= 8,
+          "只找到 %d 份: %s" % (len(pit_files), pit_files))
+
+    sec_re = re.compile(r"^## (\d+)\. (.+)$", re.M)
+    owner = {}
+    dups = []
+    for f in pit_files:
+        body = io.open(os.path.join(ref_dir, f), encoding="utf-8").read()
+        for m in sec_re.finditer(body):
+            n = int(m.group(1))
+            if n in owner:
+                dups.append("§%d 同时在 %s 和 %s" % (n, owner[n], f))
+            owner[n] = f
+    check("同一条坑不会出现在两份文件里", not dups, "; ".join(dups[:4]))
+
+    # 拆分只能搬家，不能丢节。51 是拆分发生时的节数；日后只会增。
+    check("拆分没有丢节（§1..§51 全部还在）",
+          all(n in owner for n in range(1, 52)),
+          "缺: %s" % [n for n in range(1, 52) if n not in owner])
+    check("编号连续无空洞（§1..§max）",
+          sorted(owner) == list(range(1, max(owner) + 1)) if owner else False,
+          "现有: %s" % sorted(owner))
+
+    # 原文件名必须留下，且必须变成目录 —— 90+ 处引用指着这个名字
+    hub = os.path.join(ref_dir, "com-pitfalls.md")
+    check("com-pitfalls.md 仍在（旧引用不能死）", os.path.exists(hub))
+    if os.path.exists(hub):
+        hub_body = io.open(hub, encoding="utf-8").read()
+        hub_links = set(re.findall(r"\]\((pitfall-[a-z0-9-]+\.md)\)", hub_body))
+        check("com-pitfalls.md 链到全部拆分文件",
+              hub_links >= set(pit_files),
+              "漏链: %s" % sorted(set(pit_files) - hub_links))
+        check("com-pitfalls.md 已不再是正文（没有 §n 小节标题）",
+              not sec_re.search(hub_body),
+              "仍含 %d 个 `## n.` 标题" % len(sec_re.findall(hub_body)))
+
+    # 映射表必须存在、覆盖全部编号，且与真实文件一致（不是手抄的）
+    pmap = os.path.join(ref_dir, "pitfall-map.md")
+    check("pitfall-map.md 存在（§n 的解释器）", os.path.exists(pmap))
+    if os.path.exists(pmap):
+        ptext = io.open(pmap, encoding="utf-8").read()
+        missing = [n for n in sorted(owner) if ("| §%d |" % n) not in ptext]
+        check("映射表覆盖所有编号", not missing,
+              "漏: %s" % missing[:6])
+        # 映射表说的文件必须和真实归属一致 —— 这条最值钱：它防止
+        # "文件挪了、表忘了改"，那会让读者按表去另一份文件里找，找不到。
+        wrong = []
+        for n, f in sorted(owner.items()):
+            m = re.search(r"\| §%d \|.*?\]\(([a-z0-9_.-]+)\)" % n, ptext)
+            if m and m.group(1) != f:
+                wrong.append("§%d 表说 %s，实际在 %s" % (n, m.group(1), f))
+        check("映射表与真实归属一致", not wrong, "; ".join(wrong[:4]))
+
+    # 生成器必须可用，否则映射表会慢慢腐烂成手抄
+    gen = os.path.join(ROOT, "scripts", "build_pitfall_map.py")
+    check("有生成映射表的脚本（不是手抄的）", os.path.exists(gen))
+
+    # ---- 17. 症状文档拆分后，现象栏必须仍能找到 -----------------------------
+    # 与第 16 组同一件事，但症状这一族用的不是编号而是**现象栏名**
+    # （INDEX 和各处写着 `symptoms.md → 「文件损坏」`）。所以守的是：
+    #   ① 每个现象栏有归属；② 目录页链到全部拆分文件；③ 原文件名还在。
+    print()
+    print("== 17. 症状文档拆分：现象栏可路由 ==")
+    sym_files = sorted(f for f in os.listdir(ref_dir)
+                       if f.startswith("symptom-") and f.endswith(".md"))
+    check("症状已拆成多份（>=5）", len(sym_files) >= 5,
+          "只找到 %d 份: %s" % (len(sym_files), sym_files))
+
+    # ① 原来那 10 个现象栏，内容必须仍在某一族里（栏名本身可以并进新文件）
+    KEY_PHENOMENA = [
+        ("文件损坏", ["0x80070570"], "symptom-file-corruption.md"),
+        ("静默丢弃", ["静默丢弃"], "symptom-silent-drop.md"),
+        ("结果不对", ["渲染出来的不是你要的", "只能靠**真渲染**发现"],
+         "symptom-wrong-result.md"),
+        ("往返丢失", ["往返"], "symptom-roundtrip.md"),
+        ("工具与环境", ["PowerShell", "编码"], "symptom-tooling.md"),
+    ]
+    for name, needles, fname in KEY_PHENOMENA:
+        p = os.path.join(ref_dir, fname)
+        if not os.path.exists(p):
+            check("现象「%s」有归属文件 %s" % (name, fname), False, "文件不存在")
+            continue
+        body = io.open(p, encoding="utf-8").read()
+        check("现象「%s」的内容落在 %s" % (name, fname),
+              any(n in body for n in needles),
+              "找不到任何标志串: %s" % needles)
+
+    # ② 目录页必须链到全部拆分文件，且自己不再是正文
+    shub = os.path.join(ref_dir, "symptoms.md")
+    check("symptoms.md 仍在（旧引用不能死）", os.path.exists(shub))
+    if os.path.exists(shub):
+        sh = io.open(shub, encoding="utf-8").read()
+        s_links = set(re.findall(r"\]\((symptom-[a-z0-9-]+\.md)\)", sh))
+        check("symptoms.md 链到全部拆分文件",
+              s_links >= set(sym_files),
+              "漏链: %s" % sorted(set(sym_files) - s_links))
+        # 目录页不该再含正文。判据用**落款的实际形态**：正文里每节结尾是
+        # `<p align="right"><sub>来源 com-pitfalls §n</sub></p>`。
+        # ⚠️ 不能只查子串 "来源 com-pitfalls" —— 目录页的说明文字里会写到
+        # 这个落款（就是本段这句），那是描述，不是正文。
+        footer = re.compile(r"<sub>\s*来源 com-pitfalls")
+        check("symptoms.md 已不再是正文（不含各节来源落款）",
+              not footer.search(sh),
+              "仍含 %d 条落款" % len(footer.findall(sh)))
+
+    # ③ 拆分文件必须保留 `来源 com-pitfalls §n` 落款 —— 那是回到根因的路
+    no_src = []
+    for f in sym_files:
+        b = io.open(os.path.join(ref_dir, f), encoding="utf-8").read()
+        # 允许个别文件（如"证据"栏）没有编号落款，但那也要有可回溯的文字
+        if "来源 com-pitfalls" not in b and "见 [" not in b and "见 §" not in b:
+            no_src.append(f)
+    check("拆分文件保留了回到根因的线索（来源 §n 或链接）",
+          not no_src, "缺线索: %s" % no_src)
 
     print()
     if fails:

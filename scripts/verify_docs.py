@@ -138,8 +138,22 @@ def main(argv=None):
                 continue
             if any(rel.startswith(d + "/") for d in reachable_dirs):
                 continue
-            # a file may be linked from any doc that INDEX reaches transitively
-            if any(rel in links(read(r)) for r in reachable if r.endswith(".md")
+            # a file may be linked from any doc that INDEX reaches transitively.
+            #
+            # ⚠️ 这里必须**按链接所在目录解析**，不能拿链接原文直接比。链接是
+            # 相对链接：`reference/com-pitfalls.md` 里写的是 `pitfall-com.md`，
+            # 而 rel 是仓库根的 `reference/pitfall-com.md`，字符串比永远不等。
+            # 之前没暴露是因为所有文档都从 INDEX 直连；一旦出现"一份文件被同目录
+            # 的兄弟文件引用"（拆分踩坑手册就是这么干的），这个假阴性就会把
+            # 真正可达的文件报成孤儿。
+            def _linked_from(doc, target):
+                doc_dir = os.path.dirname(doc)
+                return os.path.normpath(
+                    os.path.join(doc_dir, target.split("#")[0])
+                ).replace("\\", "/") == rel
+
+            if any(any(_linked_from(r, t) for t in links(read(r)))
+                   for r in reachable if r.endswith(".md")
                    and os.path.exists(os.path.join(ROOT, r))):
                 continue
             advises.append({"rule": "orphan", "file": rel,

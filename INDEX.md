@@ -44,6 +44,7 @@ motion-design-spec*，这里沿用。
 | 无头操作、真渲染、导出 | [`SKILL.md`](SKILL.md)（`motion.ps1` 层） |
 | 媒体（音视频）怎么嵌入 | [`SKILL.md`](SKILL.md) 媒体层 |
 | 为什么属性模型和 XML 是**两条路** | [`com-pitfalls.md`](reference/com-pitfalls.md) 「当时的误解」段 |
+| COM / 脚本环境的坑 | [`pitfall-com.md`](reference/pitfall-com.md) |
 
 ---
 
@@ -59,7 +60,6 @@ motion-design-spec*，这里沿用。
 | Morph / 3D / 窗口填充的**写法** | [`morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md) |
 | 效果别名与 presetID 对照 | [`facts/symbols.json`](facts/symbols.json) |
 | **一个元素只能出现一次**（本项目所有损坏的根因） | [`com-pitfalls.md`](reference/com-pitfalls.md) §31 |
-
 ---
 
 ## ④ 验证与判据 —— 怎么知道对不对
@@ -112,6 +112,32 @@ motion-design-spec*，这里沿用。
 | 效果**别名 ↔ presetID** | [`facts/symbols.json`](facts/symbols.json) |
 | **界面角度 ↔ lat/lon** | [`facts/axes.json`](facts/axes.json) |
 | 效果与切换的**原始语义** | [`mso-primitives.md`](reference/mso-primitives.md) |
+
+> **症状与踩坑这两族都拆成了多份**，各有目录页分流 ——
+> 症状见 [`symptoms.md`](reference/symptoms.md)，踩坑见
+> [`com-pitfalls.md`](reference/com-pitfalls.md)。两份目录页都能在
+> 一屏内选完，所以这里不再重复它们的表（重复的表迟早会漏更新）。
+> 看到 `§n` 形式的引用，查 [`pitfall-map.md`](reference/pitfall-map.md)。
+
+### 踩坑手册（已按主题拆成 10 份）
+
+**入口是 [`com-pitfalls.md`](reference/com-pitfalls.md)**（目录页，按"你现在的处境"分流）。
+看到 `§n` 这种引用、想知道它在哪份文件里，查
+[`pitfall-map.md`](reference/pitfall-map.md)。
+
+| 处境 | 去哪 |
+| --- | --- |
+| 文件打不开 / 报损坏 | [`pitfall-file-corruption.md`](reference/pitfall-file-corruption.md) |
+| XML 里有、PowerPoint 不认（不报错） | [`pitfall-silent-drop.md`](reference/pitfall-silent-drop.md) |
+| 往返后效果没了 / 被改了 | [`pitfall-roundtrip.md`](reference/pitfall-roundtrip.md) |
+| 注入写法（元素顺序、属性、前缀） | [`pitfall-ooxml.md`](reference/pitfall-ooxml.md) |
+| COM / 脚本环境 | [`pitfall-com.md`](reference/pitfall-com.md) |
+| Morph / 3D / 图片填充 | [`pitfall-morph-3d.md`](reference/pitfall-morph-3d.md) |
+| 测量与判据（指标骗人、口径错） | [`pitfall-measurement.md`](reference/pitfall-measurement.md) |
+| 素材与观感（截图/照片、抠图） | [`pitfall-media.md`](reference/pitfall-media.md) |
+| 页面切换 | [`pitfall-transition.md`](reference/pitfall-transition.md) |
+| 工具链（推送、导出、视频） | [`pitfall-tooling.md`](reference/pitfall-tooling.md) |
+| `§n` 到底在哪份文件 | [`pitfall-map.md`](reference/pitfall-map.md) |
 
 ---
 

@@ -16,6 +16,7 @@
    "id": "com-pitfalls",
    "canonical_for": "界面属性读回值与 XML 写出的值【为什么会不一致】",
    "location": "reference/com-pitfalls.md",
+   "spread_over": "reference/pitfall-*.md（拆分后按主题 10 份；§n → 文件的映射见 reference/pitfall-map.md）",
    "note": "叙述与当时的误解在此；本节只记规则。"
   }
  ],

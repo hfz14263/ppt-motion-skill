@@ -22,3 +22,7 @@ probe-createvideo/
 .idea/
 Thumbs.db
 desktop.ini
+
+# WorkBuddy 的本地工作目录（探测脚本的临时落点）。**不是缓存，别删** ——
+# 只是不该进版本库：它装的是本机某次探测的残留，换台机器就没有意义。
+.workbuddy/

@@ -26,7 +26,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
 # 开发期才需要、明确不该随技能包分发的目录。install.ps1 也会主动删掉 tests。
-DEV_ONLY = {"tests", "__pycache__", "probe-createvideo", ".workbuddy"}
+#
+# `tools/` 是一次性搬迁/重构脚本的落脚处（例如 split_pitfalls.py 把踩坑手册
+# 切分成 10 份）。它们对**使用者**没有意义 —— 装出去只会让人以为要运行它们。
+# 与之相对，`scripts/` 是运行时工具，必须随包分发。这条界线由本集合表达。
+DEV_ONLY = {"tests", "tools", "__pycache__", "probe-createvideo", ".workbuddy"}
 
 
 def install_items():

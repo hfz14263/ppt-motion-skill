@@ -6,6 +6,7 @@
    "id": "com-pitfalls",
    "canonical_for": "COM 行为、静默失败、往返丢失的叙述与当时的误解",
    "location": "reference/com-pitfalls.md",
+   "spread_over": "reference/pitfall-*.md（拆分后按主题 10 份；§n → 文件的映射见 reference/pitfall-map.md）",
    "indexed_by_symptom": "reference/symptoms.md"
   },
   {

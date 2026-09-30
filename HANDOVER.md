@@ -70,6 +70,37 @@
 **为什么要分层**：每一层能证明的东西不同。①只证"XML 合法且几何没动"，
 ③才证"PowerPoint 采纳了"。把①的结论当③用，就会犯第 6 节那些错。
 
+### 3.1 文档自身的"规模分层"（2026-09 拆分）
+
+四层架构管的是**知识**，还有一条**规模**上的规则：
+
+> **一个文件长到"查它要翻屏"的时候，它就失效了 —— 因为查它的时刻
+> 通常是你已经出错的时候。**
+
+触发点很具体：`com-pitfalls.md` 涨到 §51 / 2027 行，`symptoms.md` 1394 行。
+两份都被拆了：
+
+| 原文件 | 拆成 | 拆法 | 引用怎么活下来 |
+| --- | --- | --- | --- |
+| `com-pitfalls.md` | 10 份 `pitfall-*.md` | 按**主题**（文件损坏 / 静默丢弃 / 往返 / …） | **编号不变** —— `§44` 永远指"切换的形态"；编号→文件表在 [`reference/pitfall-map.md`](reference/pitfall-map.md)（由 `scripts/build_pitfall_map.py` 扫描生成，不是手抄） |
+| `symptoms.md` | 6 份 `symptom-*.md` | 按**现象**（打不开 / 不认 / 结果不对 / …） | **栏名不变** —— INDEX 和各处写着 "`symptoms.md` → 「文件损坏」"，目录页保留同名分流 |
+
+两条设计取舍值得记下来：
+
+1. **原文件名必须保留**（退化成目录页，不是删除）。全仓库 90+ 处引用写着
+   `com-pitfalls.md`；删掉 = 90+ 个死链。**改引用比留入口贵得多，也更容易漏。**
+2. **编号只增不减、只挪不改**（⚠️ 这条是硬规矩）。一个编号永远指同一件事，
+   哪怕它换了文件。编号一旦被复用，历史引用会**静默**指向另一个坑 ——
+   比 404 更糟，因为它看起来是好的。
+
+`tests/test_transition_table.py` 第 16/17 组守着这件事：编号完整、编号唯一、
+映射表与真实归属一致、目录页链全了族文件。**拆分本身也做了逐字节校验**
+（拆完的每一节/栏与拆分前 `git show` 出来的原文比对，51 节 + 10 栏全部一致）。
+
+拆分脚本（`split_pitfalls.py` / `split_symptoms.py`）放在 `tools/` ——
+它们是一次性搬迁工具，**不随技能包分发**（`tests/test_install_manifest.py`
+把 `tools/` 归入 DEV_ONLY，与 `tests/` 同级）。长期活着的只有映射表生成器。
+
 ---
 
 ## 4. 目录与关键文件
@@ -99,7 +130,25 @@ scripts/
 
 reference/
   authoring-rules.md          13 条硬约束（每条对应一次真实翻车）
-  com-pitfalls.md             COM / OOXML 坑，含"静默失败"四类
+  com-pitfalls.md             ★ 踩坑**目录页** —— 按"你现在的处境"分流到下面 10 份
+  pitfall-map.md              ★ `§n` 的解释器：编号 → 文件（拆分后 90+ 处引用靠它活）
+  pitfall-file-corruption.md  踩坑 · 文件打不开 / 报损坏（§1 §2 §4 §12 §26 §31 §40 §42）
+  pitfall-silent-drop.md      踩坑 · XML 里有、PowerPoint 不认（§13 §19 §41 §49 §50）
+  pitfall-roundtrip.md        踩坑 · 往返后被改掉或吃掉（§14 §18）
+  pitfall-ooxml.md            踩坑 · OOXML 注入写法（§3 §8）
+  pitfall-com.md              踩坑 · COM 与脚本环境（§5–§7 §9–§11 §15–§17）
+  pitfall-morph-3d.md         踩坑 · Morph / 3D / 图片填充（§20–§25 §27 §29 §30 §34）
+  pitfall-measurement.md      踩坑 · 测量与判据（§28 §33 §38）
+  pitfall-media.md            踩坑 · 素材与观感（§35–§37 §39）
+  pitfall-transition.md       踩坑 · 页面切换（§43 §44 §46 §47 §48 §51）
+  pitfall-tooling.md          踩坑 · 工具链（§32 §45）
+  symptoms.md                 ★ 症状**目录页** —— 按现象分流到下面 6 份
+  symptom-file-corruption.md  症状 · 文件打不开 / 报损坏
+  symptom-silent-drop.md      症状 · XML 里有、PowerPoint 不认
+  symptom-wrong-result.md     症状 · 文件正常但结果不对
+  symptom-roundtrip.md        症状 · 往返后效果被吃掉
+  symptom-tooling.md          症状 · 工具与环境
+  symptom-evidence.md         症状 · 证据与判断（值越界 + 四个"我以为我看见了"）
   review-checklist.md         ★ 交付复核清单（判据可信度分级 + 美感判据）
   motion-design-spec.md       动效设计规范
   morph-and-3d-recipes.md     Morph / 3D 相机 / 艺术效果 / 形状切割 配方
