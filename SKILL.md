@@ -152,7 +152,7 @@ transition: {type: morph, duration: 2.0, option: byObject}
 
 morph **跨页配对同名形状**并补间差异，所以两页必须有真实差异、且形状名/id 一致。
 完整配方（含元素写法、命名空间、降级、验证）见
-[`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md)，
+[`reference/recipe-morph-camera.md`](reference/recipe-morph-camera.md)，
 回归测试 `tests/test_morph.py`。
 
 > 历史：morph 曾被判为"本机不支持"，实为元素名写错（`p:morph` 应为 `p159:morph`）。
@@ -190,7 +190,7 @@ slides:
 
 实测对照表见 [`reference/camera-reference.md`](reference/camera-reference.md)，
 配方与两个测量陷阱见
-[`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md)，
+[`reference/recipe-morph-camera.md`](reference/recipe-morph-camera.md)，
 回归测试 `tests/test_camera.py`。
 
 **三条最容易翻车的，先看这三条：**
@@ -213,7 +213,7 @@ slides:
 
 让一个形状成为**图片的窗口**（只露出大图的一角），而不是把图片压扁塞进去 ——
 即"用形状切割图片"（配方见
-[`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md) §8）。
+[`reference/recipe-fill-window.md`](reference/recipe-fill-window.md)）。
 
 ```yaml
 fills:

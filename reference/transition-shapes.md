@@ -17,9 +17,23 @@
 
 <p align="right"><sub>来源 com-pitfalls §44</sub></p>
 
+<!-- toc -->
+- [一、先说结论：把 48 个效果按「看起来在做什么」分成 7 族](#s1)
+- [二、四个指标，各自能看见什么](#s2)
+- [三、`random` 是唯一测不了的效果，原因是它自己](#s3)
+- [四、这一层踩过的坑（比前两层都多）](#s4)
+- [五、完整形态表（48 项）](#s5)
+- [六、⚠️ `morph` 不适用本表](#s6)
+- [七、复现这套测量](#s7)
+- [八、⚠️ 第四类指标：旋转 —— 前三个都看不见它](#s8)
+- [九、`dir` 换一个值，运动会不会镜像 —— 已实测（全 19 个方向性效果）](#s9)
+- [十、换一个属性值，形态会怎么变 —— 已实测](#s10)
+<!-- /toc -->
 ---
 
 ## 一、先说结论：把 48 个效果按「看起来在做什么」分成 7 族
+
+<a id="s1"></a>
 
 这不是按界面分组（细微/华丽/动态内容），而是按**运动的性质**分。同族的效果可以互换，
 跨族的不行 —— 这是选择时的第一个判断。
@@ -40,9 +54,13 @@
 > ⚠️ **`clock` 原本被错归到「中心扩散」** —— 因为旋转的径向剖面和中心扩散几乎一样，
 > 而前三个指标看不见旋转。**这是用户目视发现的**，修正过程见 §三之补 与 §八。
 
+<a id="s2"></a>
+
 ---
 
 ## 二、四个指标，各自能看见什么
+
+<a id="s2"></a>
 
 这一层不能用"整帧均值"判断（`transition-model.md` §七记了两次踩坑）。用的是三个
 **互补**的统计量，任何一个单独都不够：
@@ -88,9 +106,15 @@
 - 带的重心**有没有整体漂移**（`band_travel`）。`wipe` = **−0.747**（大幅漂移），
   `fade` = 0.015、`split` = −0.015（几乎不漂）。
 
+<a id="s3"></a>
+
+<a id="s3"></a>
+
 ---
 
 ## 三、`random` 是唯一测不了的效果，原因是它自己
+
+<a id="s3"></a>
 
 `random` 在两次探测里给出了**不同的**结果（deck1 = `t->b centre-out`，deck2 = `r->l`）。
 
@@ -121,6 +145,10 @@ clock   285 → 75 → 60 → 45 → 30 → 15 → 0 → 345 → 330 → 315 →
 都**看不见旋转**（旋转的径向剖面和中心扩散几乎一样）。详见 §八。
 
 <p align="right"><sub>来源 com-pitfalls §44.3 / §47</sub></p>
+
+<a id="s4"></a>
+
+<a id="s4"></a>
 
 ---
 
@@ -185,6 +213,8 @@ dissolve  [1.0, 0.15, 0.05, 0.11, 0.04, 0.0, 0.0]
 既不是平移也不是均匀淡变。**本层对这四个给不出可靠的方向结论**，如实记在 §五。
 
 <p align="right"><sub>来源 com-pitfalls §44、§44.1–§44.4</sub></p>
+
+<a id="s5"></a>
 
 ---
 
@@ -254,7 +284,11 @@ dissolve  [1.0, 0.15, 0.05, 0.11, 0.04, 0.0, 0.0]
 
 **这两处不合并、不取平均** —— 分歧本身是信息。
 
+<a id="s6"></a>
+
 <p align="right"><sub>来源 com-pitfalls §44</sub></p>
+
+<a id="s6"></a>
 
 ---
 
@@ -272,7 +306,11 @@ dissolve  [1.0, 0.15, 0.05, 0.11, 0.04, 0.0, 0.0]
 > **`morph` 的形态 = 你设计的两个端点之差。** 这正好回到
 > [`transition-model.md`](transition-model.md) §五那张对比表：只有 morph 需要你操心内容。
 
+<a id="s7"></a>
+
 <p align="right"><sub>来源 transition-model.md 五、com-pitfalls §20.4</sub></p>
+
+<a id="s7"></a>
 
 ---
 
@@ -305,8 +343,14 @@ python scripts/build_transition_table.py shapeanalyze C:/t1w/shape2/wipe.mp4 \
 | `shapeanalyze` | 分析单份 |
 
 **测量环境**：PowerPoint 16.0 build 17928，30fps，CreateVideo 720p，每页停留 2s。
+
+<a id="s8"></a>
 探测 deck 2 只覆盖 deck 1 分不开的 12 个效果（`DECK2_SPECS`），
+
+<a id="s8"></a>
 **这个名单是聚类的产物，不是猜的** —— 换效果表时要重新聚类。
+
+<a id="s8"></a>
 
 ---
 
@@ -367,6 +411,8 @@ clock / 本次 random：
 > 直到我把右侧分支改成"白色从右边长出来"才发现。这个 bug 是测试抓出来的。
 
 <p align="right"><sub>来源 scripts/probe_shapes.ps1、scripts/build_transition_table.py（shapedeck / shapedeck2 / shapes / shapeanalyze）</sub></p>
+
+<a id="s9"></a>
 
 ---
 
@@ -499,7 +545,11 @@ clock / 本次 random：
 归档数据：`tests/fixtures/dir/dirmirror_full.json`（19 条全量），
 目视对照图 `tests/fixtures/dir/dir_compare_full.png`。
 
+<a id="s10"></a>
+
 <p align="right"><sub>来源 scripts/build_transition_table.py（dirdeck / dirmirror / mirror_verdict）；命令见 reference/transition-choice.md §三</sub></p>
+
+<a id="s10"></a>
 
 ---
 

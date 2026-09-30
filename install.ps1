@@ -79,8 +79,10 @@ if ((Test-Path $dest) -and -not $Force) {
   New-Item -ItemType Directory -Force -Path $dest | Out-Null
   # INDEX.md 与 facts/ 是三层结构（fac93ec）之后的顶层项 —— 漏掉它们，
   # 装出来的技能包会没有入口页、也没有唯一真相源。
+  # `history` 随包分发：HANDOVER.md（也随包）链到它，不发出去就是死链。
+  # 与之相对，`tools/` 是一次性开发脚本，**故意不在这里** —— 使用者不需要它。
   foreach ($item in 'SKILL.md', 'INDEX.md', 'HANDOVER.md', 'README.md', 'LICENSE',
-                  'scripts', 'reference', 'facts', 'examples', 'install.ps1',
+                  'scripts', 'reference', 'facts', 'history', 'examples', 'install.ps1',
                   'requirements.txt') {
     $s = Join-Path $src $item
     if (Test-Path $s) { Copy-Item $s -Destination $dest -Recurse -Force }

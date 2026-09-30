@@ -54,7 +54,11 @@ INDEX_BUDGET = 6000          # characters; ~3500 tokens. Beyond this it stops be
 # The plural spelling was the old name; the 2026-09-28 reorganisation settled on the
 # singular. The plural is gone from disk, so listing it would only hide a regression:
 # a file written back into the plural directory would be silently treated as reachable.
-SCAN_DIRS = ("reference", "facts")
+#
+# ⚠️ `history` 是 2026-09-30 新增的：`HANDOVER.md` §8 攒到 299 行开发日志后搬出来的
+# 归档目录。**它必须在这里** —— 否则新目录里的文档不被扫，写进去一份没人链的
+# 归档文件不会有任何提示。新开文档目录时记得加这里（同 test_install_manifest）。
+SCAN_DIRS = ("reference", "facts", "history")
 SKIP_FILES = {"reference/design-system/README.md"}   # linked via its own directory entry
 UPSTREAM = re.compile(r"vendored from|upstream content", re.I)
 

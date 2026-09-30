@@ -1287,6 +1287,106 @@ def main():
     check("拆分文件保留了回到根因的线索（来源 §n 或链接）",
           not no_src, "缺线索: %s" % no_src)
 
+    # ---- 18. 配方文档拆分：文件名必须对上内容 -------------------------------
+    # 为什么需要这一组：`morph-and-3d-recipes.md` 曾 683 行，但真正的毛病
+    # **不是篇幅，是名实不符** —— 名字只提 Morph 与 3D 相机，实际装着
+    # 素材派生（§4/§6/§7）和窗口化填充（§8）。**找"形状切割"的人不会想到
+    # 打开这个文件名。** 这是导航失败，光加目录治不了。
+    #
+    # 守三件事：① §5 之外全部搬走；② §1..§8 一条不丢、不重复；
+    # ③ 目录页有一张能查 §n 的表（它就是这一族的"编号解释器"）。
+    print()
+    print("== 18. 配方文档拆分：名实相符 + §n 可解析 ==")
+    hub_p = os.path.join(ref_dir, "morph-and-3d-recipes.md")
+    check("配方目录页仍在（21 处旧引用不能死）", os.path.exists(hub_p))
+    if os.path.exists(hub_p):
+        hub = io.open(hub_p, encoding="utf-8").read()
+        hub_lines = hub.count("\n")
+        # 663 行搬走之后，目录页应该是"一屏级"的
+        check("目录页已不再是正文（<=150 行）", hub_lines <= 150,
+              "还有 %d 行" % hub_lines)
+
+        recipe_files = sorted(f for f in os.listdir(ref_dir)
+                              if f.startswith("recipe-")
+                              and f.endswith(".md")
+                              and f != "recipe-library.md")
+        check("配方已拆成 3 份", len(recipe_files) == 3, str(recipe_files))
+        check("目录页链到全部 3 份",
+              set(recipe_files) <= set(re.findall(
+                  r"\]\((recipe-[a-z0-9-]+\.md)\)", hub)),
+              "漏链: %s" % sorted(set(recipe_files) - set(re.findall(
+                  r"\]\((recipe-[a-z0-9-]+\.md)\)", hub))))
+
+        # ① §1..§8 一条不丢、不重复（§5 留在目录页）
+        h2 = re.compile(r"^## (\d+)\. ", re.M)
+        seen = {}
+        dup = []
+        for n in [int(x) for x in h2.findall(hub)]:
+            if n in seen:
+                dup.append(n)
+            seen[n] = "morph-and-3d-recipes.md"
+        for f in recipe_files:
+            body = io.open(os.path.join(ref_dir, f), encoding="utf-8").read()
+            for n in [int(x) for x in h2.findall(body)]:
+                if n in seen:
+                    dup.append("§%d 同时在 %s 和 %s" % (n, seen[n], f))
+                seen[n] = f
+        check("§1..§8 一条不丢", all(n in seen for n in range(1, 9)),
+              "缺: %s" % [n for n in range(1, 9) if n not in seen])
+        check("§n 不会出现在两份文件里", not dup, "; ".join(dup[:4]))
+        check("§5（横跨三份的整合视图）留在目录页", seen.get(5) ==
+              "morph-and-3d-recipes.md", str(seen.get(5)))
+
+        # ② 目录页必须能当 §n 的解释器：8 个编号每个都出现在表里
+        missing = [n for n in range(1, 9) if ("§%d" % n) not in hub]
+        check("目录页的表覆盖全部 §1..§8（能当编号解释器）",
+              not missing, "表里没有: %s" % missing)
+
+        # ③ 目录页要说明"为什么按想做的事排、不按编号排"
+        check("目录页解释了导航主线是「想做的事」",
+              "想做的事" in hub)
+
+    # ---- 19. 长文档必须有目录（否则等于没有地图）----------------------------
+    # 为什么需要这一组：拆分解决了"文件太大"，但**内聚的长文档不该拆** ——
+    # 形态层/选择层/机制层是 L1–L4 架构的骨架，拆开就把架构打散了。
+    # 它们要的是**加目录**：读者打开第一屏就该知道里面有什么。
+    #
+    # 门槛取 300 行 + 至少 4 个标题：低于这个规模加目录是噪音。
+    # 判据接受两种形态：本工具生成的（有 `<!-- toc -->` 标记），
+    # 或人写的（前 40 行有「表格行 + 站内锚点」—— `transition-model.md` 是这种）。
+    print()
+    print("== 19. 长文档的目录（导航不该靠滚）==")
+    need = []
+    have = 0
+    for f in sorted(os.listdir(ref_dir)):
+        if not f.endswith(".md"):
+            continue
+        body = io.open(os.path.join(ref_dir, f), encoding="utf-8").read()
+        if body.count("\n") < 300:
+            continue
+        stripped = re.sub(r"```.*?```", "", body, flags=re.S)
+        n_heads = len(re.findall(r"^#{2,3} (?!#)", stripped, re.M))
+        if n_heads < 4:
+            continue
+        marked = "<!-- toc -->" in body
+        handwritten = bool(re.search(
+            r"^\|.*\]\(#", "\n".join(body.splitlines()[:40]), re.M))
+        if marked or handwritten:
+            have += 1
+        else:
+            need.append("%s（%d 行 / %d 标题）" % (f, body.count("\n"), n_heads))
+    check(">=300 行的文档都有目录（%d 份）" % have, not need,
+          "缺目录: %s" % need)
+
+    # 生成器必须存在 —— 否则下次加新长文档时会手写，而手写的会漏
+    toc_tool = os.path.join(ROOT, "tools", "add_toc.py")
+    check("有加目录的脚本（不要手写目录）", os.path.exists(toc_tool))
+    if os.path.exists(toc_tool):
+        src = io.open(toc_tool, encoding="utf-8").read()
+        # 必须幂等：已有标记就替换，而不是叠加
+        check("加目录脚本是幂等的（有 toc 标记就替换）",
+              "<!-- toc -->" in src and "--check" in src)
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))

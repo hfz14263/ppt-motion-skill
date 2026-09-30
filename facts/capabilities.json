@@ -12,7 +12,8 @@
   {
    "id": "morph-recipes",
    "canonical_for": "Morph / 3D / 艺术效果 / 形状切割的注入写法",
-   "location": "reference/morph-and-3d-recipes.md"
+   "location": "reference/morph-and-3d-recipes.md",
+   "spread_over": "reference/recipe-*.md（拆分后按主题 3 份：morph-camera / asset-derivation / fill-window；§n → 文件的表在 morph-and-3d-recipes.md 开头）"
   }
  ],
  "capability_matrix": [

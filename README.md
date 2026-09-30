@@ -70,13 +70,20 @@ spec 的完整字段见 [`examples/motion.example.yaml`](examples/motion.example
 
 ## 文档
 
+**先看 [`INDEX.md`](INDEX.md)** —— 唯一入口，按「我想 ____」分六条，
+填不进去的（比如"接手这个项目"）在它开头另有一条。
+
 | 文件 | 讲什么 |
 | --- | --- |
-| [`HANDOVER.md`](HANDOVER.md) | **交接文档**:当前能力状态、架构四层、目录地图、四次真实误判、环境依赖与待办 |
+| [`INDEX.md`](INDEX.md) | **★ 唯一入口**：六个「我想 ____」+ 项目自身 |
+| [`HANDOVER.md`](HANDOVER.md) | **交接文档**:当前能力状态、架构四层、目录地图、四次真实误判、环境依赖、**还没做的** |
+| [`history/README.md`](history/README.md) | **归档**：已做完的事**以及当时怎么想错的**（不是待办） |
 | [`SKILL.md`](SKILL.md) | **操作手册**:分层职责、S0–S8 流程、spec 全文、命令、九条坑 |
 | [`reference/architecture.md`](reference/architecture.md) | 为什么这样设计:OOXML / COM / 渲染行为的知识构成 |
 | [`reference/authoring-rules.md`](reference/authoring-rules.md) | 13 条硬约束,每条对应一次真实翻车 + 人眼清单 |
-| [`reference/com-pitfalls.md`](reference/com-pitfalls.md) | 28 条 COM / OOXML 坑,含"静默失败"四类 |
+| [`reference/com-pitfalls.md`](reference/com-pitfalls.md) | **踩坑目录页**：按"你现在的处境"分流到 10 份 `pitfall-*.md`（§1–§51）。看到 `§n` 查 [`pitfall-map.md`](reference/pitfall-map.md) |
+| [`reference/symptoms.md`](reference/symptoms.md) | **症状目录页**：按现象分流到 6 份 `symptom-*.md`。**你知道的是现象，不是根因**，所以从这进 |
+| [`reference/transitions.md`](reference/transitions.md) | **页面切换**：48 项实测对照（界面名 ↔ XML 元素 ↔ COM 枚举）。配 [机制](reference/transition-model.md) / [形态](reference/transition-shapes.md) / [选择](reference/transition-choice.md) 三层 |
 | [`reference/morph-and-3d-recipes.md`](reference/morph-and-3d-recipes.md) | **Morph(平滑)与 3D 相机的注入配方**:元素写法、命名空间、跨页匹配规则、实测对照、两个测量陷阱 |
 | [`reference/template-patterns.md`](reference/template-patterns.md) | 给"一个动画都没有"的现成模板从零设计动效 |
 | [`reference/recipe-library.md`](reference/recipe-library.md) | **动效配方库：按原理组织**（6 条已实测）。新素材从原理推导，而不是查效果清单 |
