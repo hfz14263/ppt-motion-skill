@@ -923,7 +923,10 @@ def main():
     # attrdeck 生成器冒烟：文件名可配对 + 属性真写进 XML
     aprobe = os.path.join(ROOT, ".workbuddy", "_attrprobe_smoke")
     try:
-        if not os.path.isdir(aprobe):
+        # ⚠️ 判据是**有没有文件**，不是有没有目录 —— 一次中断的测试会留下
+        # 一个空目录，而  会因此跳过生成，然后在下面读文件时炸掉，
+        # 报出来的错看起来像生成器坏了，其实是残留状态。
+        if not _glob.glob(os.path.join(aprobe, "*.pptx")):
             B.cmd_attrdeck(aprobe)
         amade = sorted(os.path.basename(p) for p in
                        _glob.glob(os.path.join(aprobe, "*.pptx")))
@@ -1469,12 +1472,25 @@ def main():
               "verify_docs=%s check_structure=%s"
               % (vd_budget and vd_budget.group(1), chk_budget))
 
-        # ⑤ 豁免必须带理由（否则下一个看的人只会照抄）
+        # ⑤ 豁免必须带理由，且必须带待办（否则下一个看的人只会照抄）
+        #
+        # ⚠️ 判据要认「**真的有条目**」，不能只看花括号里非空 ——
+        # 这个块的注释会留档"已被撤销的豁免"（如 2026-09-30 撤销的
+        # build_transition_table 那条），那是有价值的记录，不是条目。
+        # **豁免全清空是健康状态**，不该被判失败。
         m = re.search(r"CODE_SPLIT_EXEMPT\s*=\s*\{(.*?)\n\}", chk, re.S)
-        if m and m.group(1).strip():
-            check("代码例外条目都写了理由", '"why"' in m.group(1))
-            check("代码例外条目都带待办（豁免不等于遗忘）",
-                  '"todo"' in m.group(1))
+        body = m.group(1) if m else ""
+        entries = re.findall(r'^\s{4}"([^"]+)":\s*\{', body, re.M)
+        if entries:
+            for name in entries:
+                blk = re.search(r'"%s":\s*\{(.*?)\n\s{4}\}' % re.escape(name),
+                                body, re.S)
+                seg = blk.group(1) if blk else ""
+                check("例外「%s」写了理由" % name, '"why"' in seg)
+                check("例外「%s」带待办（豁免不等于遗忘）" % name, '"todo"' in seg)
+        else:
+            check("代码例外清单为空（豁免都已清掉 —— 健康状态）", True,
+                  "条目: %s" % entries)
 
     print()
     if fails:

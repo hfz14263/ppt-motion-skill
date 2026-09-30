@@ -42,7 +42,7 @@
 
 | 项 | 为什么 |
 | --- | --- |
-| 拆 `scripts/build_transition_table.py`（3048 行） | 探针工具，关键路径需真 PowerPoint；拆包要在能跑 PowerPoint 的会话里做。已登记为**带待办的豁免**，每次体检会重新报出来 |
+| ~~拆 `scripts/build_transition_table.py`（3048 行）~~ | ✅ **2026-09-30 已完成** → `transition_probe/` 包五层。见 HANDOVER §8.4 |
 | 按 (a) 重写 symptom 文档 | 删除类 + 内容决策，等你选 |
 
 ---

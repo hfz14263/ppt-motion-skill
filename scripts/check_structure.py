@@ -56,16 +56,20 @@ DOC_SPLIT_EXEMPT = {
     # 例：'reference/foo.md': {'why': '单一主题的连续论述，拆开每一节都不完整'},
 }
 CODE_SPLIT_EXEMPT = {
-    "scripts/build_transition_table.py": {
-        "why": "它是**探针工具**（生成探测 deck → PowerPoint 渲染 → 分析帧），"
-               "不是运行时引擎。它的关键路径需要真 PowerPoint，本机无法在"
-               "无头环境里验证；搬 3000 行代码却只验得了一半的路径，"
-               "风险大于收益。另外它各节之间共享 NS / HYPOTHESES 等模块级常量，"
-               "拆包需要先理清依赖顺序。",
-        "todo": "在能跑 PowerPoint 的会话里拆成包：probe/{data,decks,analyze}.py "
-                "+ __init__ 重新导出（保持 `import build_transition_table as B` 不变），"
-                "每拆一步跑一次完整测试。见 HANDOVER.md「无人值守」一节。",
-    },
+    # 2026-09-30：`build_transition_table.py`（3048 行）已拆成 `transition_probe/`
+    # 包（common / data / decks / analysis / commands 五层），豁免已撤销。
+    # 原条目留在这里作参照——**豁免被清掉时应该删掉条目**，
+    # 否则清单会攒成一堆没人敢动的历史遗留。
+    #
+    # 留档的当时理由（供下次判断参考）：
+    #   它是探针工具，关键路径需真 PowerPoint。后来发现这个理由**下错了结论**——
+    #   搬运是纯移动，行为按构造不变，需要验证的是模块结构（import / 名字 /
+    #   CLI 分发 / 测试），而这四件本地全能验。真正需要 PowerPoint 的是
+    #   **重跑探测流水线**，不是验证搬家。
+    #   ⚠️ 唯一的例外确实存在：**代码依赖自身位置**时搬运会改变行为——
+    #   实测撞到一次（`__file__` 拼 `motion_catalog.json`，搬进子目录后指向了
+    #   不存在的地方）。已改用 `common.SCRIPTS_DIR`。这类错静态检查看不见，
+    #   只能靠跑测试。
 }
 
 # 这些顶层目录是开发期的，明确不随包分发（与 test_install_manifest 同源）
