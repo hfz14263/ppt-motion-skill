@@ -14,21 +14,31 @@
 
 ### §3 lxml 不能直接 parse 带编码声明的 str
 
+**现象**：`ET.fromstring()` 抛 `ValueError: Unicode strings with encoding declaration are not supported`
+
 ```python
 ET.fromstring(z.read(part).decode('utf-8'))        # ValueError
 ET.fromstring(z.read(part))                        # bytes，正常
 ```
 
+**根因与修法**：见 [`pitfall-ooxml.md`](pitfall-ooxml.md) §3。
+
 <p align="right"><sub>来源 com-pitfalls §3</sub></p>
 
 ### §4 结构校验通过 ≠ PowerPoint 能打开
 
+**现象**：lxml 结构校验全绿，PowerPoint 打开却 `E_FAIL`
+
 lxml 只保证 well-formed。实例：v3（自建 timing）结构校验 OK，PowerPoint `E_FAIL`。
 **任何 OOXML 手改都必须过一遍 `motion.ps1` 真开**。
+
+**根因与修法**：见 [`pitfall-file-corruption.md`](pitfall-file-corruption.md) §4。
 
 <p align="right"><sub>来源 com-pitfalls §4</sub></p>
 
 ### §7 切换的旧式枚举几乎不可用
+
+**现象**：设了 `EntryEffect = 0x0A01` 想做 fade，读回是 `<p:strips/>`；`0x1701` 直接报非法枚举
 
 本机实测（`SlideShowTransition.EntryEffect`）：
 
@@ -50,150 +60,53 @@ fade=3849 / strips=2561 / push(dir=u)=3855 / zoom(dir=in)=3074，和上面完全
 **48 项界面切换的完整实测对照表见 [`transitions.md`](transitions.md)** ——
 界面名 ↔ PowerPoint 写出的子元素 ↔ 完整 XML 块 ↔ 实测枚举，四列对齐。
 
-<p align="right"><sub>来源 com-pitfalls §7 / §42</sub></p>
+**根因与修法**：见 [`pitfall-com.md`](pitfall-com.md) §7。
+
+<p align="right"><sub>来源 com-pitfalls §7</sub></p>
 
 ### §9 Office COM 的几个约束
 
-- 媒体插入（`AddMediaObject2`）依赖 PowerPoint 自己的转码管线；MP4/WAV 可用，
-  **未压缩 AVI 会因缺解码器失败**。手写 OOXML 做不了这件事，必须走 COM。
-- 受限沙箱下媒体插入会统一报 "cannot insert the file you specified"；放宽权限后立刻成功。
-  这是权限问题，不是格式问题。
-- `Presentations.Open(path, ReadOnly, Untitled, WithWindow)` 的 `WithWindow` 传 0 在本机
-  **打不开**，必须传 1（会闪一下窗口，正常）。
-- 失败的自动化会残留 `POWERPNT` 进程并锁住 pptx（再报 "could not open the file"）。
-  先 `Stop-Process POWERPNT -Force`。
-- 自动化会在 `%TEMP%` 残留 `*- OProcSessId.dat` 与 `*.tmp`，可清理。
-- **PowerPoint 会原样保留注入的动画**：注入 31 个 effect → PowerPoint 打开读到 31 个 →
-  `Save()` 后仍是 31 个（已实测）。所以 COM 往返不会吃掉动画。
+**现象**：COM 调用在别人机器上好用，在本机报`自动化错误`或对象不存在
+
+**根因与修法**：见 [`pitfall-com.md`](pitfall-com.md) §9。
 
 <p align="right"><sub>来源 com-pitfalls §9</sub></p>
 
 ### §10 Windows PowerShell 5.1 的编码坑
 
-- 无 BOM 的 `.ps1` 里写中文会被按 ANSI 读成乱码，**甚至引发语法错误**（中文注释吃掉引号）。
-  脚本一律纯 ASCII，中文用 `[char]0xXXXX` 拼。
-- 用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 调用。**不要假定 `pwsh` 存在**：
-  Windows PowerShell 5.1 是 Windows 自带的，PowerShell 7（`pwsh`）是另装的，
-  很多机器上只有前者。脚本按 5.1 的语法子集写，别用 7 才有的东西。
-- 解压/打包优先用 .NET 的 `ZipFile` 而不是外部 `tar`：`tar` 在受限环境里可能被策略拦住，
-  而 `ZipFile` 不依赖任何外部进程。
+**现象**：脚本输出中文全是乱码，或`Get-Content` 读出来是乱码
+
+**根因与修法**：见 [`pitfall-com.md`](pitfall-com.md) §10。
 
 <p align="right"><sub>来源 com-pitfalls §10</sub></p>
 
 ### §11 颜色/几何断言要按"布局帧"口径
 
-不要把整份 slide XML 做哈希——`<p:timing>` 本来就会变。只哈希
-**spTree 内每个形状的 `tag + cNvPr/@id + @name + xfrm(x,y,cx,cy,rot)` 序列**，
-这样"动画注入不改版面"才能被机器证明。
+**现象**：同一个几何值，脚本判绿、PowerPoint 真开却肉眼可见地错位
+
+**根因与修法**：见 [`pitfall-com.md`](pitfall-com.md) §11。
 
 <p align="right"><sub>来源 com-pitfalls §11</sub></p>
 
 ### §15 `motion.ps1` 默认只读，绝不回写输入（旧版会毁掉源文件）
 
-COM 层是**复核**层，`Presentations.Open(..., ReadOnly=msoTrue, ...)` 打开：
-- 它不会再覆盖你传给它的 pptx（旧版用 `$pres.Save()` 就地保存，把 OOXML 引擎写好的
-  切换换成了枚举写出的 `<p:strips/>`，并且直接改写了输入文件）；
-- 需要持久化的东西（内嵌媒体）写到 `OutDir` 下的 `*.com.pptx`；
-- 切换默认**不**走 COM 枚举（那反而会覆盖正确结果，见 §7）；要探测属性模型用
-  `-SyncTransitions` 显式开启。
+**现象**：用旧版 `motion.ps1` 跑过之后，源 pptx 里的效果没了
 
-另外 `Slide.Export` 是 COM 调用，**相对路径会按 PowerPoint 自己的工作目录解析**
-（不是 PowerShell 的当前目录），于是报"找不到 <你要求的路径>"。`OutDir` 必须绝对化。
+**根因与修法**：见 [`pitfall-com.md`](pitfall-com.md) §15。
 
 <p align="right"><sub>来源 com-pitfalls §15</sub></p>
 
 ### §16 静态导出与逐形状导出（做"动效预览"必需）
 
-### 16.1 `Slide.Export` 无视 `Shape.Visible`
+**现象**：想看动效长什么样，只能看到一堆静态图，分不清哪帧是过渡
 
-```
-shape.Visible = 0        # msoFalse
-slide.Export(path,...)   # 形状照样画出来
-```
-
-所以**不能**靠隐藏其它形状来单独导出一个形状。
-（另注意 `msoTrue = -1`，不是 `1`；写 `1` 是无效值。）
-
-### 16.2 `Shape.Export` 才认 `Visible`，且给真 alpha
-
-```python
-shape.Export(path, 2)     # 2 = ppShapeFormatPNG -> RGBA，带透明
-```
-
-- 第二个参数是**数字枚举**；传 `"PNG"` 抛 `invalid literal for int() with base 10: 'PNG'`。
-- 宽高可省略，省了就按 `Shape.ScaleWidth/ScaleHeight` 默认导出（实测 1.45× 形状尺寸，够清晰）。
-- 带 alpha 是它能当图层用的前提。
-
-### 16.3 背景要"先导图层、再删形状、最后导整页"
-
-想让"形状逐个浮现"可看，需要 base + 每形状一层。base 必须是**删掉这些形状之后**的整页：
-
-```python
-for sid in wanted: shape.Export(...)      # 1. 先导图层
-for sid in wanted: shape.Delete()         # 2. 再删掉它们
-slide.Export(base, ...)                   # 3. 剩下的当背景
-```
-
-顺序反了就会重影：base 里已经烘焙了一份，图层淡入到位后正好叠在自己的副本上。
-
-### 16.4 `Presentation.CreateVideo`：**取决于 Office 构建，必须本机实测**
-
-上游在它的机器上观察到**所有参数组合都失败**：
-
-| Quality | 上游观察 |
-| --- | --- |
-| 0 | 返回成功码但**不产文件** |
-| 1 / 2 | `E_INVALIDARG` |
-| VertResolution 480/540/720/1080 | 均失败 |
-| ReadOnly / ReadWrite 打开 | 均失败 |
-
-**但另一台机器上完全可用**（Office LTSC 2024 ProPlus Retail x64，构建
-`16.0.17928.20148`，POWERPNT.exe 同版本）：
-
-| 参数 | 实测结果 |
-| --- | --- |
-| 480p / 720p / 1080p @30fps, q85 | 成功，**1.19 MB / 2.49 MB / 4.11 MB**（同一 busy deck） |
-| 720p @30fps, quality 1 | 成功，0.54 MB |
-| 720p @15fps, q85 | 成功，1.86 MB |
-| `WithWindow` = 0 或 1 | **都能导出** |
-| `CreateVideoStatus` | 轮询到 `3`（done）即完成，1–9 秒 |
-
-所以**分辨率、质量、帧率参数确实生效**（文件大小随参数单调变化）。
-
-**两边观察有交叉也有冲突，这本身就是关键线索：**
-
-| 参数 | 上游 | 本机（LTSC 2024, 16.0.17928.20148） |
-| --- | --- | --- |
-| quality 0 | 返回成功码但**不产文件** | **也失败**：`E_INVALIDARG` |
-| quality 1 / 2 | `E_INVALIDARG` | **成功**（q1 = 0.54 MB） |
-| 480 / 720 / 1080p | 均失败 | **均成功**（1.19 / 2.49 / 4.11 MB） |
-| ReadOnly / ReadWrite | 均失败 | **均成功** |
-
-`quality 0` 两边都坏 —— 说明这不是随机的，而是**某个参数值本身有问题**；
-其余参数本机可用而上游不可用，指向**构建 / COM 驱动差异**。
-
-**结论（环境限定）**：`CreateVideo` 的可用性**不是 Office 的普遍属性**。差异可能来自
-Office 版本、位数、COM 驱动或媒体子系统状态 —— 具体原因未定论，两边观察可以同时为真，
-所以**不要用任何一方的结论去推断另一台机器**。
-
-**因此：不要假定，先探测。** 用 `scripts/probe_createvideo.ps1` 在**你自己的机器**上跑一遍：
-
-```powershell
-powershell -NoProfile -File scripts/probe_createvideo.ps1
-```
-
-它打印本机 Office 构建指纹，并逐个参数组合尝试导出，报告哪些成功。
-- 有任一组合成功 → 可以导 MP4 复核动效
-- 全部失败 → 用 §16.1–§16.3 的图层方案，或 `motion.py player`
-
-无论哪种情况，`player` 都仍有独立价值：它做**逐形状图层 + 可控时序**，
-能暂停在任意时刻单看某一层，这是 MP4 做不到的。
-
-（`CreateVideo` 本身是异步的：即使调用成功也要轮询文件/状态，不能只等返回值。）
+**根因与修法**：见 [`pitfall-com.md`](pitfall-com.md) §16。
 
 <p align="right"><sub>来源 com-pitfalls §16</sub></p>
 
 ### §32 `CreateVideo` 报"完成"却拿不到文件 —— 三个参数全错
+
+**现象**：`CreateVideo` 报「完成」，但目标文件不存在或打不开
 
 轮询**立刻退出**，日志写 `status=2 exists=True`，几秒后文件**不存在**。
 
@@ -216,6 +129,10 @@ powershell -NoProfile -File scripts/probe_createvideo.ps1
 
 ---
 
+**根因与修法**：见 [`pitfall-tooling.md`](pitfall-tooling.md) §32。
+
+<p align="right"><sub>来源 com-pitfalls §32</sub></p>
+
 ### §43.1 切换效果整体错位一个页边界
 
 **现象**：想让第 5→6 页有切换，写在了第 5 页，结果 5→6 是硬切，
@@ -231,6 +148,8 @@ burst 落在边界 1（1→2）而不是边界 2。详见 [`transition-model.md`
 **附带**：第 1 页没有前驱，它的切换只用在**放映起步从黑场进入开场**那一次，
 不是"被忽略"；此后真正的第 1→2 边界仍是硬切。
 
+**根因与修法**：见 [`pitfall-transition.md`](pitfall-transition.md) §43（根因条目 §43.1）。
+
 <p align="right"><sub>来源 com-pitfalls §43.1</sub></p>
 
 ### §43.3 时长在 WPS / 旧版 / 在线预览里全变成"中等"
@@ -245,6 +164,8 @@ burst 落在边界 1（1→2）而不是边界 2。详见 [`transition-model.md`
 **正确的做法**：让 `spd` 跟着 `duration` 取最接近的档位（显式 `speed=` 优先）。
 三档的实测值是 **slow ≈ 1000ms / med ≈ 767ms / fast ≈ 500ms**
 （不是界面上传说的 3s/2s/1s），由 `tests/test_transition_table.py` 钉住。
+
+**根因与修法**：见 [`pitfall-transition.md`](pitfall-transition.md) §43（根因条目 §43.3）。
 
 <p align="right"><sub>来源 com-pitfalls §43.3</sub></p>
 
@@ -264,6 +185,8 @@ burst 落在边界 1（1→2）而不是边界 2。详见 [`transition-model.md`
 把分不开的那些挑出来给第二个 probe —— 这份名单是聚类的产物，不是猜的。
 详见 [`transition-shapes.md`](transition-shapes.md) §四。
 
+**根因与修法**：见 [`pitfall-transition.md`](pitfall-transition.md) §44（根因条目 §44.4）。
+
 <p align="right"><sub>来源 com-pitfalls §44.4</sub></p>
 
 ### §44.3 用 `random` 做切换 → 每次放映观感都不一样
@@ -276,6 +199,8 @@ burst 落在边界 1（1→2）而不是边界 2。详见 [`transition-model.md`
 
 **实践含义**：用 `random` **无法保证任何观感一致性**。商务场合不要用；
 需要"不重复"就手动轮换几个确定的切换。
+
+**根因与修法**：见 [`pitfall-transition.md`](pitfall-transition.md) §44（根因条目 §44.3）。
 
 <p align="right"><sub>来源 com-pitfalls §44.3</sub></p>
 
@@ -294,3 +219,7 @@ burst 落在边界 1（1→2）而不是边界 2。详见 [`transition-model.md`
 <p align="right"><sub>来源 com-pitfalls §44.7</sub></p>
 
 ---
+
+**根因与修法**：见 [`pitfall-transition.md`](pitfall-transition.md) §44（根因条目 §44.7）。
+
+<p align="right"><sub>来源 com-pitfalls §44.7</sub></p>

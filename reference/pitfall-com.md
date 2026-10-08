@@ -10,6 +10,8 @@
 
 ## 5. 静态预览：为什么要 `preview`（实测修正）
 
+**现象**：导出静态 PDF/PNG 时以为会拿到「动画前那一帧」，结果拿到的是带切换的副本
+
 原先这里写的是"带入场动画的形状在 PNG/PDF 里是隐藏的"。**本机实测不成立**：本 skill 的
 `fly`/`fade` 模板用的是把 `style.visibility` 设为 `visible` 的 `<p:set>`，从不写隐藏，
 所以 `Slide.Export` 直接把形状画出来了（自测 deck 的 animated 版与 preview 版首屏 PNG
@@ -30,6 +32,8 @@ python scripts/motion.py preview --pptx animated.pptx --out static.pptx
 ```
 ## 6. 颜色是 BGR，且不能用算术表达式生成
 
+**现象**：颜色写的是 `#FFD24A`，存出来变成 `#20100B`（红蓝互换）
+
 - `Shape.Fill.ForeColor.RGB = 0x0B1020`（想要深蓝）→ XML 里存成 `20100B`（红蓝互换）。
   想显示 `#FFD24A` 必须传 `0x4AD2FF`。
 - `0x30 * $i * 65536 + …` 这类算术，PowerPoint 收到 Double 会**截断**：
@@ -42,6 +46,8 @@ function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
 }
 ```
 ## 7. 切换的旧式枚举几乎不可用
+
+**现象**：设了 `EntryEffect = 0x0A01` 想做 fade，读回是 `<p:strips/>`；`0x1701` 直接报非法枚举
 
 本机实测（`SlideShowTransition.EntryEffect`）：
 
@@ -57,6 +63,8 @@ function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
 写的元素（如 `<p:fade/>`）保存。
 ## 9. Office COM 的几个约束
 
+**现象**：COM 调用在别人机器上好用，在本机报`自动化错误`或对象不存在
+
 - 媒体插入（`AddMediaObject2`）依赖 PowerPoint 自己的转码管线；MP4/WAV 可用，
   **未压缩 AVI 会因缺解码器失败**。手写 OOXML 做不了这件事，必须走 COM。
 - 受限沙箱下媒体插入会统一报 "cannot insert the file you specified"；放宽权限后立刻成功。
@@ -70,6 +78,8 @@ function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
   `Save()` 后仍是 31 个（已实测）。所以 COM 往返不会吃掉动画。
 ## 10. Windows PowerShell 5.1 的编码坑
 
+**现象**：脚本输出中文全是乱码，或`Get-Content` 读出来是乱码
+
 - 无 BOM 的 `.ps1` 里写中文会被按 ANSI 读成乱码，**甚至引发语法错误**（中文注释吃掉引号）。
   脚本一律纯 ASCII，中文用 `[char]0xXXXX` 拼。
 - 用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File` 调用。**不要假定 `pwsh` 存在**：
@@ -79,10 +89,14 @@ function RGBv([int]$displayRGB) {   # 显示色 -> PowerPoint 存的 BGR 值
   而 `ZipFile` 不依赖任何外部进程。
 ## 11. 颜色/几何断言要按"布局帧"口径
 
+**现象**：同一个几何值，脚本判绿、PowerPoint 真开却肉眼可见地错位
+
 不要把整份 slide XML 做哈希——`<p:timing>` 本来就会变。只哈希
 **spTree 内每个形状的 `tag + cNvPr/@id + @name + xfrm(x,y,cx,cy,rot)` 序列**，
 这样"动画注入不改版面"才能被机器证明。
 ## 15. `motion.ps1` 默认只读，绝不回写输入（旧版会毁掉源文件）
+
+**现象**：用旧版 `motion.ps1` 跑过之后，源 pptx 里的效果没了
 
 COM 层是**复核**层，`Presentations.Open(..., ReadOnly=msoTrue, ...)` 打开：
 - 它不会再覆盖你传给它的 pptx（旧版用 `$pres.Save()` 就地保存，把 OOXML 引擎写好的
@@ -94,6 +108,8 @@ COM 层是**复核**层，`Presentations.Open(..., ReadOnly=msoTrue, ...)` 打�
 另外 `Slide.Export` 是 COM 调用，**相对路径会按 PowerPoint 自己的工作目录解析**
 （不是 PowerShell 的当前目录），于是报"找不到 <你要求的路径>"。`OutDir` 必须绝对化。
 ## 16. 静态导出与逐形状导出（做"动效预览"必需）
+
+**现象**：想看动效长什么样，只能看到一堆静态图，分不清哪帧是过渡
 
 ### 16.1 `Slide.Export` 无视 `Shape.Visible`
 
@@ -182,6 +198,8 @@ powershell -NoProfile -File scripts/probe_createvideo.ps1
 
 （`CreateVideo` 本身是异步的：即使调用成功也要轮询文件/状态，不能只等返回值。）
 ## 17. 动画的**中间态**在本机不可观测
+
+**现象**：想要动画中间那一帧，本机怎么都取不到
 
 想验证 `wipe(left)` 到底往哪个方向擦，必须看到动画跑到一半的样子。三条路都试过，
 **全部不通**，记在这里省得重走：

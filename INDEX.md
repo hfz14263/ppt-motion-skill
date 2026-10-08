@@ -129,11 +129,13 @@ motion-design-spec*，这里沿用。
 | **界面角度 ↔ lat/lon** | [`facts/axes.json`](facts/axes.json) |
 | 效果与切换的**原始语义** | [`mso-primitives.md`](reference/mso-primitives.md) |
 
-> **症状与踩坑这两族都拆成了多份**，各有目录页分流 ——
-> 症状见 [`symptoms.md`](reference/symptoms.md)，踩坑见
-> [`com-pitfalls.md`](reference/com-pitfalls.md)。两份目录页都能在
-> 一屏内选完，**所以这里不重复它们的表**（重复的表迟早会漏更新）。
-> 看到 `§n` 形式的引用，查 [`pitfall-map.md`](reference/pitfall-map.md)。
+> **症状与踩坑是同一根轴的两个方向。** 根因正文**只有一份**，在
+> [`com-pitfalls.md`](reference/com-pitfalls.md) 族（按"你现在的处境"分流）；
+> [`symptoms.md`](reference/symptoms.md) 是按"你看到的现象"查根因的索引层。
+> 两族目录页都能在一屏内选完，**所以这里不重复它们的表**（重复的表迟早会漏更新）。
+>
+> - 每个根因节顶部都有一行 `**现象**：…`，所以从根因侧也能反查现象；
+> - 看到 `§n` 形式的引用，查 [`pitfall-map.md`](reference/pitfall-map.md)。
 
 ---
 

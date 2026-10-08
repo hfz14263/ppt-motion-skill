@@ -12,6 +12,8 @@
 
 ## 1. 多余 preset 包装层 → PowerPoint 拒开（最致命）
 
+**现象**：打开直接报「需要修复」，`E_FAIL`，连从 PowerPoint 自己文件里抠出来的原封节点也不行
+
 PowerPoint 自己写的动画节点长这样：外层 `<p:cTn presetID=… nodeType="afterEffect">` 包着
 `<p:set>` / `<p:animEffect>`：
 
@@ -46,14 +48,20 @@ PowerPoint 自己写的动画节点长这样：外层 `<p:cTn presetID=… nodeT
 实测结论：内联（带/不带 preset 属性、带/不带 `bldLst`）**全部可开**；包装层**全部拒开**。
 ## 2. 重复属性 → XML 非法
 
+**现象**：lxml 报 `Attribute id redefined`，XML 非法
+
 模板的外层 cTn 自带 `id="5"`、`dur`、`fill`。合并属性到骨架 cTn 时如果不过滤，
 就会产生 `id="4" … id="5"` 这种**重复属性**，lxml 直接报
 `Attribute id redefined`。必须过滤 `id|dur|fill`。
 ## 4. 结构校验通过 ≠ PowerPoint 能打开
 
+**现象**：lxml 结构校验全绿，PowerPoint 打开却 `E_FAIL`
+
 lxml 只保证 well-formed。实例：v3（自建 timing）结构校验 OK，PowerPoint `E_FAIL`。
 **任何 OOXML 手改都必须过一遍 `motion.ps1` 真开**。
 ## 12. `<p:sld>` 子元素是 sequence，位置错了切换会被静默丢弃（最隐蔽）
+
+**现象**：`EntryEffect` 读回 `0x0`，再次 `Save()` 后切换消失，全程不报错
 
 `<p:sld>` 的元素模型是 `xsd:sequence`：
 
@@ -81,6 +89,8 @@ PowerPoint 文件里一个切换会有两个 `<p:transition>` 元素**。数元�
 `verify_motion.py` 因此只数"生效"的那个（`motion.active_transition_blocks()`）。
 ## 26. `a:rot` 的 `lat/lon` 必须是 0~21600000，负数会让**整个文件**损坏
 
+**现象**：3D 旋转角度写成负数后，整份文件打不开
+
 ```xml
 <a:rot lat="-1800000" .../>     <!-- -30° -->
 ```
@@ -102,6 +112,8 @@ def norm(deg):
 顺带记一下这个错误码：**`0x80070570` 在 OOXML 注入里几乎总是指
 "属性值越界或结构非法"**，不是文件真的坏了。遇到它先查数值范围。
 ## 31. 「往序列里插一个已经存在的元素」—— 本项目**所有**损坏文件都是这一个原因
+
+**现象**：所有打不开的文件，最后都是「往序列里插了一个已经存在的元素」
 
 `0x80070570`（"文件或目录已损坏"）在这个项目里出现过 **六次**，每次都只修表面症状。
 回头数，**六次是同一个错误**：
@@ -160,6 +172,8 @@ python scripts/verify_singletons.py --pptx out.pptx
 ---
 ## 40. 切换的候选必须**一个一份 deck** —— 合并起来探就没有结论可言
 
+**现象**：一次把多个切换候选放进同一份 deck 去探，PowerPoint 直接拒开
+
 **症状**：把 48 个切换候选合并成一份 97 页的 deck 去探，PowerPoint 报
 `could not open the file`，**一个结论都拿不到**。
 
@@ -179,6 +193,8 @@ python scripts/verify_singletons.py --pptx out.pptx
 
 ---
 ## 42. 切换 / 翻转 / 库 / 摩天轮 / 传送带 **缺 `dir` 会被拒开整份文件**
+
+**现象**：切换 / 翻转 / 库 / 摩天轮 / 传送带 一写，PowerPoint 拒开整份文件
 
 **症状**：`<p14:switch/>`、`<p14:flip/>`、`<p14:gallery/>`、`<p14:ferris/>`、
 `<p14:conveyor/>` 五个裸写全部被拒开。元素名是从 [MS-PPTX] 的 p14 元素表来的，

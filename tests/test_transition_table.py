@@ -1526,6 +1526,99 @@ def main():
               "更正" in hov and "把两者混为一谈" in hov,
               "就地更正必须留下当时判断错在哪")
 
+    # ── 第 22 组：根因收敛后的两族结构（2026-10-08） ─────────────────────
+    # symptom/pitfall 按根因合并后，最容易腐烂的是「同一段解释又写了两遍」。
+    # 这里守住合并的三个结论：
+    #   ① 每个 pitfall 顶层节都有「现象」导语 —— 否则"按现象查根因"在根因侧不可用
+    #   ② 每个 symptom 编号节都能走到根因（链接或编号），不会变成孤岛
+    #   ③ 编号与文件名一个都没动 —— 改了会让 90+ 处历史引用静默指向别处
+    print("== 22. 根因收敛后的两族结构 ==")
+    ref_p = os.path.join(ROOT, "reference")
+    pit_files = sorted(f for f in os.listdir(ref_p)
+                       if f.startswith("pitfall-") and f != "pitfall-map.md")
+    sym_files = sorted(f for f in os.listdir(ref_p)
+                       if f.startswith("symptom-"))
+    check("两族文件都在（10 份 pitfall + 6 份 symptom）",
+          len(pit_files) == 10 and len(sym_files) == 6,
+          "pitfall=%d symptom=%d" % (len(pit_files), len(sym_files)))
+
+    # ① 现象导语覆盖度
+    top_re = re.compile(r"^## (\d+)\.\s+", re.M)
+    pit_nums = set()
+    pit_missing = []
+    for name in pit_files:
+        text = io.open(os.path.join(ref_p, name), encoding="utf-8").read()
+        parts = top_re.split(text)
+        # split 结果形如 ['', '1', '标题\n正文', '2', '标题\n正文', ...]
+        for k in range(1, len(parts) - 1, 2):
+            num = int(parts[k])
+            body = parts[k + 1]
+            pit_nums.add(num)
+            if not re.search(r"^\*\*现象\*\*[:：]", body, re.M):
+                pit_missing.append("§%d(%s)" % (num, name))
+    check("51 个 pitfall 顶层节都有编号", len(pit_nums) == 51,
+          "实际 %d 个" % len(pit_nums))
+    check("每个 pitfall 顶层节都有「现象」导语",
+          not pit_missing,
+          "缺: %s" % ", ".join(pit_missing[:6]))
+
+    # ② symptom 每节可达根因
+    sec_re = re.compile(r"^#{2,4}\s*§\s*(\d+(?:\.\d+)*)", re.M)
+    orphan = []
+    total_sec = 0
+    for name in sym_files:
+        text = io.open(os.path.join(ref_p, name), encoding="utf-8").read()
+        for raw in sec_re.findall(text):
+            total_sec += 1
+            top = int(raw.split(".")[0])
+            if top not in pit_nums:
+                orphan.append("§%s(%s)" % (raw, name))
+    check("symptom 的每个编号在 pitfall 侧都有对应", not orphan,
+          "孤立: %s" % ", ".join(orphan[:6]))
+    check("symptom 编号节数量合理（48）", total_sec == 48,
+          "实际 %d 节" % total_sec)
+
+    # ③ 编号集合没变：1..51 连续且唯一
+    missing_nums = sorted(set(range(1, 52)) - pit_nums)
+    check("§1~§51 一个不缺（编号是接口，不能动）", not missing_nums,
+          "缺: %s" % missing_nums)
+
+    # 根因唯一性：索引节（正文已收敛）里不该再出现代码块。
+    # 判据要分档 —— 档 3 保留了现象侧独有的正文，**本来就该有代码块**，
+    # 拿"有没有代码块"去判全部节会误报（曾误报 §3/§35/§41）。
+    # 区分办法：索引节的正文只有「根因与修法」一行，没有其他散文。
+    for name in sym_files:
+        text = io.open(os.path.join(ref_p, name), encoding="utf-8").read()
+        for m in re.finditer(r"^#{2,4}\s*§(\d+)[^\n]*\n(.*?)(?=^#{2,4}\s|\Z)",
+                             text, re.M | re.S):
+            body = m.group(2)
+            prose = [
+                b for b in body.split("\n")
+                if b.strip() and "根因与修法" not in b
+                and not b.strip().startswith("**现象**")
+                and not b.strip().startswith("<p align=")
+            ]
+            if not prose and "```" in body:
+                check("§%s 是索引节，不该留代码块" % m.group(1), False)
+                break
+        else:
+            continue
+        break
+    else:
+        check("索引节（已收敛）里没有残留代码块", True)
+
+    # 导航与真相源同步
+    cap_p = os.path.join(ROOT, "facts", "capabilities.json")
+    if os.path.exists(cap_p):
+        cap = io.open(cap_p, encoding="utf-8").read()
+        check("capabilities.json 声明了根因唯一",
+              "根因正文只存在于此族" in cap and "structure_note" in cap)
+    idx_p = os.path.join(ROOT, "INDEX.md")
+    if os.path.exists(idx_p):
+        idx = io.open(idx_p, encoding="utf-8").read()
+        check("INDEX 说清了两族是一根轴的两个方向",
+              "同一根轴" in idx or "一根轴" in idx)
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))

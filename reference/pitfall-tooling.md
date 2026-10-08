@@ -10,6 +10,8 @@
 
 ## 32. `CreateVideo` 报"完成"却拿不到文件 —— 三个参数全错
 
+**现象**：`CreateVideo` 报「完成」，但目标文件不存在或打不开
+
 给真实文档导 MP4（媒体层），第一遍调用：
 
 ```powershell
@@ -46,6 +48,8 @@ while ($pres.CreateVideoStatus -eq 1) { ... }       # 等状态离开 InProgress
 
 ---
 ## 45. 推送：github.com 被挡时，改走 api.github.com
+
+**现象**：`git push` 时github.com 被挡，push 不上去
 
 ### 45.1 症状
 

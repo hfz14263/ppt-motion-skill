@@ -4,10 +4,12 @@
  "sources": [
   {
    "id": "com-pitfalls",
-   "canonical_for": "COM 行为、静默失败、往返丢失的叙述与当时的误解",
+   "canonical_for": "根因：COM 行为、静默失败、往返丢失的叙述与当时的误解。**根因正文只存在于此族**",
    "location": "reference/com-pitfalls.md",
    "spread_over": "reference/pitfall-*.md（拆分后按主题 10 份；§n → 文件的映射见 reference/pitfall-map.md）",
-   "indexed_by_symptom": "reference/symptoms.md"
+   "indexed_by_symptom": "reference/symptoms.md",
+   "structure_note": "2026-10-08按根因收敛：每个 pitfall 顶层节（51/51）顶部有 `**现象**：` 导语，可按现象反查；symptom 族中 29 节已收敛为「现象 → 根因 §n」链接，19 节保留现象侧独有的正文并补根因链接。编号与文件名均未变动。",
+   "verify_with": "tools/measure_overlap.py（相似度分档）、tools/check_symptom_coverage.py（现象导语覆盖度）"
   },
   {
    "id": "morph-recipes",

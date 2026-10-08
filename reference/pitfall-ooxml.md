@@ -10,11 +10,15 @@
 
 ## 3. lxml 不能直接 parse 带编码声明的 str
 
+**现象**：`ET.fromstring()` 抛 `ValueError: Unicode strings with encoding declaration are not supported`
+
 ```python
 ET.fromstring(z.read(part).decode('utf-8'))        # ValueError
 ET.fromstring(z.read(part))                        # bytes，正常
 ```
 ## 8. `p14:dur` 需要声明前缀
+
+**现象**：写 `p14:dur="800"` 后 lxml 报未绑定前缀，整份文件非法
 
 想带毫秒时长要写 `p14:dur="800"`，但 pptd 导出的 slide 根元素**没有** `xmlns:p14`。
 必须自己补上，否则是未绑定前缀（非法 XML）：
