@@ -1492,6 +1492,40 @@ def main():
             check("代码例外清单为空（豁免都已清掉 —— 健康状态）", True,
                   "条目: %s" % entries)
 
+    # ── 第 21 组：更正守则（2026-10-08 用户定的） ─────────────────────
+    # 「发现之前写错了就打补丁」这条规则本身也会腐烂：如果它只躺在
+    # CONTRIBUTING.md 里而没人检查，半年后就没人记得为什么 §8.3 和 §8.4
+    # 会互相冲突。这里守住两件事：
+    #   ① 守则本身在规范里，且 HANDOVER 也指得到（两处不许各说各话）
+    #   ② 规范与交接的措辞不许出现「修正版 / 新开一份」这类反模式
+    print("== 21. 更正守则（打补丁，不重写）==")
+    std_p = os.path.join(ROOT, "CONTRIBUTING.md")
+    hov_p = os.path.join(ROOT, "HANDOVER.md")
+    std = io.open(std_p, encoding="utf-8").read() if os.path.exists(std_p) else ""
+    hov = io.open(hov_p, encoding="utf-8").read() if os.path.exists(hov_p) else ""
+
+    check("规范里有「打补丁」这条守则",
+          "打补丁" in std and "就地" in std)
+    check("守则说清了边界（改错→补丁 / 位置错→分诊）",
+          "位置不对" in std or "位置不对" in std.replace("**", ""))
+    check("守则标出了唯一例外（history/ 归档不补丁）",
+          "history/" in std and "毁证" in std)
+    check("HANDOVER 的验证文化里也写了这条（两处不许各说各话）",
+          "打补丁" in hov and "就地" in hov)
+    # 反模式：不能出现"新开一份修正版"这类指导 —— 那正是它要禁的
+    for kw in ("修正版", "重写整节"):
+        check("规范没有把「%s」列为做法" % kw,
+              not re.search(r"(?<!不要%s)(修正版)" % kw, std)
+              or "两份说法比一份错更糟" in std,
+              "「%s」只应作为被禁做法出现" % kw)
+
+    # 实测：本仓库真的按这条守则做过一次就地更正（§8.3 vs §8.4 的冲突），
+    # 确认更正留下了「当时为什么判断错了」的痕迹，而不是悄悄改掉。
+    if hov:
+        check("§8.4 的更正留了原因（不是悄悄改掉的）",
+              "更正" in hov and "把两者混为一谈" in hov,
+              "就地更正必须留下当时判断错在哪")
+
     print()
     if fails:
         print("切换表测试 FAILED (%d):" % len(fails))
