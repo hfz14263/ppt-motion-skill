@@ -116,13 +116,11 @@ motion-design-spec*，这里沿用。
 
 **遇到问题时，你知道的是"现象"，不是"根因"。所以这一栏按现象查。**
 
+**现象分栏在 [`symptoms.md`](reference/symptoms.md)**（6 类，一张表选完）。
+这里只放**不在症状族里**的查法：
+
 | 我看到 | 去哪 |
 | --- | --- |
-| **文件打不开 / 报损坏** | [`reference/symptoms.md`](reference/symptoms.md) → 「文件损坏」 |
-| **值越界**（角度、百分比） | [`reference/symptoms.md`](reference/symptoms.md) → 「值越界」 |
-| **XML 里有，PowerPoint 不认** | [`reference/symptoms.md`](reference/symptoms.md) → 「静默丢弃」 |
-| **文件正常但结果不对** | [`reference/symptoms.md`](reference/symptoms.md) → 「结果不对」 |
-| **效果被吃掉**（往返后丢失） | [`reference/symptoms.md`](reference/symptoms.md) → 「往返丢失」 |
 | 参数**实测对照表**（相机） | [`camera-reference.md`](reference/camera-reference.md) |
 | **页面切换**：48 项实测对照 / 机制怎么运作 / 看起来在做什么 / 该用哪个 | [`transitions.md`](reference/transitions.md) · [`transition-model.md`](reference/transition-model.md) · [`transition-shapes.md`](reference/transition-shapes.md) · [`transition-choice.md`](reference/transition-choice.md) |
 | 效果**别名 ↔ presetID** | [`facts/symbols.json`](facts/symbols.json) |
@@ -132,10 +130,27 @@ motion-design-spec*，这里沿用。
 > **症状与踩坑是同一根轴的两个方向。** 根因正文**只有一份**，在
 > [`com-pitfalls.md`](reference/com-pitfalls.md) 族（按"你现在的处境"分流）；
 > [`symptoms.md`](reference/symptoms.md) 是按"你看到的现象"查根因的索引层。
-> 两族目录页都能在一屏内选完，**所以这里不重复它们的表**（重复的表迟早会漏更新）。
+> **这里刻意不复述两族的分栏表** —— 两份目录页都能在一屏内选完，
+> 而重复的表迟早会漏更新（重复一次，就多一处要维护的地方）。
 >
 > - 每个根因节顶部都有一行 `**现象**：…`，所以从根因侧也能反查现象；
 > - 看到 `§n` 形式的引用，查 [`pitfall-map.md`](reference/pitfall-map.md)。
+
+---
+
+## ⑦ 代码索引 —— 我要改哪个文件
+
+**代码的地图**（前六栏是知识，这一栏是结构）。总入口 [`CODE_INDEX.md`](CODE_INDEX.md)：
+§1 分层依赖 · §2 入口清单 · **§4「我要做 X，改哪个文件」**。
+
+分层速查（各一份，同一模板）：注入层 [`code-injection.md`](reference/code-injection.md)（改 OOXML）
+· 探针层 [`code-probe.md`](reference/code-probe.md)（造样本实测）
+· 校验层 [`code-verify.md`](reference/code-verify.md)（证明生效）
+· 工具层 [`code-tooling.md`](reference/code-tooling.md)（COM / 一次性工具）。
+改代码的规矩在 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+
+> 表里的行数与依赖是**扫出来的**：`python tools/gen_code_tables.py [层名]`。
+> 代码变了而文档没跟上 = 索引腐烂，`tests/test_code_index.py` 会失败 —— 故意的。
 
 ---
 

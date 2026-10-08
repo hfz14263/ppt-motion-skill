@@ -233,6 +233,46 @@ def check_duplication(advises):
             seen.setdefault(para, rel)
 
 
+def check_import_cycles(fails, advises):
+    """模块级 import 环 —— 依赖只能从上往下（CONTRIBUTING §六.4）。
+
+    ⚠️ **判据只算模块级 import**（`ast` 的 `tree.body`）。
+    函数内延迟导入**不算依赖边** —— 那是**故意打断环**的手法。
+
+    这个区分不是洁癖，是本项目踩过的坑：本项目已知一处表面环
+    `motion ⇄ check_coverage`，靠 `motion.py check` 里的函数内导入打断，
+    **是刻意且正确的设计**。判据不认这个区分，它就会天天误报，
+    然后有人会去"顺手修掉"那个延迟导入 —— 那就把设计改坏了。
+
+    依赖图解析复用 `tools/scan_deps.build_graph()`，
+    **不在这里重写第二份**（§六.8：一份简化实现会让结论反向）。
+    """
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    try:
+        import scan_deps
+    except ImportError:
+        advises.append({
+            "rule": "deps-not-checked", "note": "tools/scan_deps.py 不在，跳过依赖检查",
+        })
+        return
+    edges, rev, _, _ = scan_deps.build_graph()
+    for cyc in scan_deps.find_cycles(edges):
+        fails.append({
+            "rule": "import-cycle", "cycle": " -> ".join(cyc),
+            "note": "模块级 import 成环 —— 下层反向依赖上层了。"
+                    "注意：函数内延迟导入不算环，判据只扫 tree.body",
+        })
+    # 改动波及面：被依赖最多的文件，作为 ADVISE 暴露出来
+    hot = sorted(rev.items(), key=lambda kv: -len(kv[1]))[:3]
+    for mod, users in hot:
+        if len(users) >= 5:
+            advises.append({
+                "rule": "hot-module", "module": mod, "depended_by": len(users),
+                "note": "被 %d 个模块依赖 —— 改它之前先看 CODE_INDEX.md 的依赖表"
+                        % len(users),
+            })
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="结构体检（只读，可无人值守运行）")
     ap.add_argument("--json", action="store_true")
@@ -242,6 +282,7 @@ def main(argv=None):
     check_docs(fails, advises)
     check_code(fails, advises)
     check_dirs(fails)
+    check_import_cycles(fails, advises)
     check_duplication(advises)
 
     report = {"fails": fails, "advises": advises, "ok": not fails}
