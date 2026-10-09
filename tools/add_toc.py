@@ -105,17 +105,29 @@ def main(argv=None):
             continue
 
         # 1) 补锚点：每个标题之后插入 <a id="sN"></a>（已存在则跳过）
-        #    坐标始终是 body_text（已剔除 frontmatter）
+        #
+        # ⚠️⚠️ **位置必须「先全部算好，再从后往前插」。**
+        # 第一版是边算边插：`pos` 来自 `heads`（原始 body_text 的坐标），
+        # 而 `out` 每插一次锚点就变长一次 —— 于是**从第 2 个标题起，
+        # 插入点全部向后漂移**，锚点落到正文里（甚至在引用块中间）。
+        #
+        # 后果不是报错，是**静默错位**：目录链接点下去跳到错误的段落，
+        # 同一份文件里出现多个相同的 `<a id="s2">`（HTML id 重复即无效）。
+        # 2026-10-09 发现时已污染 11 个文件。
+        #
+        # 用「先收集、倒序插」改掉 —— 倒序插时前面的位置还没被影响。
         out = body_text
-        rows = []
+        inserts, rows = [], []
         for i, (pos, title) in enumerate(heads, 1):
             aid = "s%d" % i
             line_end = out.index("\n", pos) + 1
             nxt = out[line_end:line_end + 80]
             if not re.match(r"\s*<a id=\"s\d+\"></a>", nxt):
-                out = (out[:line_end] + "\n<a id=\"%s\"></a>\n" % aid
-                       + out[line_end:])
+                inserts.append((line_end, aid))
             rows.append((title, aid))
+        for line_end, aid in reversed(inserts):
+            out = (out[:line_end] + "\n<a id=\"%s\"></a>\n" % aid
+                   + out[line_end:])
 
         # 2) 造目录。**单列链接列表**，不配摘要 —— 标题本身就是摘要，
         #    再加一列只会把同一句话写两遍（第一版就是这样，读起来像口吃）。

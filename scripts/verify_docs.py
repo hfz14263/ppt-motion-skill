@@ -59,6 +59,10 @@ INDEX_BUDGET = 6000          # characters; ~3500 tokens. Beyond this it stops be
 # 归档目录。**它必须在这里** —— 否则新目录里的文档不被扫，写进去一份没人链的
 # 归档文件不会有任何提示。新开文档目录时记得加这里（同 test_install_manifest）。
 SCAN_DIRS = ("reference", "facts", "history")
+
+# 目录块的标记（与 tools/add_toc.py 同源）—— 判据要认得它才能查锚点
+TOC_BEGIN = "<!-- toc -->"
+TOC_END = "<!-- /toc -->"
 SKIP_FILES = {"reference/design-system/README.md"}   # linked via its own directory entry
 UPSTREAM = re.compile(r"vendored from|upstream content", re.I)
 
@@ -94,6 +98,54 @@ def links(text):
             if not m.startswith("http")]
 
 
+def check_anchors(fails, md_files):
+    """锚点必须唯一；`add_toc.py` 生成的 sN 锚点必须紧跟标题。
+
+    **为什么必须有这条**（2026-10-09 补）：`tools/add_toc.py` 有一个存在了很久的
+    坐标漂移 bug —— 它边插锚点边用**原始坐标**，于是**从第 2 个标题起
+    锚点全部插到错误位置**，同一份文件里出现多个相同的 `<a id="s2">`。
+
+    后果不是报错，是**目录链接点下去跳到错误的段落**（HTML id 重复即无效）。
+    实测污染了 11 个文件、170 个错位锚点，而没有任何检查在守它。
+    **工具修一次就好，判据要一直有** —— 否则同一个 bug 会以别的形式回来。
+
+    排除两类**不是问题**的情况（假阳性会让人养成忽略判据的习惯）：
+      · 行内代码里的示例（文档里教你怎么写锚点）
+      · 手写锚点（`trap` / `m1` 这类）—— 它们可以放在任何地方，**只管唯一性**；
+        只有 `sN` 是 add_toc 的产物，位置有严格约定
+    """
+    for rel in md_files:
+        body = read(rel)
+        # 去掉 ``` 块与行内反引号 —— 里面的 `<a id=...>` 是示例文字
+        body = re.sub(r"`[^`]*`", "", strip_code(body))
+        ids = re.findall(r'<a id="([\w-]+)"></a>', body)
+
+        dup = sorted(i for i in set(ids) if ids.count(i) > 1)
+        if dup:
+            fails.append({"rule": "anchor-duplicate", "file": rel, "ids": dup,
+                          "note": "同一个 id 出现多次 —— HTML id 必须唯一，"
+                                  "目录链接会跳到第一个（很可能是错的位置）。"
+                                  "重跑 tools/add_toc.py 前先删干净旧锚点"})
+
+        misal = [m.group(1) for m in re.finditer(r'<a id="(s\d+)"></a>', body)
+                 if not body[:m.start()].rstrip().split("\n")[-1].startswith("#")]
+        if misal:
+            fails.append({"rule": "anchor-misplaced", "file": rel, "ids": misal,
+                          "note": "add_toc 生成的 sN 锚点必须在标题行正下方 —— "
+                                  "这些不在，说明工具坐标算错了（或被人手工挪过）"})
+
+        toc = re.search(re.escape(TOC_BEGIN) + r"(.*?)" + re.escape(TOC_END),
+                        body, re.S)
+        if toc:
+            have = set(ids)
+            missing = sorted({a for a in re.findall(r"\]\(#([\w-]+)\)", toc.group(1))
+                              if a not in have})
+            if missing:
+                fails.append({"rule": "anchor-missing", "file": rel,
+                              "ids": missing,
+                              "note": "目录指向的锚点不存在 —— 重跑 tools/add_toc.py"})
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="文档结构校验")
     ap.add_argument("--json", action="store_true")
@@ -120,6 +172,9 @@ def main(argv=None):
             resolved = os.path.normpath(os.path.join(os.path.dirname(rel), t))
             if not os.path.exists(os.path.join(ROOT, resolved)):
                 fails.append({"rule": "dangling", "file": rel, "target": target})
+
+    # ---- 1b. 锚点：唯一 / sN 紧跟标题 / 目录指向存在 ----
+    check_anchors(fails, md_files)
 
     # ---- 2. orphans: reference docs unreachable from INDEX ------------------
     reachable = set()

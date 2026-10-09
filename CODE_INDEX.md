@@ -56,7 +56,7 @@ Layer 0  数据（无本地依赖）
 > [`reference/code-injection.md`](reference/code-injection.md)。
 
 **实测：模块级 import 环 = 0 处。**
-全库共 **68 个 Python 模块**（`scripts/` 26+6 · `tools/` 20 · `tests/` 11 + 其他），
+全库共 **70 个 Python 模块**（`scripts/` 26+6 · `tools/` 20 · `tests/` 11 + 其他），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
 
 **改动波及面 ≥5 的模块（改之前先看清谁在用）**：

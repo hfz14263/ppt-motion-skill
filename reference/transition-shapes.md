@@ -36,6 +36,7 @@
 
 <a id="s1"></a>
 
+
 这不是按界面分组（细微/华丽/动态内容），而是按**运动的性质**分。同族的效果可以互换，
 跨族的不行 —— 这是选择时的第一个判断。
 
@@ -55,13 +56,13 @@
 > ⚠️ **`clock` 原本被错归到「中心扩散」** —— 因为旋转的径向剖面和中心扩散几乎一样，
 > 而前三个指标看不见旋转。**这是用户目视发现的**，修正过程见 §三之补 与 §八。
 
-<a id="s2"></a>
 
 ---
 
 ## 二、四个指标，各自能看见什么
 
 <a id="s2"></a>
+
 
 这一层不能用"整帧均值"判断（`transition-model.md` §七记了两次踩坑）。用的是三个
 **互补**的统计量，任何一个单独都不够：
@@ -107,15 +108,14 @@
 - 带的重心**有没有整体漂移**（`band_travel`）。`wipe` = **−0.747**（大幅漂移），
   `fade` = 0.015、`split` = −0.015（几乎不漂）。
 
-<a id="s3"></a>
 
-<a id="s3"></a>
 
 ---
 
 ## 三、`random` 是唯一测不了的效果，原因是它自己
 
 <a id="s3"></a>
+
 
 `random` 在两次探测里给出了**不同的**结果（deck1 = `t->b centre-out`，deck2 = `r->l`）。
 
@@ -147,15 +147,14 @@ clock   285 → 75 → 60 → 45 → 30 → 15 → 0 → 345 → 330 → 315 →
 
 <p align="right"><sub>来源 com-pitfalls §44.3 / §47</sub></p>
 
-<a id="s4"></a>
 
-<a id="s4"></a>
 
 ---
 
 ## 四、这一层踩过的坑（比前两层都多）
 
 <a id="s4"></a>
+
 
 ### 坑 1：探测 deck 每格都变色 → 方向被平均掉
 
@@ -217,13 +216,13 @@ dissolve  [1.0, 0.15, 0.05, 0.11, 0.04, 0.0, 0.0]
 
 <p align="right"><sub>来源 com-pitfalls §44、§44.1–§44.4</sub></p>
 
-<a id="s5"></a>
 
-<a id="s5"></a>
 
 ---
 
 ## 五、完整形态表（48 项）
+
+<a id="s5"></a>
 
 `方向` 列 = 指标 A；`位移` 列 = 指标 B；`模式` 列 = 指标 C。
 `—` 表示该效果在这一项上**没有可靠信号**（不是"无方向"，是"这个指标看不见它"）。
@@ -289,15 +288,15 @@ dissolve  [1.0, 0.15, 0.05, 0.11, 0.04, 0.0, 0.0]
 
 **这两处不合并、不取平均** —— 分歧本身是信息。
 
-<a id="s6"></a>
 
 <p align="right"><sub>来源 com-pitfalls §44</sub></p>
 
-<a id="s6"></a>
 
 ---
 
 ## 六、⚠️ `morph` 不适用本表
+
+<a id="s6"></a>
 
 `morph` 在表里被判成 `l→r 中心扩散`，但**这个判定对它没有意义**。
 
@@ -311,15 +310,15 @@ dissolve  [1.0, 0.15, 0.05, 0.11, 0.04, 0.0, 0.0]
 > **`morph` 的形态 = 你设计的两个端点之差。** 这正好回到
 > [`transition-model.md`](transition-model.md) §五那张对比表：只有 morph 需要你操心内容。
 
-<a id="s7"></a>
 
 <p align="right"><sub>来源 transition-model.md 五、com-pitfalls §20.4</sub></p>
 
-<a id="s7"></a>
 
 ---
 
 ## 七、复现这套测量
+
+<a id="s7"></a>
 
 ```bash
 # 1. 造两种探测 deck
@@ -349,17 +348,16 @@ python scripts/build_transition_table.py shapeanalyze C:/t1w/shape2/wipe.mp4 \
 
 **测量环境**：PowerPoint 16.0 build 17928，30fps，CreateVideo 720p，每页停留 2s。
 
-<a id="s8"></a>
 探测 deck 2 只覆盖 deck 1 分不开的 12 个效果（`DECK2_SPECS`），
 
-<a id="s8"></a>
 **这个名单是聚类的产物，不是猜的** —— 换效果表时要重新聚类。
 
-<a id="s8"></a>
 
 ---
 
 ## 八、⚠️ 第四类指标：旋转 —— 前三个都看不见它
+
+<a id="s8"></a>
 
 **这是被用户看出来的。** 他说 `random` 是"从 y 轴一条线顺时针扫过、最后回到 y 轴"。
 一查，那其实是他抽中的 `clock`（见 §三之补），但**更重要的是：我的三个指标都没能
@@ -417,11 +415,12 @@ clock / 本次 random：
 
 <p align="right"><sub>来源 scripts/probe_shapes.ps1、scripts/build_transition_table.py（shapedeck / shapedeck2 / shapes / shapeanalyze）</sub></p>
 
-<a id="s9"></a>
 
 ---
 
 ## 九、`dir` 换一个值，运动会不会镜像 —— 已实测（全 19 个方向性效果）
+
+<a id="s9"></a>
 
 前八节量的全是每个效果的**默认**形态（不写 `dir`）。但"`dir` 起什么作用"
 是选择层的地基：`transition-choice.md` 整张推荐表都写着"递进要显式写 `dir=l→r`"。
@@ -550,15 +549,15 @@ clock / 本次 random：
 归档数据：`tests/fixtures/dir/dirmirror_full.json`（19 条全量），
 目视对照图 `tests/fixtures/dir/dir_compare_full.png`。
 
-<a id="s10"></a>
 
 <p align="right"><sub>来源 scripts/build_transition_table.py（dirdeck / dirmirror / mirror_verdict）；命令见 reference/transition-choice.md §三</sub></p>
 
-<a id="s10"></a>
 
 ---
 
 ## 十、换一个属性值，形态会怎么变 —— 已实测
+
+<a id="s10"></a>
 
 §九 量的是 `dir`（方向）。但同一个元素还有**别的**属性（`spokes` `orient`
 `pattern` `invX` `isContent`…），它们换值会不会换形态，此前也没量过。

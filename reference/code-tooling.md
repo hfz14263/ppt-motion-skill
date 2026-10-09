@@ -35,12 +35,16 @@
 | `tools/split_transition_probe.py` | 一次性拆分器：把 build_transition_table.py（3048 行）拆成 transition_probe/ 包 | 一次性：拆 transition_probe 成包 | —（叶子） | —（没人依赖） | 296 行 |
 | `tools/split_commands.py` | 一次性拆分器：把 transition_probe/commands.py（1367 行 / 19 个 cmd）按功能域拆开 | 一次性：把 commands.py 按探测维度拆成 5 份 | —（叶子） | —（没人依赖） | 216 行 |
 | `tools/split_motion.py` | 一次性拆分器：把 scripts/motion.py（1914 行 / 81 个顶层符号）按分层拆开 | 一次性：把 motion.py 按分层拆成门面 + 四层（带完整性断言） | —（叶子） | —（没人依赖） | 467 行 |
+| `tools/split_contributing.py` | 一次性拆分器：把 CONTRIBUTING.md 按**读者是谁**拆成两份 | 一次性：把 CONTRIBUTING.md 按读者拆成两份 | —（叶子） | —（没人依赖） | 155 行 |
+| `tools/_verify_contributing_split.py` | 一次性验证：拆 CONTRIBUTING.md 后，每一章的内容是否逐字节还在 | 拆 CONTRIBUTING 后的验证：逐章比对 | —（叶子） | —（没人依赖） | 89 行 |
+| `tools/split_contributing.py` | 一次性拆分器：把 CONTRIBUTING.md 按**读者是谁**拆成两份 | 一次性：把 CONTRIBUTING.md 按读者拆成两份 | —（叶子） | —（没人依赖） | 155 行 |
+| `tools/_verify_contributing_split.py` | 一次性验证：拆 CONTRIBUTING.md 后，每一章的内容是否逐字节还在 | 拆 CONTRIBUTING 后的验证：逐章比对 | —（叶子） | —（没人依赖） | 89 行 |
 | `tools/split_pitfalls.py` | 一次性的拆分器：把 com-pitfalls.md 按主题切成多份，编号保持不变 | 一次性：拆 pitfall 族 | —（叶子） | —（没人依赖） | 160 行 |
 | `tools/split_symptoms.py` | 一次性拆分器：把 symptoms.md 按「现象栏」切成多份 | 一次性：拆 symptom 族 | —（叶子） | —（没人依赖） | 119 行 |
 | `tools/split_morph_recipes.py` | 一次性拆分器：把 morph-and-3d-recipes.md 按主题切成 3 份 + 目录页 | 一次性：拆 morph 配方 | —（叶子） | —（没人依赖） | 105 行 |
 | `tools/split_tests.py` | 一次性拆分器：把 test_transition_table.py（1633 行 / 22 组）拆成三份 | 一次性：拆 test_transition_table.py 成三份 | —（叶子） | —（没人依赖） | 243 行 |
 | `tools/archive_handover_85.py` | 一次性归档器：把 HANDOVER.md §8 里**已完成**的三节搬进 history/ | 一次性：把 HANDOVER §8 已完成的三节搬进 history/ | —（叶子） | —（没人依赖） | 138 行 |
-| `tools/add_toc.py` | 给长文档补一张目录（TOC）—— 只加导航，不动正文一个字 | 给长文档加目录 | —（叶子） | —（没人依赖） | 160 行 |
+| `tools/add_toc.py` | 给长文档补一张目录（TOC）—— 只加导航，不动正文一个字 | 给长文档加目录 | —（叶子） | —（没人依赖） | 172 行 |
 | `tools/collapse_symptom.py` | 分级收敛 symptom 侧正文：把重复正文换成指向根因的链接 | 根因收敛 1/3：重复节收敛为索引（幂等） | —（叶子） | —（没人依赖） | 199 行 |
 | `tools/add_symptom_view.py` | 给已收敛的 symptom 节补「现象」导语 | 根因收敛 2/3：给已收敛节补现象导语（幂等） | —（叶子） | —（没人依赖） | 109 行 |
 | `tools/link_symptom_to_pitfall.py` | 给档3（保留现象正文的节）补根因链接 | 根因收敛 3/3：给保留正文的节补根因链接（幂等） | —（叶子） | —（没人依赖） | 123 行 |
@@ -49,7 +53,7 @@
 | `tools/rewrite_morph_hub.py` | 一次性：把 morph-and-3d-recipes.md 改写成目录页（并入 §5 原文） | 一次性：重写 morph 配方枢纽页 | —（叶子） | —（没人依赖） | 86 行 |
 | `tools/archive_handover_backlog.py` | 一次性归档器：把 HANDOVER.md §8 里"已完成项的记录"搬进 history/ | 一次性：把 HANDOVER 待办按主题归档到history/ | —（叶子） | —（没人依赖） | 132 行 |
 
-共 27 个文件，其中 Python 3078 行。
+共 31 个文件，其中 Python 3578 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。
