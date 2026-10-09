@@ -117,6 +117,9 @@ LAYERS = {
             ("tools/rewrite_handover_sec8.py", "一次性：重写 HANDOVER §8 的一节"),
             ("tools/rewrite_morph_hub.py", "一次性：重写 morph 配方枢纽页"),
             ("tools/archive_handover_backlog.py", "一次性：把 HANDOVER 待办按主题归档到history/"),
+            # 不在 scripts/ 也不在 tools/ —— 它跟着产物住：
+            # design-system/README.md 的生成器（README 声称的文件是否在磁盘上，靠它 --check）
+            ("reference/design-system/build_index.py", "生成 / 校验 design-system 索引（--check 只读）"),
         ],
     },
 }

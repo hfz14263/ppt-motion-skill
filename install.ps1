@@ -95,6 +95,13 @@ if ((Test-Path $dest) -and -not $Force) {
   Remove-Item (Join-Path $dest 'tests') -Recurse -Force -ErrorAction SilentlyContinue
   Get-ChildItem $dest -Recurse -Directory -Filter '__pycache__' -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+  # 隐藏文件也不许出门。Copy-Item -Recurse -Force **会**把它们一起带走
+  #（2026-10-09 实测：-Force 之下隐藏文件会被复制）——
+  # 而 `.push_sha_map.json` 是本机推送状态、`.gitignore` 是开发者文件。
+  # ⚠️ 往随包目录里新增隐藏文件时，必须在这里补一行：
+  #    test_install_manifest.py 会核对「每个隐藏文件都有对应的 Remove-Item」。
+  Remove-Item (Join-Path $dest 'scripts\.gitignore') -Force -ErrorAction SilentlyContinue
+  Remove-Item (Join-Path $dest 'scripts\.push_sha_map.json') -Force -ErrorAction SilentlyContinue
   Say "installed."
 }
 

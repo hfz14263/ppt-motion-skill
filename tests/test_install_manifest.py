@@ -72,6 +72,27 @@ def main():
     if "INDEX.md" not in items:
         fails.append("INDEX.md 不在清单里 —— 三层结构的唯一入口会丢")
 
+    # 3. 随包目录里的隐藏文件必须被显式清理。
+    #    为什么需要：Copy-Item -Recurse -Force **会**把隐藏文件一起复制
+    #    （2026-10-09 实测），而 `scripts/.push_sha_map.json` 是本机推送状态 ——
+    #    绝不该出门。这里核对「每个隐藏文件都有对应的 Remove-Item」，
+    #    防止将来往随包目录里新加隐藏文件时又静默泄露。
+    ps_src = io.open(os.path.join(ROOT, "install.ps1"), encoding="utf-8").read()
+    removals = [ln for ln in ps_src.split("\n") if "Remove-Item" in ln]
+    for it in items:
+        d = os.path.join(ROOT, it)
+        if not os.path.isdir(d):
+            continue
+        for dp, dn, fn in os.walk(d):
+            dn[:] = [x for x in dn if x != "__pycache__"]
+            for f in sorted(fn):
+                if not f.startswith("."):
+                    continue
+                rel = os.path.relpath(os.path.join(dp, f), ROOT).replace("/", "\\")
+                if not any(rel in ln for ln in removals):
+                    fails.append("隐藏文件 %s 会被复制进分发包，但 install.ps1 里"
+                                 "没有对应的 Remove-Item —— 本机状态不该出门" % rel)
+
     print("== install.ps1 复制清单 ==")
     for i in items:
         print("   %-22s %s" % (i, "ok" if os.path.exists(os.path.join(ROOT, i))

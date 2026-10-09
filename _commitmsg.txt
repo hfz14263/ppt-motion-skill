@@ -1,0 +1,22 @@
+写入第 23 组判据（生成器产物）+ 修 install.ps1 隐藏文件泄露 + 登记 build_index
+
+## tests/test_docs.py 第 23 组：设计系统索引产物可复现
+- 跑 build_index.py --check（README 与生成器一致；已内置表文件在磁盘上）
+- 独立口径：不经过生成器，直接解析 README 表格对磁盘（防共享盲区，§十.4.2）
+- 头部内容表 7 组 → 8 组；已用负样本验证（注入漂移 → FAIL；恢复 → PASS）
+
+## install.ps1：隐藏文件会随包泄露（本轮调研抓到的真问题）
+实验实测：Copy-Item -Recurse -Force **会**把隐藏文件复制进分发包 ——
+  - scripts/.push_sha_map.json（本机推送状态，绝不该出门）
+  - scripts/.gitignore（开发者文件）
+加了两条 Remove-Item。分发边界测试加第 3 条检查：随包目录里每个隐藏文件
+必须有对应的 Remove-Item（已用负样本验证：造 .fake_state.tmp → FAIL）。
+
+## 登记 reference/design-system/build_index.py
+它此前完全在雷达外：不在 scripts/tools/tests 三个目录，
+scan_deps / gen_code_tables / check_reachability 都扫不到。
+已加进 gen_code_tables 的 tooling 层并刷新 code-tooling.md（29 文件）。
+
+## CODE_RULES 同步
+§八 检查表：test_docs 第 16–23 组；install_manifest 补「隐藏文件是否被清理」
+§十.7 表补一行：build_index.py → design-system/README.md → 第 23 组

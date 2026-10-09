@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""文档与规范的回归测试（16–22 组）。
+"""文档与规范的回归测试（16–23 组）。
 
 为什么需要这份测试：这一组守的不是代码，是**文档与实现的一致性**。
 本项目里最危险的失败模式是**静默丢失**—— 文件能开、能跑、报告全绿，
 但根因编号对不上了、目录漏了、规范里的数字和实现里的常量漂了。
 
 这一组因此**只做机械可判的事**：编号完整/唯一、映射表一致、目录存在、
-阈值三处同值。它**不**判断"哪一节该在哪份文件" —— 那是设计判断，会变。
+阈值三处同值、生成器产物不漂。它**不**判断"哪一节该在哪份文件" —— 那是设计判断，会变。
 
 > **2026-10-08 从 test_transition_table.py 拆出。** 拆分依据是**被测对象**：
 > 16–22 组守的是文档与规范，与切换实测表无关。组号**保持原编号**。
+> 23 组为 2026-10-09 新增（生成器产物判据，§十.7）。
 
-模块内容表（7 组；组号是稳定接口，与拆分前一致）
+模块内容表（8 组；组号是稳定接口，与拆分前一致）
 ------------------------------------------------
   16  踩坑手册拆分：编号完整、唯一、映射表一致
   17  症状文档拆分：现象栏可路由
@@ -21,10 +22,12 @@
   20  规范与实现：同一组数字，三处一致
   21  更正守则（打补丁，不重写）
   22  根因收敛后的两族结构
+  23  设计系统索引：生成器产物可复现
 """
 import io
 import os
 import re
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -468,6 +471,35 @@ def main():
         idx = io.open(idx_p, encoding="utf-8").read()
         check("INDEX 说清了两族是一根轴的两个方向",
               "同一根轴" in idx or "一根轴" in idx)
+
+    # ---- 23. 设计系统索引：生成器产物不漂 ------------------------------------
+    # 为什么需要这一组：design-system/README.md 既是**随包文档**，又是
+    # build_index.py 的**产物**。2026-10-09 调研实测到：README 里有一节
+    # （design_compose）是后加的手工内容，生成器不知道它 —— 重跑一次
+    # 就静默丢 35 行。§十.7「生成型工具的产物必须有判据」，这一组就是它。
+    print()
+    print("== 23. 设计系统索引：生成器产物可复现 ==")
+    ds_dir = os.path.join(ROOT, "reference", "design-system")
+    gen = os.path.join(ds_dir, "build_index.py")
+    check("生成器存在（README 是产物，不是手写的）", os.path.exists(gen))
+    if os.path.exists(gen):
+        r = subprocess.run([sys.executable, gen, "--check"],
+                           capture_output=True, text=True, encoding="utf-8")
+        check("--check 通过（README 与生成器输出一致）", r.returncode == 0,
+              ((r.stdout or "") + (r.stderr or "")).strip()[-160:])
+    # 独立口径：不经过生成器，直接验「README 写的」和「磁盘上有的」是否同。
+    # —— 与 --check 是两个角度：一个验"生成器与磁盘一致"，
+    # 一个验"README 声称内置的 10 份文件真的在"。共享盲区会一起错（§十.4.2）。
+    readme_p = os.path.join(ds_dir, "README.md")
+    if os.path.exists(readme_p):
+        txt = read_text(readme_p)
+        rows = re.findall(r"^\| `([\w.-]+)` \| [^|]+ \| [^|]+ \| `([\w.-]+\.md)` \|$",
+                          txt, re.M)
+        missing = [f for _i, f in rows
+                   if not os.path.exists(os.path.join(ds_dir, f))]
+        check("「已内置」表里的 %d 份文件都在磁盘上" % len(rows),
+              bool(rows) and not missing,
+              "缺: " + ", ".join(missing[:4]))
 
     return report(TITLE, fails)
 

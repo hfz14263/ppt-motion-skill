@@ -49,8 +49,9 @@
 | `tools/rewrite_handover_sec8.py` | 一次性：把 HANDOVER.md §8 重写成「还没做的 + 归档指针 + 验证文化」 | 一次性：重写 HANDOVER §8 的一节 | —（叶子） | —（没人依赖） | 88 行 |
 | `tools/rewrite_morph_hub.py` | 一次性：把 morph-and-3d-recipes.md 改写成目录页（并入 §5 原文） | 一次性：重写 morph 配方枢纽页 | —（叶子） | —（没人依赖） | 86 行 |
 | `tools/archive_handover_backlog.py` | 一次性归档器：把 HANDOVER.md §8 里"已完成项的记录"搬进 history/ | 一次性：把 HANDOVER 待办按主题归档到history/ | —（叶子） | —（没人依赖） | 132 行 |
+| `reference/design-system/build_index.py` | Generate the design-system index for this skill | 生成 / 校验 design-system 索引（--check 只读） | —（叶子） | —（没人依赖） | 299 行 |
 
-共 28 个文件，其中 Python 3245 行。
+共 29 个文件，其中 Python 3544 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。
