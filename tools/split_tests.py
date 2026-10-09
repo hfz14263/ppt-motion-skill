@@ -10,7 +10,7 @@
   test_code_index.py                守 CODE_INDEX 与真实代码同步（新建）
   helpers.py                        三份共用的 helper
 
-**这个脚本是一次性的**：拆完就没用了。但按 CONTRIBUTING §六.6.1，
+**这个脚本是一次性的**：拆完就没用了。但按 CODE_RULES §六.6.1，
 删除它要问过用户 —— 所以留着当"怎么拆测试文件"的样板。
 
     python tools/split_tests.py --dry     # 只报每段行数，不写

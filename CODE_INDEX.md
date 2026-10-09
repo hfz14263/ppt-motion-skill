@@ -56,7 +56,7 @@ Layer 0  数据（无本地依赖）
 > [`reference/code-injection.md`](reference/code-injection.md)。
 
 **实测：模块级 import 环 = 0 处。**
-全库共 **69 个 Python 模块**（`scripts/` 26+10 · `tools/` 21 · `tests/` 12），
+全库共 **66 个 Python 模块**（`scripts/` 26+10 · `tools/` 18 · `tests/` 12），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
 
 **改动波及面 ≥5 的模块（改之前先看清谁在用）**：
@@ -183,7 +183,7 @@ Layer 0  数据（无本地依赖）
 | `transition_probe/` 包内四层 | `common`(8) / `data`(7) / `decks`(6) / `analysis`(5) 被依赖 ≥5 | 数字大是因为含 `__init__.py` 的再导出 | **正常，不是问题** —— 包对外只有 1 个依赖者，复杂度关在包里了 |
 | ~~`scripts/transition_probe/commands.py`~~ | ~~1367 行，超 800 软上限~~ | 19 个 CLI 子命令曾经都挤在一处 | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按探测维度分。无损：19 个函数逐字节相同 |
 | `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉"。拆分时那条 `import` 跟着 `main()` 留在门面 —— **有常驻判据盯着它**（`check_structure.py` 的 `check_known_breaks()`：环检测故意忽略函数内导入，就必须有另一条判据防止它被挪走） |
-| `tools/` | **22 个文件**（21 `.py` + 1 `.tsv`），含 12 个一次性拆分/归档/重写器 | 一次性工具拆完即删 | **默认留着当样板**（`split_*.py` 是"怎么拆"的唯一记录）；要删会先问你 —— 见 [`CONTRIBUTING.md`](CONTRIBUTING.md) §六.6.1 |
+| `tools/` | **19 个文件**（18 `.py` + 1 `.tsv`）· 拆/归档样板 ×9、收敛工具 ×4、核对器 ×2 | 一次性工具拆完即删 | **默认留着当样板**（`split_*.py` 是"怎么拆"的唯一记录）；**加新工具前先查索引表**（CODE_RULES §六.8）；要删会先问你 —— 见 [`CODE_RULES.md`](CODE_RULES.md) §六.6.1 |
 
 ---
 

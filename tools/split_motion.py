@@ -437,7 +437,7 @@ if _HERE not in sys.path:
 # ---- 重新导出：把四个层拉回本命名空间（外部接口零变化的关键）-----------
 #
 # ⚠️ `main()` 里的 `import player` / `import check_coverage` 是**函数内延迟导入**，
-# 它刻意打断 `motion ⇄ check_coverage` 那个环（见 CONTRIBUTING §六.4）。
+# 它刻意打断 `motion ⇄ check_coverage` 那个环（见 CODE_RULES §六.4）。
 # **它跟着 main() 一起留在这里 —— 别把那个 import 提到模块级。**
 '''
     body = [head]

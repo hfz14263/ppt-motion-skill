@@ -258,6 +258,19 @@ grep -rln "同一段逻辑的关键词" scripts/   # 有没有已存在的实现
 python scripts/check_structure.py        # 现状是多少行 / 有没有超限
 ```
 
+**往 `tools/` 加脚本前，先查「有没有」**（2026-10-09 定）：
+
+1. 看 [`reference/code-tooling.md`](reference/code-tooling.md) 的速查表 —— 那是全部现有工具的清单
+2. `grep -rln "用途关键词" tools/` —— 名字不同但干同样活的，在这一步现形
+3. 做过类似的事 → **改它**（加参数 / 改边界），别新开一个；确要新建 →
+   **登记进 `gen_code_tables.py` 的 LAYERS**（登记表就是"有没有"的对照物，
+   `check_structure.py` 会拦未登记的脚本）
+
+> 为什么写死这条：`tools/` 的风险不是代码质量，是**同类脚本越堆越多、
+> 下一个来的人不知道哪个能复用**。查表的成本是 10 秒，重写一个的成本是半天。
+> 2026-10-09 全量清点的结果：tools/ 内部代码级重复 ≈ 0（同名函数相似度最高 0.43，
+> 不是复制粘贴）—— 说明平时在守这条；写进规范，是防下一次。
+
 > **两条真实教训各压成一句**（详细过程见 [`history/code-index-system.md`](history/code-index-system.md)）：
 >
 > - **搬代码前先 grep `__file__` 与相对路径拼装。** 拆 `transition_probe/` 时
@@ -286,7 +299,7 @@ python tests/test_transition_table.py   # 编号 / 目录 / 拆分完整性
 
 | 检查 | 管什么 |
 | --- | --- |
-| [`scripts/check_structure.py`](scripts/check_structure.py) | 体积上限、长文档是否有目录、代码是否有内容表、新目录是否登记、**模块级 import 环**、**热点模块**、**新文件可达性**、**临时代码陈旧度**、**文档路径引用**、**已知断环的延迟导入**、**模块 docstring** |
+| [`scripts/check_structure.py`](scripts/check_structure.py) | 体积上限、长文档是否有目录、代码是否有内容表、新目录是否登记、**模块级 import 环**、**热点模块**、**新文件可达性**、**tools 登记**、**临时代码陈旧度**、**文档路径引用**、**§编号归属**、**已知断环的延迟导入**、**模块 docstring** |
 | [`scripts/verify_docs.py`](scripts/verify_docs.py) | 悬空引用、孤儿文档、INDEX 预算、旧目录名、**锚点唯一/位置/可达** |
 | [`tools/scan_deps.py`](tools/scan_deps.py) | 依赖图、环、改动波及面（只读，体检调用它） |
 | [`tools/gen_code_tables.py`](tools/gen_code_tables.py) | 代码索引的表格数据（行数/职责/依赖，只输出不写文件） |

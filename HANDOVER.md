@@ -183,13 +183,13 @@ scripts/
   vendor_themes.py            批量下载上游设计系统
   motion_catalog.json         137 个效果的真实 presetID + XML 模板
 
-tools/                        **不随包分发** —— 开发期一次性脚本（见 CONTRIBUTING §五）
-  add_toc.py                  给长文档加目录（幂等 + 标题层级自适应）
-  split_pitfalls.py           踩坑手册 → 10 份（一次性）
-  split_symptoms.py           症状文档 → 6 份（一次性）
-  split_morph_recipes.py      配方文档 → 3 份（一次性）
-  archive_handover_backlog.py HANDOVER §8 → history/（一次性）
-  rewrite_*.py                拆分后改写目录页（一次性）
+tools/                        **不随包分发** —— 开发期脚本（加新工具前先查索引表，见 CODE_RULES §六.8）
+  scan_deps.py                依赖图 / 环 / 波及面（体检调用）
+  gen_code_tables.py          四份 code-*.md 速查表的数据源
+  add_toc.py                  给长文档加目录 + 锚点（幂等）
+  split_*.py ×8               拆分样板 —— 拆模块 / 拆层 / 拆同层 / 拆文档 / 拆测试
+  archive_handover_85.py      归档样板 —— HANDOVER → history/
+  收敛 ×4 + 核对器 ×2          两族文档根因收敛（已完成，留档）
 
 reference/
   authoring-rules.md          13 条硬约束（每条对应一次真实翻车）

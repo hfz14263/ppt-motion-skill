@@ -25,7 +25,11 @@
   6. **依赖方向**（§六.4）：模块级 import 环 / 热点模块          [FAIL/ADVISE]
   7. **新文件可达**（§六.5）：新文件必须被入口或调用方链到         [FAIL]
      —— 没人链到的文件等于不存在
-  8. **临时代码陈旧**（§六.6.1）：tools/ 里的脚本超期未动        [ADVISE]
+  8. **tools 登记**（§六.8）：tools/ 的脚本必须登记进 LAYERS         [FAIL]
+     —— "写入前先查有没有"的机械抓手：登记表就是全部现有工具的对照清单
+  9. **临时代码陈旧**（§六.6.1）：tools/ 里的脚本超期未动            [ADVISE]
+ 10. **§编号归属**：拆分/改名后，编号引用必须指向正确的文件         [FAIL]
+     —— 链接点得开、内容是错的段落，比 404 更难发现
 
 用法：
     python scripts/check_structure.py
@@ -85,7 +89,7 @@ DEV_ONLY_DIRS = {"tests", "tools", "__pycache__", ".workbuddy", ".git"}
 # 文档里引用的路径存在性检查 —— 举例性质的登记在此，带理由
 PATH_REF_EXEMPT = {
     "scripts/_probe_orphan.py": {
-        "why": "CONTRIBUTING §八.1 用它举例说明「负样本验证」——"
+        "why": "CODE_RULES §八.1 用它举例说明「负样本验证」——"
                "这个文件从来不该存在，是造出来验证判据的",
     },
 }
@@ -211,7 +215,7 @@ def check_module_docstrings(fails):
 
     **为什么这条必须有常驻判据**（2026-10-09 补）：
 
-      · `CONTRIBUTING.md` §六.7 把它列为**硬约束**："新文件必须有明确的
+      · `CODE_RULES.md` §六.7 把它列为**硬约束**："新文件必须有明确的
         一句话职责，写在 docstring 第一行"
       · **`CODE_INDEX.md` 的「职责」列就是从 docstring 第一句扫出来的** ——
         docstring 丢了，索引里那一格就空了，**而没人会注意到**
@@ -314,6 +318,42 @@ def check_path_refs(fails, advises):
                 })
 
 
+def check_section_refs(fails):
+    """§编号的**归属文件**必须写对 —— 拆族/改文件名之后最容易静默错的一类引用。
+
+    2026-10-09 把 `CONTRIBUTING.md` 拆成两份（一~五、七 / 六、八~十）之后，
+    全库还有 12 处引用写着拆分前的旧配对。**链接点得开、打开的却是错的段落** ——
+    比 404 更难发现，所以 path-ref 那条查不出来（它只查文件是否存在）。
+    与「编号是接口」同源：文件搬家那一刻，引用就该跟着走。
+
+    判据形状：文件名与 §号**同一行、相邻出现**才算配对 ——
+    散文里前后提及不算（那种句子本身就是在解释归属）。
+    删除线里的先剥掉（沿用全库约定：`~~...~~` 是作废留痕）。
+    """
+    BAD = (
+        (re.compile(r"CONTRIBUTING[\w./\-]*[`\)\]:：]*\s*§(?:六|八|九|十)"),
+         "§六/§八/§九/§十 住在 CODE_RULES.md"),
+        (re.compile(r"CODE_RULES[\w./\-]*[`\)\]:：]*\s*§(?:一|二|三|四|五|七)"),
+         "§一~§五、§七 住在 CONTRIBUTING.md"),
+    )
+    for ext in (".md", ".py"):
+        for rel in sorted(walk_files(ext)):
+            if rel.split("/")[0] in PATH_REF_SKIP_DIRS:
+                continue
+            body = strip_strikethrough(read(os.path.join(ROOT, rel)))
+            for i, ln in enumerate(body.split("\n")):
+                for pat, right in BAD:
+                    if pat.search(ln):
+                        fails.append({
+                            "rule": "section-ref-target", "file": rel,
+                            "line": i + 1,
+                            "note": "§编号的归属写成另一份文件了 —— %s。"
+                                    "拆族后最常见的静默错：链接点得开、"
+                                    "内容是错的段落。改文件名，或改用删除线留痕"
+                                    % right,
+                        })
+
+
 def check_duplication(advises):
     """同一段长文出现在两处 —— 迟早只更新一处。"""
     seen = {}
@@ -335,7 +375,7 @@ def check_duplication(advises):
 def check_reachability(fails, advises):
     """新文件必须被入口或调用方链到 —— 没人链到的文件等于不存在。
 
-    **为什么这条必须有机器判据**：`CONTRIBUTING.md` §六.5 写了
+    **为什么这条必须有机器判据**：`CODE_RULES.md` §六.5 写了
     「新文件必须被入口或调用方链到」，但"被链到"是**跨文件**关系，
     光看新文件自己永远看不出它有没有人用。靠自觉的结果是：
     写完就忘，半年后仓库里躺着一个谁都不知道是什么的 `.py`。
@@ -430,24 +470,31 @@ def check_reachability(fails, advises):
                         "文件被删或改名了，索引没跟上（§十.5）",
             })
 
-    # ⑤ tools/ 里也一样：磁盘上有、但四份子索引里一个都没提 → 漏登记
-    indexed = set()
-    for k in ("injection", "probe", "verify", "tooling"):
-        p = os.path.join(ROOT, "reference", "code-%s.md" % k)
-        if os.path.exists(p):
-            for m in re.finditer(r"`(tools/[\w.\-]+\.py)`", read(p)):
-                indexed.add(m.group(1))
+    # ⑤ tools/ 的登记（§六.8）：**"写入前先查有没有"的机械抓手** ——
+    #    登记表（gen_code_tables.py 的 LAYERS）就是"全部现有工具"的对照清单：
+    #    登记时你会看见所有邻居，重名/重复职责在这一步就该被发现。
+    #
+    #    判据 2026-10-09 从"被 code-*.md 提过"**收紧成"在 LAYERS 里"** ——
+    #    旧口径下 prose 里随口提一句也算过，而生成的表里根本没有它，
+    #    下一个来找"有没有现成的"的人看不见。
+    #    两个方向都查：磁盘→LAYERS（漏登记）、LAYERS→磁盘（登记了已删的）。
+    gct = os.path.join(ROOT, "tools", "gen_code_tables.py")
     td = os.path.join(ROOT, "tools")
-    if os.path.isdir(td):
+    if os.path.isdir(td) and os.path.exists(gct):
+        registered = set(re.findall(r'\(\s*"tools/([\w.\-]+\.py)"', read(gct)))
         for fn in sorted(os.listdir(td)):
-            if not fn.endswith(".py"):
-                continue
-            rel = "tools/" + fn
-            if rel not in indexed:
+            if fn.endswith(".py") and fn not in registered:
                 fails.append({
-                    "rule": "tool-not-indexed", "file": rel,
-                    "note": "tools/ 里的脚本没进任何一份 code-*.md —— "
-                            "索引漏了它。加进 tools/gen_code_tables.py 的 LAYERS",
+                    "rule": "tool-unregistered", "file": "tools/" + fn,
+                    "note": "tools/ 里的脚本没登记进 gen_code_tables.py 的 LAYERS —— "
+                            "先查它跟现有工具是不是重复（§六.8），再登记并刷表",
+                })
+        for name in sorted(registered):
+            if not os.path.exists(os.path.join(td, name)):
+                fails.append({
+                    "rule": "layer-stale", "file": "tools/" + name,
+                    "note": "LAYERS 登记了这个脚本，但磁盘上不存在 —— "
+                            "文件删了/改名了，登记表没跟上（§十.5）",
                 })
 
 
@@ -459,7 +506,7 @@ def check_stale_tools(advises):
     git log 记的是**真实的最后一次内容变更**。
 
     **为什么只报 ADVISE 不报 FAIL**：一个脚本"该不该留"是**意图问题**，
-    只有作者知道（`CONTRIBUTING.md` §六.6.1 要求先问再删）。
+    只有作者知道（`CODE_RULES.md` §六.6.1 要求先问再删）。
     机器只能发现"它很久没动了"，**不能替你决定删不删**。
 
     豁免：只读体检工具常驻使用，不该被当成临时代码。
@@ -561,7 +608,7 @@ def check_known_breaks(fails):
 
 
 def check_import_cycles(fails, advises):
-    """模块级 import 环 —— 依赖只能从上往下（CONTRIBUTING §六.4）。
+    """模块级 import 环 —— 依赖只能从上往下（CODE_RULES §六.4）。
 
     ⚠️ **判据只算模块级 import**（`ast` 的 `tree.body`）。
     函数内延迟导入**不算依赖边** —— 那是**故意打断环**的手法。
@@ -617,6 +664,7 @@ def main(argv=None):
     check_reachability(fails, advises)
     check_stale_tools(advises)
     check_path_refs(fails, advises)
+    check_section_refs(fails)
     check_duplication(advises)
 
     report = {"fails": fails, "advises": advises, "ok": not fails}

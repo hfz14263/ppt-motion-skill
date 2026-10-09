@@ -4,6 +4,10 @@
 >
 > **表里的行数与依赖关系由 `tools/gen_code_tables.py` 扫出来，不是手抄的。**
 > 重新生成：`python tools/gen_code_tables.py tooling`
+>
+> ⚠️ **往 `tools/` 加脚本前，先查这张表**（[`CODE_RULES.md`](../CODE_RULES.md) §六.8）——
+> 做过类似的事就改现有的；确要新建，**必须登记进 LAYERS**，否则体检会拦。
+> 登记表就是"有没有现成的"的对照清单。
 
 ## 这一层负责什么
 
@@ -12,8 +16,8 @@
 三类成员：
 
 1. **PowerShell / COM 层** —— Python 碰不到真渲染，只有这一层能
-2. **一次性拆分工具** —— `tools/split_*.py`，拆完即删
-3. **杂项工具** —— 推送、主题入库
+2. **一次性拆分/归档工具** —— `tools/split_*.py` / `archive_*`，**拆完留档**（下次照抄）
+3. **杂项工具** —— 推送、主题入库、目录与索引生成
 
 ---
 
@@ -41,17 +45,15 @@
 | `tools/split_morph_recipes.py` | 一次性拆分器：把 morph-and-3d-recipes.md 按主题切成 3 份 + 目录页 | 一次性：拆 morph 配方 | —（叶子） | —（没人依赖） | 105 行 |
 | `tools/split_tests.py` | 一次性拆分器：把 test_transition_table.py（1633 行 / 22 组）拆成三份 | 一次性：拆 test_transition_table.py 成三份 | —（叶子） | —（没人依赖） | 243 行 |
 | `tools/archive_handover_85.py` | 一次性归档器：把 HANDOVER.md §8 里**已完成**的三节搬进 history/ | 一次性：把 HANDOVER §8 已完成的三节搬进 history/ | —（叶子） | —（没人依赖） | 138 行 |
+| `tools/gen_code_tables.py` | 生成 reference/code-*.md 里的速查表 —— 表格数据不手抄 | 生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源） | —（叶子） | `test_code_index` | 228 行 |
 | `tools/add_toc.py` | 给长文档补一张目录（TOC）—— 只加导航，不动正文一个字 | 给长文档加目录 | —（叶子） | —（没人依赖） | 172 行 |
 | `tools/collapse_symptom.py` | 分级收敛 symptom 侧正文：把重复正文换成指向根因的链接 | 根因收敛 1/3：重复节收敛为索引（幂等） | —（叶子） | —（没人依赖） | 199 行 |
 | `tools/add_symptom_view.py` | 给已收敛的 symptom 节补「现象」导语 | 根因收敛 2/3：给已收敛节补现象导语（幂等） | —（叶子） | —（没人依赖） | 109 行 |
 | `tools/link_symptom_to_pitfall.py` | 给档3（保留现象正文的节）补根因链接 | 根因收敛 3/3：给保留正文的节补根因链接（幂等） | —（叶子） | —（没人依赖） | 123 行 |
 | `tools/add_symptom_leadin.py` | 给 pitfall 顶层编号节插入「现象」导语 | 按 TSV 给 pitfall 顶层节插现象导语 | —（叶子） | —（没人依赖） | 145 行 |
-| `tools/rewrite_handover_sec8.py` | 一次性：把 HANDOVER.md §8 重写成「还没做的 + 归档指针 + 验证文化」 | 一次性：重写 HANDOVER §8 的一节 | —（叶子） | —（没人依赖） | 88 行 |
-| `tools/rewrite_morph_hub.py` | 一次性：把 morph-and-3d-recipes.md 改写成目录页（并入 §5 原文） | 一次性：重写 morph 配方枢纽页 | —（叶子） | —（没人依赖） | 86 行 |
-| `tools/archive_handover_backlog.py` | 一次性归档器：把 HANDOVER.md §8 里"已完成项的记录"搬进 history/ | 一次性：把 HANDOVER 待办按主题归档到history/ | —（叶子） | —（没人依赖） | 132 行 |
 | `reference/design-system/build_index.py` | Generate the design-system index for this skill | 生成 / 校验 design-system 索引（--check 只读） | —（叶子） | —（没人依赖） | 299 行 |
 
-共 29 个文件，其中 Python 3544 行。
+共 27 个文件，其中 Python 3466 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。
@@ -107,10 +109,12 @@ media（视频/音频）插入，和让 PowerPoint 真开真存。
 | --- | --- | --- | --- |
 | `split_transition_probe.py` | `build_transition_table.py` → `transition_probe/` 五层包 | 3048 行 | 拆**整个模块**成多层包 |
 | `split_commands.py` | `transition_probe/commands.py` → 5 个平级 `commands_*.py` | 1367 行 | 拆**一个层**成同层兄弟 |
+| `split_motion.py` | `motion.py` → 门面 + 四层（带完整性断言） | 1914 行 | 拆**分层**（10 个依赖者一行没改） |
 | `split_tests.py` | `test_transition_table.py` → 三份测试 + `helpers.py` | 1633 行 | 拆**测试文件**（带 `helpers.py` 提取） |
 | `split_pitfalls.py` | `com-pitfalls.md` → 10 份 `pitfall-*.md` | 单文件巨长 | 拆**文档**（编号保住） |
 | `split_symptoms.py` | `symptoms.md` → 5 份 `symptom-*.md` | 同上 | 同上 |
 | `split_morph_recipes.py` | `morph-and-3d-recipes.md` → 3 份 + 目录页 | 同上 | 同上 |
+| `split_contributing.py` | `CONTRIBUTING.md` → 按读者分两份 | 19924 字符 | 拆**文档**（按读者，编号不重排） |
 | `archive_handover_85.py` | `HANDOVER.md` §8 的三节 → `history/` | 21901 字符 | **归档**（不是拆分：内容整块搬走） |
 
 **四条硬约束（每一条都是踩出来的）**：
@@ -125,10 +129,16 @@ media（视频/音频）插入，和让 PowerPoint 真开真存。
 
 **为什么不删**：
 它们是**怎么做拆分**的唯一完整记录，删了下次就是重新踩一遍。
-体积代价（2611 行 Python）是值得的。
+体积代价（约 1900 行 Python）是值得的。
+
+**2026-10-09 维护记录**：删了 2 个已消耗的 `rewrite_*.py`（一次性改写，模式与
+§二十一「打补丁，不重写」相悖，没有复用场景）与 1 个被取代的
+`archive_handover_backlog.py`（同类的 `archive_handover_85` 是更好的样板：
+从 git 取源 + 幂等）。判据是「职责已完成 + 无复用场景 + 只在索引里被提过」。
+拆分样板一个没动 —— 它们各有不同的适用场景（见上表）。
 
 > **但这不等于 `tools/` 里的东西都不许删。**
-> 判断标准见 [`CONTRIBUTING.md`](../CONTRIBUTING.md) §六.6.1：
+> 判断标准见 [`CODE_RULES.md`](../CODE_RULES.md) §六.6.1：
 > **我（AI）认为当前任务已完成、为此生成的临时文件可以删时，
 > 会先逐个问你，得到答复才删。**
 
@@ -163,7 +173,7 @@ media（视频/音频）插入，和让 PowerPoint 真开真存。
 | 改 `motion.ps1` | `-Strict` 走一遍，**必须真的开 PowerPoint** |
 | 改任何 `probe_*.ps1` | 拿已知答案样本（`make_calibration.ps1` 产物）验证 |
 | 改 `tools/` 里幂等脚本 | **连跑两遍**，第二遍必须输出"0 处改动" |
-| 新增 `tools/` 脚本 | 说明它是一次性的还是常驻的；一次性脚本**不随包发布** |
+| 新增 `tools/` 脚本 | **先查这张表有没有现成的**（§六.8）→ 登记进 LAYERS → 说明它是一次性的还是常驻的 |
 
 最后一条很重要：`tools/` 是开发期工具，**不进发布包**。
 `split_*.py` 留着是为了照抄，不是为了让用户拿到手。

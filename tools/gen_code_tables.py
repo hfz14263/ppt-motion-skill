@@ -109,14 +109,12 @@ LAYERS = {
             ("tools/split_morph_recipes.py", "一次性：拆 morph 配方"),
             ("tools/split_tests.py", "一次性：拆 test_transition_table.py 成三份"),
             ("tools/archive_handover_85.py", "一次性：把 HANDOVER §8 已完成的三节搬进 history/"),
+            ("tools/gen_code_tables.py", "生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源）"),
             ("tools/add_toc.py", "给长文档加目录"),
             ("tools/collapse_symptom.py", "根因收敛 1/3：重复节收敛为索引（幂等）"),
             ("tools/add_symptom_view.py", "根因收敛 2/3：给已收敛节补现象导语（幂等）"),
             ("tools/link_symptom_to_pitfall.py", "根因收敛 3/3：给保留正文的节补根因链接（幂等）"),
             ("tools/add_symptom_leadin.py", "按 TSV 给 pitfall 顶层节插现象导语"),
-            ("tools/rewrite_handover_sec8.py", "一次性：重写 HANDOVER §8 的一节"),
-            ("tools/rewrite_morph_hub.py", "一次性：重写 morph 配方枢纽页"),
-            ("tools/archive_handover_backlog.py", "一次性：把 HANDOVER 待办按主题归档到history/"),
             # 不在 scripts/ 也不在 tools/ —— 它跟着产物住：
             # design-system/README.md 的生成器（README 声称的文件是否在磁盘上，靠它 --check）
             ("reference/design-system/build_index.py", "生成 / 校验 design-system 索引（--check 只读）"),
@@ -168,11 +166,6 @@ def line_count(path):
     with open(full, "r", encoding="utf-8", errors="replace") as f:
         return sum(1 for _ in f)
 
-
-def mod_name(path):
-    """scripts/motion.py -> scripts.motion；tests/x.py -> tests.x"""
-    p = path[:-3] if path.endswith(".py") else path
-    return p.replace("/", ".").rstrip(".__init__")
 
 
 def mod_name(path):

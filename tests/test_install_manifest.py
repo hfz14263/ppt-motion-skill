@@ -32,9 +32,10 @@ ROOT = os.path.dirname(HERE)
 # 与之相对，`scripts/` 是运行时工具，必须随包分发。这条界线由本集合表达。
 DEV_ONLY = {"tests", "tools", "__pycache__", "probe-createvideo", ".workbuddy"}
 
-# 同上，但针对**顶层文件**。会话交接文档记的是"某一次会话做到哪了"，
-# 对使用者没有意义，而且会过期 —— 不该装出去。
-DEV_ONLY_FILES = {"SESSION-HANDOVER.md"}
+# 同上，但针对**顶层文件**。当前为空 —— 2026-10-09 `SESSION-HANDOVER.md`
+# （2026-09-30 的会话交接）已删：使命结束，且它会过期、对使用者无意义。
+# 将来若再出现会话交接类文档，在这里登记（别让它随包，也别让它悬着）。
+DEV_ONLY_FILES = set()
 
 
 def install_items():

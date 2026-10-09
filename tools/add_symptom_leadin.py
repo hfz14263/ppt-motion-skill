@@ -4,7 +4,7 @@
     python tools/add_symptom_leadin.py            # 先干跑，只报将改哪些
     python tools/add_symptom_leadin.py --apply    # 真改
 
-设计约束（对应 CONTRIBUTING §六「覆盖式修改」）：
+设计约束（对应 CODE_RULES §六「覆盖式修改」）：
   - **覆盖式**修改现有文件，不新建任何文件。
   - 幂等：已经有导语就跳过，不会插两次。
   - 强校验：TSV 里的编号必须与实际顶层节一一对应；多一个少一个都中止。

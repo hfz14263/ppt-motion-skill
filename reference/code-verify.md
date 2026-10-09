@@ -28,7 +28,7 @@
 | `scripts/verify_recipes.py` | Validate the recipe library: structure, and the rule that keeps it from rotting | 配方库结构 | —（叶子） | —（没人依赖） | 106 行 |
 | `scripts/verify_docs.py` | Validate the documentation structure: references resolve, no orphans, facts unique | 文档结构与登记 | —（叶子） | —（没人依赖） | 292 行 |
 | `scripts/check_coverage.py` | dsh-ppt-office-motion :: spec coverage audit | spec 覆盖率审计 | `motion`、`player` | —（没人依赖） | 132 行 |
-| `scripts/check_structure.py` | 结构体检：把 CONTRIBUTING.md 的规则变成可执行的检查 | 仓库结构体检（行数/命名/体积/**import 环**/**热点**/**可达性**/**陈旧度**/**路径引用**/**已知断环**/**docstring**） | —（叶子） | —（没人依赖） | 649 行 |
+| `scripts/check_structure.py` | 结构体检：把 CONTRIBUTING.md 的规则变成可执行的检查 | 仓库结构体检（行数/命名/体积/**import 环**/**热点**/**可达性**/**tools 登记**/**陈旧度**/**路径引用**/**§编号归属**/**已知断环**/**docstring**） | —（叶子） | —（没人依赖） | 697 行 |
 | `scripts/inspect_pptx.py` | inspect_pptx: is this .pptx actually animated, and how? | 看一个 pptx 到底有没有动效 | —（叶子） | —（没人依赖） | 187 行 |
 | `scripts/design_audit.py` | Audit a motion spec against the design spec's HARD constraints, and say plainly what it cannot judge | 设计层审计 | `motion`、`player` | —（没人依赖） | 378 行 |
 | `scripts/design_compose.py` | Read a design system and compose pages that follow it | 设计层合成 | —（叶子） | —（没人依赖） | 412 行 |
@@ -109,7 +109,7 @@
 **那就把设计改坏了**。
 
 依赖图解析复用 `tools/scan_deps.build_graph()`，
-**不在这里重写第二份** —— 详见 `CONTRIBUTING.md` §六.8 的真实教训。
+**不在这里重写第二份** —— 详见 `CODE_RULES.md` §六.8 的真实教训。
 
 ---
 
