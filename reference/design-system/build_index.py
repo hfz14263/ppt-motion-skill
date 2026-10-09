@@ -4,9 +4,15 @@
 Vendored files are listed with their local path; the rest of the upstream
 catalogue is listed with its raw URL so the agent can fetch one on demand
 without cloning the repo.
+
+本文件是 README 的**唯一来源**：正文改动要改这里，不要在 README 里手改 ——
+`--check` 会对比生成器输出与磁盘文件，手改的部分会被判为分叉
+（2026-10-09 实际丢过一次：手工加的 design_compose 章节被重跑吞掉 35 行）。
 """
+import argparse
 import json
 import os
+import sys
 
 # this file lives IN the design-system directory
 DEST = os.path.dirname(os.path.abspath(__file__))
@@ -119,8 +125,50 @@ CATEGORY_CN = {
     "extra/academic": "补充·学术",
 }
 
+# design_compose 章节原文（2026-10-09 从 README 搬入生成器）。
+# 原文只存在于 README —— 重跑生成器会静默丢掉它。搬进来之后，生成器才是唯一来源。
+SECTION_COMPOSE = [
+    '## 让设计系统可执行（`scripts/design_compose.py`）',
+    '',
+    '这些文件是散文 —— 人能读，程序读不了。所以**每一份"按 X 风格做的 deck"其实都在跟着人对 X 的记忆走**，',
+    '这正是不同风格最后长得都差不多的原因。',
+    '',
+    '`design_compose.py` 做最小可用的一步：**把调色板从散文里解析出来，再用它生成页面。**',
+    '',
+    '```bash',
+    'python scripts/design_compose.py --list',
+    'python scripts/design_compose.py --theme pine-green-strategy --show   # 看解析结果',
+    'python scripts/design_compose.py --all --outdir composed              # 10 套各出一页',
+    '```',
+    '',
+    '实测：**10 套全部定位到调色板分区，共提取 160 个 hex 码**，带角色标注',
+    '（`background` / `structural` / `accent` / `negative` / `neutral`）。',
+    '同一份内容套 10 套，两两平均色距中位 ~33、最远 400 —— **风格差异是量出来的，不是感觉。**',
+    '',
+    '### 解析调色板时踩的两个坑（都是"过度校正"）',
+    '',
+    '1. **取了 `neutral[0]` 当正文色** → 拿到 `#F1F1F1`，那是系统指定给「解释栏**底色**」的，',
+    '   压在纯白页面上**正文直接看不见**。角色名不等于用途，位置不等于语义。',
+    '2. **改成"取对比度最高的"** → 黑白永远胜出，`#04512C` 深林绿被换成 `#111111`，',
+    '   **可读性满分、品牌识别归零**。现在的规则：可读是**下限**不是目标，',
+    '   结构色与强调色优先保留**有色相且过对比度**的候选。',
+    '',
+    '还有一个是**项目自己的审计工具抓出来的**：早期把 `other` 桶（图表系列色）也算进强调色候选，',
+    '一页上出现 5 个饱和色，被 `review_assist` 判为 **rainbow risk** ——',
+    '而"一页主导色 ≤2"正是这些系统明写的禁止项。**生成器的输出必须过自己的检查。**',
+    '',
+    '### 明确未实现（不假装）',
+    '',
+    '- **摄影题头带**：多套要求"变暗的人物/科技照片横带"，此环境无图像生成',
+    '- **图表语言**：每套对图表形态有详细规定，尚未生成',
+    '- **密度仍偏低**：实测非背景像素约 8.6–9.0%，而系统要求"正文不留实心空白块"。',
+    '  当前版面已不空，但离真正的高密度咨询页还有距离',
+]
 
-def main():
+
+def build_text():
+    """产出 README 全文。**生成器是唯一来源** —— 不要在产物里手改：
+    手改的内容要么搬进这里，要么会被 `--check` 判为分叉。"""
     lines = []
     lines.append("# 设计系统索引（静态版面）")
     lines.append("")
@@ -148,6 +196,8 @@ def main():
     lines.append("")
     lines.append("用法：先按「分类 + 适用」挑一套，再读对应 `.md` 全文作为**唯一风格源**，"
                  "不要混搭多套（上游明确要求不得混用其他风格）。")
+    lines.append("")
+    lines.extend(SECTION_COMPOSE)   # design_compose 那一节（2026-10-09 从 README 搬进来）
     lines.append("")
 
     # ---------- remote ----------
@@ -192,12 +242,58 @@ def main():
     lines.append("这些也走同一个 URL 前缀。")
     lines.append("")
 
+    return "\n".join(lines)
+
+
+def missing_vendored():
+    """「已内置」表里声明了的文件，是否真的在磁盘上。"""
+    return [tid for tid, _cat, _rel, _p, ven in CATALOG
+            if ven and not os.path.exists(os.path.join(DEST, tid + ".md"))]
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(
+        description="生成 / 校验 design-system 的 README 索引（--check 只读）")
+    ap.add_argument("--check", action="store_true",
+                    help="只对比 README 与生成器输出，不写文件")
+    ns = ap.parse_args(argv)
+
+    text = build_text()
     out = os.path.join(DEST, "README.md")
-    with open(out, "w", encoding="utf-8") as fh:
-        fh.write("\n".join(lines))
+    miss = missing_vendored()
+    n_ven = len([c for c in CATALOG if c[4]])
+    n_rem = len(CATALOG) - n_ven
+
+    if ns.check:
+        bad = []
+        if not os.path.exists(out):
+            bad.append("README.md 不存在")
+        else:
+            disk = open(out, encoding="utf-8", newline="").read().replace("\r\n", "\n")
+            if disk != text:
+                bad.append("README.md 与生成器输出不一致"
+                           "（有人手改过，或生成器变了而没重跑）")
+        for tid in miss:
+            bad.append("「已内置」声明了 %s，但 %s.md 不在磁盘上" % (tid, tid))
+        if bad:
+            for b in bad:
+                print("!! " + b)
+            print("修法：重跑 `python reference/design-system/build_index.py`；")
+            print("      若 README 里有手工内容 —— 搬进生成器（它才是唯一来源），别留着。")
+            return 1
+        print("OK  README 与生成器一致（vendored=%d remote=%d）" % (n_ven, n_rem))
+        return 0
+
+    # 仓库约定 LF（.gitattributes text=auto eol=lf）——
+    # 不显式指定的话 Windows 上会写成 CRLF，重跑一次整个文件全行 diff。
+    with open(out, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(text)
     print("wrote", out, os.path.getsize(out), "bytes")
-    print("vendored=%d remote=%d total=%d" % (len(vendored), len(remote), len(CATALOG)))
+    print("vendored=%d remote=%d total=%d" % (n_ven, n_rem, len(CATALOG)))
+    for tid in miss:
+        print("WARN 「已内置」声明了 %s，但 %s.md 不在磁盘上" % (tid, tid))
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
