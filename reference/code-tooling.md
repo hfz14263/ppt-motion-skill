@@ -25,7 +25,7 @@
 
 | 文件 | 职责 | 对外接口 / 入口 | 依赖谁 | 被谁依赖 | 体积 |
 | --- | --- | --- | --- | --- | --- |
-| `scripts/push_via_api.py` | 当 github.com 被代理挡住、但 api.github.com 通时，用 Git Data API 推送 | 走 API 推送 | —（叶子） | —（没人依赖） | 203 行 |
+| `scripts/push_via_api.py` | 当 github.com 被代理挡住、但 api.github.com 通时，用 Git Data API 推送 | 走 API 推送 | —（叶子） | —（没人依赖） | 248 行 |
 | `scripts/vendor_themes.py` | Vendor a curated set of design systems from open-kimi-ppt-skill (MIT) | 主题文件入库 | —（叶子） | —（没人依赖） | 89 行 |
 | `scripts/motion.ps1` | dsh-ppt-office-motion :: Office COM layer | Office COM 层：media 插入 + 真渲染 | —（叶子） | —（没人依赖） | 482 行 |
 | `scripts/make_calibration.ps1` | dsh-ppt-office-motion :: build the known-answer calibration deck + video | 造标定deck + 标定视频 | —（叶子） | —（没人依赖） | 103 行 |
@@ -53,7 +53,7 @@
 | `tools/add_symptom_leadin.py` | 给 pitfall 顶层编号节插入「现象」导语 | 按 TSV 给 pitfall 顶层节插现象导语 | —（叶子） | —（没人依赖） | 145 行 |
 | `reference/design-system/build_index.py` | Generate the design-system index for this skill | 生成 / 校验 design-system 索引（--check 只读） | —（叶子） | —（没人依赖） | 299 行 |
 
-共 27 个文件，其中 Python 3466 行。
+共 27 个文件，其中 Python 3511 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。

@@ -16,6 +16,18 @@
 用法：
     GH_TOKEN=<pat> REPO_DIR=<本地仓库> python scripts/push_via_api.py
 
+本机（这台开发机）的完整流程 —— token 从 Windows 凭据管理器里取，
+不用手抄 PAT：
+
+    TOKEN=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill \
+            2>/dev/null | sed -n 's/^password=//p')
+    GH_TOKEN="$TOKEN" REPO_DIR="D:/workbuddy/idea/ppt-motion-skill" \
+      <python> scripts/push_via_api.py
+
+    · 代理走 $HTTPS_PROXY（本机已设），全程约 3–4 分钟，建议后台跑
+    · 5xx / 网络抖动**自动重试**（2026-10-09 实测撞过一次 502）
+    · 判成功**看 tree 哈希**，不要看 commit sha（见下）
+
 ⚠️ 关键点（踩过一次，见 §45.3）：
     core.autocrlf=true 时，工作区是 CRLF、对象库是 LF。**必须上传
     git cat-file 出来的字节**，读工作区文件会让 GitHub 算出另一个 sha，
