@@ -503,7 +503,7 @@ python tests/test_transition_table.py   # 编号 / 目录 / 拆分完整性
 
 | 检查 | 管什么 |
 | --- | --- |
-| [`scripts/check_structure.py`](scripts/check_structure.py) | 体积上限、长文档是否有目录、代码是否有内容表、新目录是否登记、**模块级 import 环**、**热点模块**、**新文件可达性**、**临时代码陈旧度**、**文档路径引用**、**已知断环的延迟导入** |
+| [`scripts/check_structure.py`](scripts/check_structure.py) | 体积上限、长文档是否有目录、代码是否有内容表、新目录是否登记、**模块级 import 环**、**热点模块**、**新文件可达性**、**临时代码陈旧度**、**文档路径引用**、**已知断环的延迟导入**、**模块 docstring** |
 | [`scripts/verify_docs.py`](scripts/verify_docs.py) | 悬空引用、孤儿文档、INDEX 预算、旧目录名 |
 | [`tools/scan_deps.py`](tools/scan_deps.py) | 依赖图、环、改动波及面（只读，体检调用它） |
 | [`tools/gen_code_tables.py`](tools/gen_code_tables.py) | 代码索引的表格数据（行数/职责/依赖，只输出不写文件） |

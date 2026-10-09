@@ -206,6 +206,39 @@ def check_code(fails, advises):
             })
 
 
+def check_module_docstrings(fails):
+    """每个 `.py` 必须有模块 docstring —— 它承载「一句话职责」。
+
+    **为什么这条必须有常驻判据**（2026-10-09 补）：
+
+      · `CONTRIBUTING.md` §六.7 把它列为**硬约束**："新文件必须有明确的
+        一句话职责，写在 docstring 第一行"
+      · **`CODE_INDEX.md` 的「职责」列就是从 docstring 第一句扫出来的** ——
+        docstring 丢了，索引里那一格就空了，**而没人会注意到**
+      · 实测全库 100% 覆盖 —— 但那是我手工跑的一次性统计。
+        **今天没缺，不代表明天不会缺**；判据的作用是防退化，不是描述现状。
+
+    豁免 `__init__.py`：很多只是 re-export，硬塞一句话职责没有意义。
+    """
+    for rel in sorted(walk_files((".py",))):
+        if os.path.basename(rel) == "__init__.py":
+            continue
+        p = os.path.join(ROOT, rel)
+        try:
+            tree = ast.parse(read(p), filename=rel)
+        except SyntaxError as e:
+            fails.append({"rule": "code-syntax-error", "file": rel,
+                          "note": "解析不了（%s）—— 这本身就该修" % e.msg})
+            continue
+        doc = ast.get_docstring(tree) or ""
+        if len(doc.strip()) < 6:
+            fails.append({
+                "rule": "module-needs-docstring", "file": rel,
+                "note": "没有模块 docstring（或短于 6 字符）—— 它是「一句话职责」的载体，"
+                        "也是 CODE_INDEX 职责列的数据源（§六.7）",
+            })
+
+
 def check_dirs(fails):
     """顶层目录必须被有意识地登记 —— 否则里面的文件**完全不被检查**。"""
     items = install_items()
@@ -578,6 +611,7 @@ def main(argv=None):
     check_docs(fails, advises)
     check_code(fails, advises)
     check_dirs(fails)
+    check_module_docstrings(fails)
     check_import_cycles(fails, advises)
     check_known_breaks(fails)
     check_reachability(fails, advises)
