@@ -30,6 +30,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 
@@ -38,25 +39,57 @@ API = "https://api.github.com"
 PROXY = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or ""
 
 
-def api(method, path, payload=None):
+def api(method, path, payload=None, _tries=5):
+    """一个 API 调用。**5xx 与网络抖动自动重试**。
+
+    2026-10-09 实测：推到第 11 个提交时撞上一次 502 "Server Error"，
+    整条链白推（ref 没动、安全，但 3 分钟没了）。重试是安全的：
+    用到的端点全是幂等的 —— blob/tree/commit 按内容寻址，ref 设置也幂等。
+    """
     token = os.environ["GH_TOKEN"]
     url = API + path
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
-    req = urllib.request.Request(url, data=data, method=method)
-    req.add_header("Authorization", "Bearer " + token)
-    req.add_header("Accept", "application/vnd.github+json")
-    req.add_header("User-Agent", "api-push")
-    if data:
-        req.add_header("Content-Type", "application/json")
-    handlers = [urllib.request.ProxyHandler(
-        {"https": PROXY, "http": PROXY})] if PROXY else []
-    op = urllib.request.build_opener(*handlers)
-    try:
-        with op.open(req, timeout=60) as r:
-            body = r.read().decode("utf-8")
-            return r.status, (json.loads(body) if body else {})
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read().decode("utf-8") or "{}")
+    backoff = (2, 5, 10, 20)
+    last = None
+    for attempt in range(_tries):
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Authorization", "Bearer " + token)
+        req.add_header("Accept", "application/vnd.github+json")
+        req.add_header("User-Agent", "api-push")
+        if data:
+            req.add_header("Content-Type", "application/json")
+        handlers = [urllib.request.ProxyHandler(
+            {"https": PROXY, "http": PROXY})] if PROXY else []
+        op = urllib.request.build_opener(*handlers)
+        try:
+            with op.open(req, timeout=60) as r:
+                body = r.read().decode("utf-8")
+                return r.status, (json.loads(body) if body else {})
+        except urllib.error.HTTPError as e:
+            code = e.code
+            body = e.read().decode("utf-8") or "{}"
+            try:
+                parsed = json.loads(body)
+            except Exception:      # 5xx 时可能是代理的错误页，不是 JSON
+                parsed = {"message": body[:200]}
+            if code >= 500 and attempt < _tries - 1:
+                wait = backoff[min(attempt, len(backoff) - 1)]
+                print("    !! %s %s -> HTTP %d，%ds 后重试（第 %d 次）"
+                      % (method, path[:60], code, wait, attempt + 1))
+                time.sleep(wait)
+                last = (code, parsed)
+                continue
+            return code, parsed
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            if attempt < _tries - 1:
+                wait = backoff[min(attempt, len(backoff) - 1)]
+                print("    !! 网络错误（%s），%ds 后重试（第 %d 次）"
+                      % (type(e).__name__, wait, attempt + 1))
+                time.sleep(wait)
+                last = (0, {"message": str(e)})
+                continue
+            raise
+    return last
 
 
 def git(*args):
