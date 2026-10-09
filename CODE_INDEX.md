@@ -39,29 +39,40 @@ Layer 2  校验与探针
               │
               ▼
 Layer 1  基础设施
-         motion.py（1914 行 · 被 10 个模块依赖）· player.py
+         motion.py（545 行 · 门面 · 被 10 个模块依赖）
+           ├─ motion_xml.py      528 行  ★ 地基：常量 + XML 手术 + 单例 + 形状索引
+           ├─ motion_timing.py   440 行  timing / transition 生成
+           ├─ motion_media.py    338 行  3D 相机 + 图片填充
+           └─ motion_spec.py     228 行  spec 处理 + 结构校验
+         player.py（578 行）
               │
               ▼
 Layer 0  数据（无本地依赖）
          motion_catalog.json · transition_reference.json · facts/*.json
 ```
 
+> **`motion.py` 的四个子层是 2026-10-09 拆出来的**，但 **10 个依赖者一行都没改** ——
+> 它们仍然只 `import motion`（门面重新导出全部）。详细分层见
+> [`reference/code-injection.md`](reference/code-injection.md)。
+
 **实测：模块级 import 环 = 0 处。**
-全库共 **63 个 Python 模块**（`scripts/` 22+6 · `tools/` 17 · `tests/` 11 + 其他），
+全库共 **69 个 Python 模块**（`scripts/` 26+6 · `tools/` 20 · `tests/` 11 + 其他），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
 
 **改动波及面 ≥5 的模块（改之前先看清谁在用）**：
 
 | 模块 | 被 N 个依赖 | 说明 |
 | --- | --- | --- |
-| `scripts/motion.py` | **10** | 全库第一。1914 行，只立规范不拆 |
+| `scripts/motion.py` | **10** | 全库第一。**门面**：545 行，实现分在四个子层 |
 | `transition_probe/common.py` | 8 | 只有 108 行，但是全包的地基 |
 | `transition_probe/data.py` | 7 | 形态定义表 |
 | `transition_probe/decks.py` | 6 | 造 deck |
 | `transition_probe/analysis.py` | 5 | 量帧 |
+| `motion_xml.py` | 4 | 差一个就到 5 —— 但它是**引擎地基**，改动要过 4 个依赖者的眼 |
 
-> 包内那四个的依赖者里含 `__init__.py`（它 import 全部五层是为了再导出）。
+> 包内那几个的依赖者里含 `__init__.py`（它 import 全部五层是为了再导出）。
 > **不是虚高** —— 改 `common.py` 时它的再导出行确实也要看一眼。
+> `motion_xml.py` 同理：它的依赖者里有 `motion.py` 门面的再导出行。
 
 唯一被设计出来的**表面环**是 `motion ⇄ check_coverage`：
 `motion.py check` 子命令用**函数内延迟导入**转发到 `check_coverage.main()`。
@@ -119,7 +130,7 @@ Layer 0  数据（无本地依赖）
 
 | 分层 | 文件 | 装什么 | 详细版 |
 | --- | --- | --- | --- |
-| 注入层 | `motion.py` / `player.py` | 改 OOXML、生成 HTML 重放 | [`reference/code-injection.md`](reference/code-injection.md) |
+| 注入层 | `motion.py`（门面）+ 四层 / `player.py` | 改 OOXML、生成 HTML 重放 | [`reference/code-injection.md`](reference/code-injection.md) |
 | 探针层 | `transition_probe/` / `build_*` / `analyze_video.py` | 造 deck、测参数、量帧 | [`reference/code-probe.md`](reference/code-probe.md) |
 | 校验层 | `verify_*` / `check_*` | 证明「它真的生效了」 | [`reference/code-verify.md`](reference/code-verify.md) |
 | 工具层 | `push_via_api.py` / `vendor_themes.py` 等 | 不产动效，但项目运转要靠 | [`reference/code-tooling.md`](reference/code-tooling.md) |
@@ -138,7 +149,7 @@ Layer 0  数据（无本地依赖）
 | --- | --- | --- |
 | 加一种动画效果 | `scripts/motion_catalog.json`（**137 个效果的权威表**，COM 提取） | 数据驱动；**不要**手改 `motion.py` 的模板表。别名↔presetID 的规则在 `facts/symbols.json` |
 | 加一个切换形态 | `facts/transitions.json` + `scripts/transition_probe/data.py` | 形态定义走数据，实测走探针 |
-| 改注入逻辑（写 OOXML） | `scripts/motion.py` | 已 1914 行，**接近 2000 硬上限**；新逻辑优先放进现有职责区段，实在放不下才拆 |
+| 改注入逻辑（写 OOXML） | 按层选：`motion_timing.py`（动画/切换）· `motion_media.py`（3D/填充）· `motion_xml.py`（XML 手术） | 四层是 2026-10-09 拆出的；`motion.py` 现在只是**门面**（545 行），只放 apply 与 CLI |
 | 加一个 CLI 子命令 | `scripts/motion.py` 的CLI 分发 | 子命令名是接口，**改名要改全仓库** |
 | 改 spec 字段 | `scripts/motion.py` 的 `normalize_spec` | 字段含义同时写在 `SKILL.md` |
 | 加一种验证 | `scripts/verify_*.py` | 四道门各有位置，见下|
@@ -167,11 +178,12 @@ Layer 0  数据（无本地依赖）
 
 | 文件 / 位置 | 症状 | 为什么特殊 | 现状 |
 | --- | --- | --- | --- |
-| `scripts/motion.py` | 1914 行，**逼近 2000 硬上限** | 全库被依赖最多的文件（10 个模块） | 已定：**只立规范，不拆**。拆它要动 10 个依赖者，不是单次改动能验证的 |
+| ~~`scripts/motion.py` 1914 行~~ | ~~逼近 2000 硬上限~~ | 全库被依赖最多的文件（10 个模块） | ✅ **已拆**（2026-10-09）→ **门面 545 行 + 四层**（xml 528 / timing 440 / media 338 / spec 228）。**10 个依赖者一行没改**（门面重新导出全部）。无损：81 符号逐字节相同 |
+| `scripts/motion_xml.py` | 528 行，被 4 个依赖 | 引擎地基：`element_spans` 被 10 处调用 | 拆出来才看见的耦合点。**它比 `motion.py` 更该小心** —— 改它要过 3 个兄弟层的眼 |
 | `transition_probe/` 包内四层 | `common`(8) / `data`(7) / `decks`(6) / `analysis`(5) 被依赖 ≥5 | 数字大是因为含 `__init__.py` 的再导出 | **正常，不是问题** —— 包对外只有 1 个依赖者，复杂度关在包里了 |
 | ~~`scripts/transition_probe/commands.py`~~ | ~~1367 行，超 800 软上限~~ | 19 个 CLI 子命令曾经都挤在一处 | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按探测维度分。无损：19 个函数逐字节相同 |
-| `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉" |
-| `tools/` | 26 个脚本，含 7 个一次性拆分/归档器 | 一次性工具拆完即删 | **默认留着当样板**（`split_*.py` 是"怎么拆"的唯一记录）；要删会先问你 —— 见 [`CONTRIBUTING.md`](CONTRIBUTING.md) §六.6.1 |
+| `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉"。拆分时那条 `import` 跟着 `main()` 留在门面，**有专门验证**（`tools/_verify_motion_split.py` 查它没被提到模块级） |
+| `tools/` | 28 个脚本，含 8 个一次性拆分/归档器 | 一次性工具拆完即删 | **默认留着当样板**（`split_*.py` 是"怎么拆"的唯一记录）；要删会先问你 —— 见 [`CONTRIBUTING.md`](CONTRIBUTING.md) §六.6.1 |
 
 ---
 

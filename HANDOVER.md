@@ -51,7 +51,7 @@
 上游（版面）           dsh-ppt-studio / open-kimi-ppt / 任意现成 pptx
    │ 产出带稳定 elementId 的静态 .pptx
    ▼
-① 注入层  scripts/motion.py         纯 OOXML，几何零改写
+① 注入层  scripts/motion.py         纯 OOXML，几何零改写（门面 + 四层，见目录树）
    │      读 motion spec，写 <p:timing> / <p:transition> / <a:scene3d>
    ▼
 ② 媒体层  scripts/motion.ps1        Office COM：AddMediaObject2 + 真渲染 + PDF
@@ -142,7 +142,13 @@ history/                      归档：已做完的事 + 当时怎么想错的�
   transition-layers.md        页面切换四层（原 §8 的 6、7、8）
 
 scripts/
-  motion.py                   ★ 核心引擎：注入 / 预览 / 覆盖率 / spec 解析
+  motion.py                   ★ 核心引擎的**门面**：apply 主流程 + CLI + 重新导出四层
+    motion_xml.py               └ 常量 + zip + XML 字符串手术 + 单例 + 形状索引（地基）
+    motion_timing.py            └ timing / transition 的 XML 生成
+    motion_media.py             └ 3D 相机 + 图片填充
+    motion_spec.py              └ spec 处理 + 结构校验
+                                （2026-10-09 从 1914 行的 motion.py 拆出；
+                                 10 个依赖者一行没改 —— 门面重新导出全部）
   motion.ps1                  ★ Office COM 层：媒体 + 真渲染 + 往返普查
   verify_motion.py            结构自证
   review_assist.py            ★ 自动复核（结构可信 + 启发式标注）
@@ -463,7 +469,7 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 | --- | --- |
 | ~~`scripts/build_transition_table.py` 3048 行~~ | ✅ **已拆**（2026-09-30）→ `transition_probe/` 包五层。豁免已撤销，见归档的 §8.4 |
 | `reference/symptom-*.md` 与 `reference/pitfall-*.md` 内容重叠 | ✅ **已收敛**（2026-10-08）→ 根因正文只留 `pitfall-*`，`symptom-*` 退化为索引层。重叠量与分档见归档的 §8.3.1 |
-| ~~`scripts/motion.py` 1914 行~~ | ⏸️ **明确不拆**（2026-10-08 用户决定）。已报为 `hot-module` ADVISE 持续可见 —— 要动 10 个依赖者，不是单次改动能验证的 |
+| ~~`scripts/motion.py` 1914 行~~ | ✅ **已拆**（2026-10-09）→ **门面 545 行 + 四层**（`motion_xml` 528 / `motion_timing` 440 / `motion_media` 338 / `motion_spec` 228）。**10 个依赖者一行没改**（门面重新导出全部）。无损：81 符号逐字节相同 + 83 条顶层语句零丢失。样板 `tools/split_motion.py` 留着照抄。详见归档的 §8.6 |
 | ~~`scripts/transition_probe/commands.py` 1367 行~~ | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按**探测维度**分：建表主链路 / 机制 / 形态与方向 / 属性 / 时序。无损证据：19 个函数**逐字节相同**。样板 `tools/split_commands.py` 留着照抄 |
 
 > **为什么挂起而不是删掉这条记录**：测出来的数字不会过期，
