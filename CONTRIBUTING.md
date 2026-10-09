@@ -467,7 +467,7 @@ python tests/test_transition_table.py   # 编号 / 目录 / 拆分完整性
 
 | 检查 | 管什么 |
 | --- | --- |
-| [`scripts/check_structure.py`](scripts/check_structure.py) | 体积上限、长文档是否有目录、代码是否有内容表、新目录是否登记、**模块级 import 环**、**热点模块** |
+| [`scripts/check_structure.py`](scripts/check_structure.py) | 体积上限、长文档是否有目录、代码是否有内容表、新目录是否登记、**模块级 import 环**、**热点模块**、**新文件可达性**、**临时代码陈旧度** |
 | [`scripts/verify_docs.py`](scripts/verify_docs.py) | 悬空引用、孤儿文档、INDEX 预算、旧目录名 |
 | [`tools/scan_deps.py`](tools/scan_deps.py) | 依赖图、环、改动波及面（只读，体检调用它） |
 | [`tools/gen_code_tables.py`](tools/gen_code_tables.py) | 代码索引的表格数据（行数/职责/依赖，只输出不写文件） |
@@ -483,6 +483,28 @@ python tests/test_transition_table.py   # 编号 / 目录 / 拆分完整性
 >
 > 上面第 20 组（规范与实现一致）会**核对 `check_structure.py` 里的五个阈值
 > 与本文件里的数字是否同值** —— 改了阈值只改一边，这里立刻报。
+
+### 8.1 两个「必须有机器判据」但曾经没有的检查
+
+这两条写在规范里很久了，却一直**没有体检在守**。补上于 2026-10-09。
+
+| 检查 | 判据 | 为什么必须有 |
+| --- | --- | --- |
+| **新文件可达性** | `scripts/` 下每个 `.py` 必须满足：被别的模块 import、在 `install.ps1` 清单里、或已登记进 `CODE_INDEX.md` / `code-*.md` | §六.5 写「没人链到的文件等于不存在」，但"被链到"是**跨文件**关系，光看文件自己看不出它有没有人用 |
+| **临时代码陈旧度** | `tools/` 里非体检类脚本，`git log` 显示 `≥ 30 天`未动 → ADVISE | §六.6.1 要求临时代码及时清，但"多久没动"是意图问题，机器只能发现，**不能替你决定删** |
+
+**两个设计决定值得记下来**：
+
+1. **可达性只报 `scripts/`，不报 `tools/` 和 `tests/`。**
+   后两个是 DEV_ONLY，本来就是给人从命令行调的，不该要求被 import。
+2. **陈旧度用 `git log` 而不是文件 mtime。**
+   mtime 会被 checkout、复制、批量改写全部刷新，测出来的"多久没动"是假的。
+   **只有 git 记的是真实的最后一次内容变更。**
+
+> **可达性检查必须用负样本验证过**：造一个 `scripts/_probe_orphan.py`
+> 确认它真的会被报出来，然后删掉。
+> 「0 条违规」有两种可能——真的干净，或者判据写错了。
+> **分不清这两者，就不能相信这个 0。**
 
 ---
 

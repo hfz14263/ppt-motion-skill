@@ -22,6 +22,10 @@
      - 顶层目录必须出现在 install.ps1 的复制清单里，
        或明确登记为 DEV_ONLY                                   [FAIL]
   5. **结构自洽**（§六）：同一张表/同一段长文在两份文件里重复   [ADVISE]
+  6. **依赖方向**（§六.4）：模块级 import 环 / 热点模块          [FAIL/ADVISE]
+  7. **新文件可达**（§六.5）：新文件必须被入口或调用方链到         [FAIL]
+     —— 没人链到的文件等于不存在
+  8. **临时代码陈旧**（§六.6.1）：tools/ 里的脚本超期未动        [ADVISE]
 
 用法：
     python scripts/check_structure.py
@@ -32,7 +36,9 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
+import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
@@ -233,6 +239,166 @@ def check_duplication(advises):
             seen.setdefault(para, rel)
 
 
+def check_reachability(fails, advises):
+    """新文件必须被入口或调用方链到 —— 没人链到的文件等于不存在。
+
+    **为什么这条必须有机器判据**：`CONTRIBUTING.md` §六.5 写了
+    「新文件必须被入口或调用方链到」，但"被链到"是**跨文件**关系，
+    光看新文件自己永远看不出它有没有人用。靠自觉的结果是：
+    写完就忘，半年后仓库里躺着一个谁都不知道是什么的 `.py`。
+
+    **怎么判「被链到」**（三种都算，逐级放宽）：
+      ① 被另一个 `.py` 模块级 import          —— 代码链路
+      ② 被 `install.ps1` 的复制清单收录        —— 会随包分发
+      ③ 出现在 `CODE_INDEX.md` 的速查表里     —— 有人登记了它
+
+    **豁免**：入口文件（`selftest.py` 等）与 `tools/` 下的开发期脚本
+    不适用 —— 它们本来就是给人从命令行调的。这条只管"悄悄多出来的文件"。
+    """
+    # 入口文件：本身就是给人敲的，不该要求被别人 import
+    entrypoints = {"scripts/motion.py", "scripts/build_transition_table.py",
+                   "scripts/selftest.py", "scripts/review_assist.py"}
+    # 已知的一层入口，其子命令通过 argv 分发，不单独登记
+    known_entry = {"scripts/inspect_pptx.py", "scripts/install.ps1"}
+
+    sys.path.insert(0, os.path.join(ROOT, "tools"))
+    try:
+        import scan_deps
+        edges, _, _, mods = scan_deps.build_graph()
+    except ImportError:
+        edges, mods = {}, {}
+
+    referenced = set()
+    for _mod, deps in edges.items():
+        for d in deps:
+            # scan_deps 返回 `scripts.motion` 这种形式。
+            # ⚠️ 试完两种扩展名要 **break** —— 试完 `.py` 失败还继续试 `.ps1`，
+            # 循环结束时会留下最后一次的结果，于是 `tools/scan_deps.py`
+            # 被推成 `tools/scan_deps.ps1`（不存在）→ index-stale 假阳性。
+            for ext in (".py", ".ps1"):
+                p = d.replace(".", "/") + ext
+                if os.path.exists(os.path.join(ROOT, p)):
+                    referenced.add(p)
+                    break
+    # 反向补齐：包内模块的父包也算被链到（build_transition_table -> transition_probe.*）
+    for mod in mods:
+        if mod.startswith("scripts.transition_probe."):
+            referenced.add(mod.replace(".", "/") + ".py")
+
+    # ③ 索引登记
+    idx_p = os.path.join(ROOT, "CODE_INDEX.md")
+    if os.path.exists(idx_p):
+        for m in re.finditer(r"`([\w/.\-]+\.(?:py|ps1))`", read(idx_p)):
+            referenced.add(m.group(1))
+    for k in ("injection", "probe", "verify", "tooling"):
+        p = os.path.join(ROOT, "reference", "code-%s.md" % k)
+        if os.path.exists(p):
+            for m in re.finditer(r"`([\w/.\-]+\.(?:py|ps1))`", read(p)):
+                referenced.add(m.group(1))
+
+    # ② 分发清单
+    for rel in sorted(walk_files(".py")):
+        if not rel.startswith("scripts/"):
+            continue
+        if rel in entrypoints or rel in known_entry:
+            continue
+        if rel.endswith("__init__.py"):
+            continue
+        if rel in referenced:
+            continue
+        # 最后一道：是不是根本没有被登记进任何一份文档
+        fails.append({
+            "rule": "file-unreachable", "file": rel,
+            "note": "这个 .py 既没被任何模块 import，也不在 CODE_INDEX / "
+                    "code-*.md / install.ps1 里 —— 没人链得到它。"
+                    "要么链上，要么删掉（§六.5）",
+        })
+
+    # ④ 反向：索引里登记了但磁盘上没有 —— 索引自己腐烂了
+    # 这条**不能省**：③ 依赖索引完整，而索引完整正是这条要守的。
+    # 少了它，一个漏登记的 tools/ 脚本会**静默通过**（判据以索引为准，
+    # 索引没写它就等于它不存在）—— 这就是 2026-10-09 实际漏掉
+    # split_tests.py 与 archive_handover_85.py 的原因。
+    for rel in sorted(referenced):
+        if not (rel.startswith("scripts/") or rel.startswith("tools/")):
+            continue
+        if not os.path.exists(os.path.join(ROOT, rel)):
+            fails.append({
+                "rule": "index-stale", "file": rel,
+                "note": "索引里登记了这个文件，但磁盘上不存在 —— "
+                        "文件被删或改名了，索引没跟上（§十.5）",
+            })
+
+    # ⑤ tools/ 里也一样：磁盘上有、但四份子索引里一个都没提 → 漏登记
+    indexed = set()
+    for k in ("injection", "probe", "verify", "tooling"):
+        p = os.path.join(ROOT, "reference", "code-%s.md" % k)
+        if os.path.exists(p):
+            for m in re.finditer(r"`(tools/[\w.\-]+\.py)`", read(p)):
+                indexed.add(m.group(1))
+    td = os.path.join(ROOT, "tools")
+    if os.path.isdir(td):
+        for fn in sorted(os.listdir(td)):
+            if not fn.endswith(".py"):
+                continue
+            rel = "tools/" + fn
+            if rel not in indexed:
+                fails.append({
+                    "rule": "tool-not-indexed", "file": rel,
+                    "note": "tools/ 里的脚本没进任何一份 code-*.md —— "
+                            "索引漏了它。加进 tools/gen_code_tables.py 的 LAYERS",
+                })
+
+
+def check_stale_tools(advises):
+    """`tools/` 里的脚本多久没动了 —— 临时代码该清（§六.6.1）。
+
+    **为什么用 git 而不是文件时间戳**：文件 mtime 会被 checkout、
+    复制、批量改写全部刷新，测出来的"多久没动"是假的。
+    git log 记的是**真实的最后一次内容变更**。
+
+    **为什么只报 ADVISE 不报 FAIL**：一个脚本"该不该留"是**意图问题**，
+    只有作者知道（`CONTRIBUTING.md` §六.6.1 要求先问再删）。
+    机器只能发现"它很久没动了"，**不能替你决定删不删**。
+
+    豁免：只读体检工具常驻使用，不该被当成临时代码。
+    判据是**文件名**—— 带 `scan_` / `check_` / `measure_` 前缀的
+    是常驻体检器，其余都算可清理候选。
+    """
+    STALE_DAYS = 30
+    PERMANENT = ("scan_deps", "check_structure", "verify_docs", "measure_",
+                 "check_symptom", "gen_code_tables")
+    td = os.path.join(ROOT, "tools")
+    if not os.path.isdir(td):
+        return
+    try:
+        out = subprocess.run(
+            ["git", "log", "-1", "--format=%at", "--", "tools/"],
+            capture_output=True, cwd=ROOT)
+        if out.returncode != 0:
+            return
+    except (OSError, ValueError):
+        return
+
+    for fn in sorted(os.listdir(td)):
+        if not fn.endswith(".py"):
+            continue
+        if any(fn.startswith(p) for p in PERMANENT):
+            continue
+        r = subprocess.run(["git", "log", "-1", "--format=%at",
+                            "--", "tools/" + fn], capture_output=True, cwd=ROOT)
+        if r.returncode != 0 or not r.stdout.strip():
+            continue          # 从未提交过（新文件）→ 不报
+        ts = int(r.stdout.strip().split()[0])
+        days = (int(time.time()) - ts) // 86400
+        if days >= STALE_DAYS:
+            advises.append({
+                "rule": "stale-tool", "file": "tools/" + fn, "days": days,
+                "note": "%d 天没动过。是一次性脚本就该删；"
+                        "要留就问用户，并写清为什么留（§六.6.1）" % days,
+            })
+
+
 def check_import_cycles(fails, advises):
     """模块级 import 环 —— 依赖只能从上往下（CONTRIBUTING §六.4）。
 
@@ -283,6 +449,8 @@ def main(argv=None):
     check_code(fails, advises)
     check_dirs(fails)
     check_import_cycles(fails, advises)
+    check_reachability(fails, advises)
+    check_stale_tools(advises)
     check_duplication(advises)
 
     report = {"fails": fails, "advises": advises, "ok": not fails}

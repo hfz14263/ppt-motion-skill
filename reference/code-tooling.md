@@ -24,11 +24,11 @@
 | `scripts/push_via_api.py` | 当 github.com 被代理挡住、但 api.github.com 通时，用 Git Data API 推送 | 走 API 推送 | —（叶子） | —（没人依赖） | 203 行 |
 | `scripts/vendor_themes.py` | Vendor a curated set of design systems from open-kimi-ppt-skill (MIT) | 主题文件入库 | —（叶子） | —（没人依赖） | 89 行 |
 | `scripts/motion.ps1` | dsh-ppt-office-motion :: Office COM layer | Office COM 层：media 插入 + 真渲染 | —（叶子） | —（没人依赖） | 482 行 |
-| `scripts/make_calibration.ps1` | dsh-ppt-office-motion :: build the known-answer calibration deck + video | 造标定 deck + 标定视频 | —（叶子） | —（没人依赖） | 103 行 |
+| `scripts/make_calibration.ps1` | dsh-ppt-office-motion :: build the known-answer calibration deck + video | 造标定deck + 标定视频 | —（叶子） | —（没人依赖） | 103 行 |
 | `scripts/probe_anchor.ps1` | dsh-ppt-office-motion :: measure WHERE a slide transition actually takes effect | 测 `<p:transition>` 锚点在终点页还是出发页 | —（叶子） | —（没人依赖） | 185 行 |
-| `scripts/probe_createvideo.ps1` | dsh-ppt-office-motion :: probe whether Presentation.CreateVideo works HERE | 探测本机 `CreateVideo` 是否可用 | —（叶子） | —（没人依赖） | 146 行 |
+| `scripts/probe_createvideo.ps1` | dsh-ppt-office-motion :: probe whether Presentation.CreateVideo works HERE | 探测本机 CreateVideo 是否可用 | —（叶子） | —（没人依赖） | 146 行 |
 | `scripts/probe_enum_scan.ps1` | dsh-ppt-office-motion :: enum scan -- let PowerPoint name the transitions | 让 PowerPoint 自己给切换命名（反查猜错的元素名） | —（叶子） | —（没人依赖） | 70 行 |
-| `scripts/probe_roundtrip.ps1` | dsh-ppt-office-motion :: roundtrip an applied deck and read the transition back | 单 deck 往返：PowerPoint 认不认我写的切换 | —（叶子） | —（没人依赖） | 76 行 |
+| `scripts/probe_roundtrip.ps1` | dsh-ppt-office-motion :: roundtrip an applied deck and read the transition back | 单deck 往返：PowerPoint 认不认我写的切换 | —（叶子） | —（没人依赖） | 76 行 |
 | `scripts/probe_shapes.ps1` | dsh-ppt-office-motion :: render every shape-probe deck to a video | 把每个形状探针 deck 渲染成视频 | —（叶子） | —（没人依赖） | 109 行 |
 | `scripts/probe_timing_roundtrip.ps1` | dsh-ppt-office-motion :: roundtrip every deck in a dir and report what survived | 整目录往返：transition 与 timing 会不会互相吃掉 | —（叶子） | —（没人依赖） | 134 行 |
 | `scripts/probe_transitions.ps1` | dsh-ppt-office-motion :: transition probe -- PowerPoint roundtrip + enum readback | 切换探针：往返 + enum 回读 | —（叶子） | —（没人依赖） | 96 行 |
@@ -36,8 +36,18 @@
 | `tools/split_pitfalls.py` | 一次性的拆分器：把 com-pitfalls.md 按主题切成多份，编号保持不变 | 一次性：拆 pitfall 族 | —（叶子） | —（没人依赖） | 160 行 |
 | `tools/split_symptoms.py` | 一次性拆分器：把 symptoms.md 按「现象栏」切成多份 | 一次性：拆 symptom 族 | —（叶子） | —（没人依赖） | 119 行 |
 | `tools/split_morph_recipes.py` | 一次性拆分器：把 morph-and-3d-recipes.md 按主题切成 3 份 + 目录页 | 一次性：拆 morph 配方 | —（叶子） | —（没人依赖） | 105 行 |
+| `tools/split_tests.py` | 一次性拆分器：把 test_transition_table.py（1633 行 / 22 组）拆成三份 | 一次性：拆 test_transition_table.py 成三份 | —（叶子） | —（没人依赖） | 243 行 |
+| `tools/archive_handover_85.py` | 一次性归档器：把 HANDOVER.md §8 里**已完成**的三节搬进 history/ | 一次性：把 HANDOVER §8 已完成的三节搬进 history/ | —（叶子） | —（没人依赖） | 138 行 |
+| `tools/add_toc.py` | 给长文档补一张目录（TOC）—— 只加导航，不动正文一个字 | 给长文档加目录 | —（叶子） | —（没人依赖） | 160 行 |
+| `tools/collapse_symptom.py` | 分级收敛 symptom 侧正文：把重复正文换成指向根因的链接 | 根因收敛 1/3：重复节收敛为索引（幂等） | —（叶子） | —（没人依赖） | 199 行 |
+| `tools/add_symptom_view.py` | 给已收敛的 symptom 节补「现象」导语 | 根因收敛 2/3：给已收敛节补现象导语（幂等） | —（叶子） | —（没人依赖） | 109 行 |
+| `tools/link_symptom_to_pitfall.py` | 给档3（保留现象正文的节）补根因链接 | 根因收敛 3/3：给保留正文的节补根因链接（幂等） | —（叶子） | —（没人依赖） | 123 行 |
+| `tools/add_symptom_leadin.py` | 给 pitfall 顶层编号节插入「现象」导语 | 按 TSV 给 pitfall 顶层节插现象导语 | —（叶子） | —（没人依赖） | 145 行 |
+| `tools/rewrite_handover_sec8.py` | 一次性：把 HANDOVER.md §8 重写成「还没做的 + 归档指针 + 验证文化」 | 一次性：重写 HANDOVER §8 的一节 | —（叶子） | —（没人依赖） | 88 行 |
+| `tools/rewrite_morph_hub.py` | 一次性：把 morph-and-3d-recipes.md 改写成目录页（并入 §5 原文） | 一次性：重写 morph 配方枢纽页 | —（叶子） | —（没人依赖） | 86 行 |
+| `tools/archive_handover_backlog.py` | 一次性归档器：把 HANDOVER.md §8 里"已完成项的记录"搬进 history/ | 一次性：把 HANDOVER 待办按主题归档到history/ | —（叶子） | —（没人依赖） | 132 行 |
 
-共 15 个文件，其中 Python 972 行。
+共 25 个文件，其中 Python 2395 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。

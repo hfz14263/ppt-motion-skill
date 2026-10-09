@@ -47,7 +47,7 @@ Layer 0  数据（无本地依赖）
 ```
 
 **实测：模块级 import 环 = 0 处。**
-全库共 **57 个 Python 模块**（`scripts/` 22+6 · `tools/` 16 · `tests/` 11 + 其他），
+全库共 **58 个 Python 模块**（`scripts/` 22+6 · `tools/` 17 · `tests/` 11 + 其他），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
 
 唯一被设计出来的**表面环**是 `motion ⇄ check_coverage`：
