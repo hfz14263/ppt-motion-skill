@@ -28,7 +28,7 @@
 | `scripts/verify_recipes.py` | Validate the recipe library: structure, and the rule that keeps it from rotting | 配方库结构 | —（叶子） | —（没人依赖） | 106 行 |
 | `scripts/verify_docs.py` | Validate the documentation structure: references resolve, no orphans, facts unique | 文档结构与登记 | —（叶子） | —（没人依赖） | 237 行 |
 | `scripts/check_coverage.py` | dsh-ppt-office-motion :: spec coverage audit | spec 覆盖率审计 | `motion`、`player` | —（没人依赖） | 132 行 |
-| `scripts/check_structure.py` | 结构体检：把 CONTRIBUTING.md 的规则变成可执行的检查 | 仓库结构体检（行数/命名/体积/**import 环**/**热点**/**可达性**/**陈旧度**/**路径引用**） | —（叶子） | —（没人依赖） | 553 行 |
+| `scripts/check_structure.py` | 结构体检：把 CONTRIBUTING.md 的规则变成可执行的检查 | 仓库结构体检（行数/命名/体积/**import 环**/**热点**/**可达性**/**陈旧度**/**路径引用**/**已知断环**） | —（叶子） | —（没人依赖） | 615 行 |
 | `scripts/inspect_pptx.py` | inspect_pptx: is this .pptx actually animated, and how? | 看一个 pptx 到底有没有动效 | —（叶子） | —（没人依赖） | 187 行 |
 | `scripts/design_audit.py` | Audit a motion spec against the design spec's HARD constraints, and say plainly what it cannot judge | 设计层审计 | `motion`、`player` | —（没人依赖） | 378 行 |
 | `scripts/design_compose.py` | Read a design system and compose pages that follow it | 设计层合成 | —（叶子） | —（没人依赖） | 412 行 |
@@ -38,7 +38,7 @@
 | `tools/measure_overlap.py` | 只读测量：symptom-* 与 pitfall-* 两族按 §n 的正文重叠程度 | 两族文档逐节相似度（只读，分档依据） | —（叶子） | —（没人依赖） | 186 行 |
 | `tools/check_symptom_coverage.py` | 只读体检：pitfall 顶层编号节是否自带「现象/症状」导语 | pitfall 现象导语覆盖度（只读） | —（叶子） | —（没人依赖） | 68 行 |
 
-共 15 个文件，其中 Python 3820 行。
+共 15 个文件，其中 Python 3882 行。
 
 ---
 

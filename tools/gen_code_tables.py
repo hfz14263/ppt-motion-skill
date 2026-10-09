@@ -103,7 +103,6 @@ LAYERS = {
             ("tools/split_transition_probe.py", "一次性：拆 transition_probe 成包"),
             ("tools/split_commands.py", "一次性：把 commands.py 按探测维度拆成 5 份"),
             ("tools/split_motion.py", "一次性：把 motion.py 按分层拆成门面 + 四层（带完整性断言）"),
-            ("tools/_verify_motion_split.py", "拆 motion 后的验证：语句级比对 + 延迟导入检查"),
             ("tools/split_pitfalls.py", "一次性：拆 pitfall 族"),
             ("tools/split_symptoms.py", "一次性：拆 symptom 族"),
             ("tools/split_morph_recipes.py", "一次性：拆 morph 配方"),

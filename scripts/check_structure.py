@@ -32,6 +32,7 @@
     python scripts/check_structure.py --json
 """
 import argparse
+import ast
 import io
 import json
 import os
@@ -466,6 +467,66 @@ def check_stale_tools(advises):
             })
 
 
+# 刻意用**函数内延迟导入**打断的环 —— 这些不是违规，但也不能悄悄消失。
+# 格式：{模块: (函数名, 被延迟导入的模块)}；`None` 表示"只查它还在函数内"。
+KNOWN_BREAKS = {
+    "scripts/motion.py": ("main", "check_coverage"),
+}
+
+
+def check_known_breaks(fails):
+    """验证「刻意打断环」的延迟导入还在函数内。
+
+    **为什么这条必须单独查**：`motion ⇄ check_coverage` 那个表面环，
+    靠 `motion.py` 的 `main()` 里 `import check_coverage` 打断 —— 而
+    依赖扫描**故意忽略函数内导入**（`check_import_cycles` 只扫 `tree.body`）。
+
+    所以如果那条 import 被人"顺手提到模块级"，**环检测不会报** ——
+    因为提升之后它就真的成了模块级环，而我们又只对"已知刻意打断"沉默。
+    结果：依赖方向真的坏了，但体检说"0 环"。
+
+    → 环检测要忽略它，同时**必须有另一条判据盯着它别被挪走**。
+       这就是这条。两条判据方向相反，合起来才是完整的。
+    """
+    for rel, (func, target) in KNOWN_BREAKS.items():
+        p = os.path.join(ROOT, rel)
+        if not os.path.exists(p):
+            fails.append({"rule": "known-break-file-missing", "file": rel,
+                          "note": "登记在 KNOWN_BREAKS 里的文件不存在了"})
+            continue
+        tree = ast.parse(read(p), filename=rel)
+        # 模块级有没有？
+        at_mod = False
+        for n in tree.body:
+            if isinstance(n, (ast.Import, ast.ImportFrom)):
+                for a in n.names:
+                    if (a.asname or a.name).split(".")[0] == target:
+                        at_mod = True
+        if at_mod:
+            fails.append({
+                "rule": "known-break-lifted", "file": rel, "target": target,
+                "note": "延迟导入 %r 被提到模块级了 —— 它本来是刻意打断 "
+                        "motion ⇄ check_coverage 那个环的。提上去环就真的成立了，"
+                        "而依赖扫描**看不出这个退化**（它只扫模块级）" % target,
+            })
+            continue
+        # 目标函数里还在吗？
+        found = False
+        for n in ast.walk(tree):
+            if isinstance(n, ast.FunctionDef) and n.name == func:
+                for s in ast.walk(n):
+                    if isinstance(s, (ast.Import, ast.ImportFrom)):
+                        for a in s.names:
+                            if (a.asname or a.name).split(".")[0] == target:
+                                found = True
+        if not found:
+            fails.append({
+                "rule": "known-break-missing", "file": rel, "target": target,
+                "note": "在 %s() 里找不到延迟导入 %r —— 它被删了或改名了。"
+                        "要么恢复，要么从 KNOWN_BREAKS 里撤掉并说明" % (func, target),
+            })
+
+
 def check_import_cycles(fails, advises):
     """模块级 import 环 —— 依赖只能从上往下（CONTRIBUTING §六.4）。
 
@@ -518,6 +579,7 @@ def main(argv=None):
     check_code(fails, advises)
     check_dirs(fails)
     check_import_cycles(fails, advises)
+    check_known_breaks(fails)
     check_reachability(fails, advises)
     check_stale_tools(advises)
     check_path_refs(fails, advises)

@@ -56,7 +56,7 @@ Layer 0  数据（无本地依赖）
 > [`reference/code-injection.md`](reference/code-injection.md)。
 
 **实测：模块级 import 环 = 0 处。**
-全库共 **69 个 Python 模块**（`scripts/` 26+6 · `tools/` 20 · `tests/` 11 + 其他），
+全库共 **68 个 Python 模块**（`scripts/` 26+6 · `tools/` 20 · `tests/` 11 + 其他），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
 
 **改动波及面 ≥5 的模块（改之前先看清谁在用）**：
@@ -182,7 +182,7 @@ Layer 0  数据（无本地依赖）
 | `scripts/motion_xml.py` | 528 行，被 4 个依赖 | 引擎地基：`element_spans` 被 10 处调用 | 拆出来才看见的耦合点。**它比 `motion.py` 更该小心** —— 改它要过 3 个兄弟层的眼 |
 | `transition_probe/` 包内四层 | `common`(8) / `data`(7) / `decks`(6) / `analysis`(5) 被依赖 ≥5 | 数字大是因为含 `__init__.py` 的再导出 | **正常，不是问题** —— 包对外只有 1 个依赖者，复杂度关在包里了 |
 | ~~`scripts/transition_probe/commands.py`~~ | ~~1367 行，超 800 软上限~~ | 19 个 CLI 子命令曾经都挤在一处 | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按探测维度分。无损：19 个函数逐字节相同 |
-| `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉"。拆分时那条 `import` 跟着 `main()` 留在门面，**有专门验证**（`tools/_verify_motion_split.py` 查它没被提到模块级） |
+| `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉"。拆分时那条 `import` 跟着 `main()` 留在门面 —— **有常驻判据盯着它**（`check_structure.py` 的 `check_known_breaks()`：环检测故意忽略函数内导入，就必须有另一条判据防止它被挪走） |
 | `tools/` | 28 个脚本，含 8 个一次性拆分/归档器 | 一次性工具拆完即删 | **默认留着当样板**（`split_*.py` 是"怎么拆"的唯一记录）；要删会先问你 —— 见 [`CONTRIBUTING.md`](CONTRIBUTING.md) §六.6.1 |
 
 ---
