@@ -345,10 +345,18 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 
 ## 8. 还没做的
 
-**只有这一条是真·待办** —— 其余 7 条都已完成，归档在 [`history/`](history/README.md)。
+**两条真·待办** —— 其余 7 条都已完成，归档在 [`history/`](history/README.md)。
 
 2. **多 API 协作** —— 素材生成（尤其抠图/插画）接专门的图像生成 AI，
    替代 `grabCut` 这类兜底方案。
+
+3. **`verify_recipes` 的最后一条悬空证据** —— 配方 `move-the-mask-not-the-image`
+   的证据里写着 `reproduced in building/out/fan_final.pptx`，而那个文件**从未入库**
+   （`building/` 已不存在，全盘找过）。判据把"无法验证的复现声明"报为悬空
+   （2026-09-30 时 5 条，现剩 1 条）。
+   **2026-10-09 用户定：等文件** —— 用户次日把 fan 的 pptx 带来 →
+   把证据改指向它（先核对它确实是那个机制：pie 扇形 + `useBgFill` + rot 差），
+   `verify_recipes` 即可全绿。
 
 ### 8.1 已经做完的 → 归档在 [`history/`](history/README.md)
 
