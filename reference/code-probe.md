@@ -160,7 +160,7 @@
 | 我要做的事 | 去哪 |
 | --- | --- |
 | 加一种切换形态 | `facts/transitions.json` + `transition_probe/data.py` |
-| 加一种相机路径 | `facts/cameras.json` + `transition_probe/data.py` |
+| 加一种相机路径 | 改 `scripts/build_camera_table.py` 重跑 → 结果写进 `reference/camera-reference.md`（它由 `facts/axes.json` 声明为唯一真相源） |
 | 加一种形状证据实验 | `build_shape_evidence.py` + `probe_shapes.ps1` |
 | 改页面切换机制（为什么挂终点页） | `reference/transition-model.md` —— **唯一真相源** |
 | 加探针子命令 | 按维度选一个 `transition_probe/commands_*.py`（table/mechanism/shape/attr/timing）|

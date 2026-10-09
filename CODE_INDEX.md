@@ -136,7 +136,7 @@ Layer 0  数据（无本地依赖）
 
 | 我要做的事 | 改这里 | 注意 |
 | --- | --- | --- |
-| 加一种动画效果 | `facts/effects.json` → 再确认 `scripts/motion_catalog.json` | 数据驱动；**不要**手改 `motion.py` 的模板表 |
+| 加一种动画效果 | `scripts/motion_catalog.json`（**137 个效果的权威表**，COM 提取） | 数据驱动；**不要**手改 `motion.py` 的模板表。别名↔presetID 的规则在 `facts/symbols.json` |
 | 加一个切换形态 | `facts/transitions.json` + `scripts/transition_probe/data.py` | 形态定义走数据，实测走探针 |
 | 改注入逻辑（写 OOXML） | `scripts/motion.py` | 已 1914 行，**接近 2000 硬上限**；新逻辑优先放进现有职责区段，实在放不下才拆 |
 | 加一个 CLI 子命令 | `scripts/motion.py` 的CLI 分发 | 子命令名是接口，**改名要改全仓库** |

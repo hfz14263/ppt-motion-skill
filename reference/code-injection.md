@@ -102,7 +102,7 @@ spec 解释权只留一份，否则预览和真注入会漂。
 
 | 我要做的事 | 去哪 |
 | --- | --- |
-| 加一种动画效果 | 改 `facts/effects.json`，**不要**动 `motion.py` 的模板表 |
+| 加一种动画效果 | 改 `scripts/motion_catalog.json`（**权威表**，COM 提取的真实 presetID），**不要**动 `motion.py` 的模板表 |
 | 加一种切换形态 | 改 `facts/transitions.json` + `transition_probe/data.py` |
 | 改注入逻辑 | `scripts/motion.py`，先读上面「已知热点」 |
 | 改 spec 字段 | `normalize_spec`，字段含义同步写 `SKILL.md` |

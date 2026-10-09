@@ -55,7 +55,14 @@ OOXML —— 那会让你得到完全不同的效果,而且结构校验全过。
 | 79 | msoAnimEffectStyleEmphasis | |
 | 83 / 84 / 85 / 150 | msoAnimEffectMediaPlay / Pause / Stop / PlayFromBookmark | **走媒体层,不是效果** |
 
-要补某个:把枚举值加进 `scripts/alias_probe.ps1` 的映射表,重跑提取。
+要补某个:用 COM 逐个 `AddEffect` 后回读 XML(手法同
+`scripts/probe_enum_scan.ps1` —— 那个脚本也是"让 PowerPoint 自己写出来,
+再读回它写了什么"),把结果补进 `scripts/motion_catalog.json`。
+
+> ⚠️ 这里以前写的是"把枚举值加进 ~~`scripts/alias_probe.ps1`~~ 的映射表" ——
+> **那个脚本从来没有在这个仓库里存在过**（git 历史里查不到）。
+> 一条指向不存在文件的指引比没有指引更坏：照着做的人会先花时间找它。
+> 现在 `check_structure.py` 的 `check_path_refs()` 会守住这类错。
 
 ---
 

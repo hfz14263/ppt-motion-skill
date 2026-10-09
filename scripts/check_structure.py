@@ -81,6 +81,17 @@ CODE_SPLIT_EXEMPT = {
 # 这些顶层目录是开发期的，明确不随包分发（与 test_install_manifest 同源）
 DEV_ONLY_DIRS = {"tests", "tools", "__pycache__", ".workbuddy", ".git"}
 
+# 文档里引用的路径存在性检查 —— 举例性质的登记在此，带理由
+PATH_REF_EXEMPT = {
+    "scripts/_probe_orphan.py": {
+        "why": "CONTRIBUTING §八.1 用它举例说明「负样本验证」——"
+               "这个文件从来不该存在，是造出来验证判据的",
+    },
+}
+
+# 归档目录不检查路径引用：**改历史记录就是毁证**（见 history/README.md）
+PATH_REF_SKIP_DIRS = {"history"}
+
 SKIP_DIRS = {".git", "__pycache__", ".workbuddy", "node_modules"}
 # 上游 vendored 内容不算我们的（它们有自己的许可与 README）
 UPSTREAM = re.compile(r"vendored from|upstream content", re.I)
@@ -219,6 +230,54 @@ def check_dirs(fails):
                 "note": "这个目录有文档，但不在 verify_docs.py 的 SCAN_DIRS 里 —— "
                         "里面写一份没人链的文件不会有任何提示",
             })
+
+
+def strip_strikethrough(text):
+    """剥掉行内 `~~删除线~~` —— 那是"此条作废"的留痕，不是活引用。
+
+    索引里会保留"这个文件已拆，原条目留作参照"的记录（带删除线）。
+    不剥掉的话，一份**已作废的留痕**会被判成"登记了不存在的文件"
+    （2026-10-09 实际撞到）。
+    """
+    return "\n".join(re.sub(r"~~[^~]*~~", "", ln) for ln in text.split("\n"))
+
+
+def check_path_refs(fails, advises):
+    """文档里写 `scripts/foo.py`，就必须真的有这个文件。
+
+    **为什么这条重要**：指向不存在文件的指引**比没有指引更坏** ——
+    照着做的人会先花时间找它，找到最后才发现得自己写。
+    2026-10-09 实测：278 处路径引用里 4 处指错，包括
+    `facts/effects.json` 和 `facts/cameras.json`（根本不存在的文件）
+    和 `scripts/alias_probe.ps1`（**从未在这个仓库出现过**）。
+    而其中两处就在 `CODE_INDEX.md` 的「扩展点」表里 ——
+    **那是这份索引存在的核心理由**。
+
+    两种豁免（都写在代码里，不靠人记）：
+      · `~~删除线~~` 里的 —— 那是作废留痕
+      · `history/` —— 归档，**改它就是毁证**，整目录不检查
+    """
+    pat = re.compile(
+        r"`((?:scripts|tools|tests|reference|facts)/[\w/.\-]+\.(?:py|ps1|md|json))`")
+    for rel in sorted(walk_files(".md")):
+        top = rel.split("/")[0]
+        if top in PATH_REF_SKIP_DIRS:
+            continue
+        body = strip_strikethrough(read(os.path.join(ROOT, rel)))
+        for i, ln in enumerate(body.split("\n")):
+            for m in pat.finditer(ln):
+                ref = m.group(1)
+                if os.path.exists(os.path.join(ROOT, ref)):
+                    continue
+                if ref in PATH_REF_EXEMPT:
+                    continue
+                fails.append({
+                    "rule": "path-ref-missing", "file": rel, "line": i + 1,
+                    "ref": ref,
+                    "note": "文档里写了这个路径，但它不存在 —— "
+                            "读者照着做会先花时间找它。改掉，或登记进 "
+                            "check_structure.PATH_REF_EXEMPT 并说明理由",
+                })
 
 
 def check_duplication(advises):
@@ -461,6 +520,7 @@ def main(argv=None):
     check_import_cycles(fails, advises)
     check_reachability(fails, advises)
     check_stale_tools(advises)
+    check_path_refs(fails, advises)
     check_duplication(advises)
 
     report = {"fails": fails, "advises": advises, "ok": not fails}
