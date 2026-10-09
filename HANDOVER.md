@@ -160,7 +160,15 @@ scripts/
     data.py                   探测数据：假设表与各 PROBE 名单
     decks.py                  deck 构造（假设 → slide XML，纯设置）
     analysis.py               帧分析与表构造
-    commands.py               19 个 CLI 子命令（名字是接口，不能改）
+    commands_table.py         建表主链路（造 deck → 枚举扫描 → 合并成表）
+    commands_mechanism.py     机制层：切换挂在哪一页
+    commands_shape.py         形态层与方向
+    commands_attr.py          属性取值全集
+    commands_timing.py        切换 × 页内动画
+                              └ 五个 commands_* = 19 个 CLI 子命令，
+                                2026-10-09 从单份 1367 行的 commands.py 按
+                                **探测维度**拆开（同一层的兄弟，互不调用）。
+                                **名字是接口，不能改**
   build_shape_evidence.py     形态层正确性证据（左栏判定 + 右栏真实渲染 GIF）
   build_pitfall_map.py        ★ `§n` → 文件的映射表**生成器**（表不能手抄）
   verify_docs.py              ★ 文档结构校验：悬空引用 / 孤儿 / 入口预算
@@ -456,7 +464,7 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 | ~~`scripts/build_transition_table.py` 3048 行~~ | ✅ **已拆**（2026-09-30）→ `transition_probe/` 包五层。豁免已撤销，见归档的 §8.4 |
 | `reference/symptom-*.md` 与 `reference/pitfall-*.md` 内容重叠 | ✅ **已收敛**（2026-10-08）→ 根因正文只留 `pitfall-*`，`symptom-*` 退化为索引层。重叠量与分档见归档的 §8.3.1 |
 | ~~`scripts/motion.py` 1914 行~~ | ⏸️ **明确不拆**（2026-10-08 用户决定）。已报为 `hot-module` ADVISE 持续可见 —— 要动 10 个依赖者，不是单次改动能验证的 |
-| `scripts/transition_probe/commands.py` 1367 行 | ⏸️ **待拆**。样板 `tools/split_transition_probe.py` 已就绪；按**子命令领域**分（enum / deck / roundtrip / camera / shape），**不按行数切** |
+| ~~`scripts/transition_probe/commands.py` 1367 行~~ | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按**探测维度**分：建表主链路 / 机制 / 形态与方向 / 属性 / 时序。无损证据：19 个函数**逐字节相同**。样板 `tools/split_commands.py` 留着照抄 |
 
 > **为什么挂起而不是删掉这条记录**：测出来的数字不会过期，
 > 而"当时为什么没立刻处理"也是上下文的一部分。

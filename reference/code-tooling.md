@@ -33,6 +33,7 @@
 | `scripts/probe_timing_roundtrip.ps1` | dsh-ppt-office-motion :: roundtrip every deck in a dir and report what survived | 整目录往返：transition 与 timing 会不会互相吃掉 | —（叶子） | —（没人依赖） | 134 行 |
 | `scripts/probe_transitions.ps1` | dsh-ppt-office-motion :: transition probe -- PowerPoint roundtrip + enum readback | 切换探针：往返 + enum 回读 | —（叶子） | —（没人依赖） | 96 行 |
 | `tools/split_transition_probe.py` | 一次性拆分器：把 build_transition_table.py（3048 行）拆成 transition_probe/ 包 | 一次性：拆 transition_probe 成包 | —（叶子） | —（没人依赖） | 296 行 |
+| `tools/split_commands.py` | 一次性拆分器：把 transition_probe/commands.py（1367 行 / 19 个 cmd）按功能域拆开 | 一次性：把 commands.py 按探测维度拆成 5 份 | —（叶子） | —（没人依赖） | 216 行 |
 | `tools/split_pitfalls.py` | 一次性的拆分器：把 com-pitfalls.md 按主题切成多份，编号保持不变 | 一次性：拆 pitfall 族 | —（叶子） | —（没人依赖） | 160 行 |
 | `tools/split_symptoms.py` | 一次性拆分器：把 symptoms.md 按「现象栏」切成多份 | 一次性：拆 symptom 族 | —（叶子） | —（没人依赖） | 119 行 |
 | `tools/split_morph_recipes.py` | 一次性拆分器：把 morph-and-3d-recipes.md 按主题切成 3 份 + 目录页 | 一次性：拆 morph 配方 | —（叶子） | —（没人依赖） | 105 行 |
@@ -47,7 +48,7 @@
 | `tools/rewrite_morph_hub.py` | 一次性：把 morph-and-3d-recipes.md 改写成目录页（并入 §5 原文） | 一次性：重写 morph 配方枢纽页 | —（叶子） | —（没人依赖） | 86 行 |
 | `tools/archive_handover_backlog.py` | 一次性归档器：把 HANDOVER.md §8 里"已完成项的记录"搬进 history/ | 一次性：把 HANDOVER 待办按主题归档到history/ | —（叶子） | —（没人依赖） | 132 行 |
 
-共 25 个文件，其中 Python 2395 行。
+共 26 个文件，其中 Python 2611 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。
@@ -93,26 +94,40 @@ media（视频/音频）插入，和让 PowerPoint 真开真存。
 
 ---
 
-## 一次性拆分工具（`tools/split_*.py`）
+## 一次性拆分/归档工具（`tools/split_*.py`、`archive_*`）
 
 **它们的作用已经完成，但脚本要留着** —— 下次拆文件时照抄它的做法比自己想靠谱。
 
-| 脚本 | 拆了什么 | 拆前的体积 |
-| --- | --- | --- |
-| `split_transition_probe.py` | `build_transition_table.py` → `transition_probe/` 包 | 3048 行 |
-| `split_pitfalls.py` | `com-pitfalls.md` → 10 份 `pitfall-*.md` | 单文件巨长 |
-| `split_symptoms.py` | `symptoms.md` → 5 份 `symptom-*.md` | 同上 |
-| `split_morph_recipes.py` | `morph-and-3d-recipes.md` → 3 份 + 目录页 | 同上 |
+**按"拆什么"分两类，各有一个样板**：
+
+| 脚本 | 干了什么 | 拆前体积 | 适用场景 |
+| --- | --- | --- | --- |
+| `split_transition_probe.py` | `build_transition_table.py` → `transition_probe/` 五层包 | 3048 行 | 拆**整个模块**成多层包 |
+| `split_commands.py` | `transition_probe/commands.py` → 5 个平级 `commands_*.py` | 1367 行 | 拆**一个层**成同层兄弟 |
+| `split_tests.py` | `test_transition_table.py` → 三份测试 + `helpers.py` | 1633 行 | 拆**测试文件**（带 `helpers.py` 提取） |
+| `split_pitfalls.py` | `com-pitfalls.md` → 10 份 `pitfall-*.md` | 单文件巨长 | 拆**文档**（编号保住） |
+| `split_symptoms.py` | `symptoms.md` → 5 份 `symptom-*.md` | 同上 | 同上 |
+| `split_morph_recipes.py` | `morph-and-3d-recipes.md` → 3 份 + 目录页 | 同上 | 同上 |
+| `archive_handover_85.py` | `HANDOVER.md` §8 的三节 → `history/` | 21901 字符 | **归档**（不是拆分：内容整块搬走） |
+
+**四条硬约束（每一条都是踩出来的）**：
+
+1. **外部接口零变化** —— 函数名 / CLI 子命令名 / 退出码全不变
+2. **逐符号搬运，逐字节验证** —— `split_commands.py` 的验收是
+   "19 个函数拆前拆后**逐字节相同**"，不是"看起来对"
+3. **拆分脚本的产物会覆盖自己的输入** —— 所以**必须从 git 取源**
+   （`split_tests.py` 第一版踩过：第一次成功、第二次切出乱码）
+4. **搬完必须跑测试** —— 代码依赖自身位置时（`__file__` 拼路径）
+   搬运会改变行为，静态检查看不见
 
 **为什么不删**：
 它们是**怎么做拆分**的唯一完整记录，删了下次就是重新踩一遍。
-体积代价（972 行Python）是值得的。
+体积代价（2611 行 Python）是值得的。
 
 > **但这不等于 `tools/` 里的东西都不许删。**
-> 判断标准见 [`CONTRIBUTING.md`](../CONTRIBUTING.md) §九：
+> 判断标准见 [`CONTRIBUTING.md`](../CONTRIBUTING.md) §六.6.1：
 > **我（AI）认为当前任务已完成、为此生成的临时文件可以删时，
 > 会先逐个问你，得到答复才删。**
-> 已确认无用的，问过你之后删。
 
 ---
 

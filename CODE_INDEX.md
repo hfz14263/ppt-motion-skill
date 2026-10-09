@@ -34,7 +34,7 @@ Layer 2  校验与探针
          verify_motion.py · verify_singletons.py · check_coverage.py
          verify_docs.py · check_structure.py · verify_recipes.py
          verify_dual_photo.py
-         transition_probe/（common → data → decks → analysis → commands）
+         transition_probe/（common → data → decks → analysis → commands_*）
          build_*.py · analyze_video.py · design_audit.py · design_compose.py
               │
               ▼
@@ -47,14 +47,31 @@ Layer 0  数据（无本地依赖）
 ```
 
 **实测：模块级 import 环 = 0 处。**
-全库共 **58 个 Python 模块**（`scripts/` 22+6 · `tools/` 17 · `tests/` 11 + 其他），
+全库共 **63 个 Python 模块**（`scripts/` 22+6 · `tools/` 17 · `tests/` 11 + 其他），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
+
+**改动波及面 ≥5 的模块（改之前先看清谁在用）**：
+
+| 模块 | 被 N 个依赖 | 说明 |
+| --- | --- | --- |
+| `scripts/motion.py` | **10** | 全库第一。1914 行，只立规范不拆 |
+| `transition_probe/common.py` | 8 | 只有 108 行，但是全包的地基 |
+| `transition_probe/data.py` | 7 | 形态定义表 |
+| `transition_probe/decks.py` | 6 | 造 deck |
+| `transition_probe/analysis.py` | 5 | 量帧 |
+
+> 包内那四个的依赖者里含 `__init__.py`（它 import 全部五层是为了再导出）。
+> **不是虚高** —— 改 `common.py` 时它的再导出行确实也要看一眼。
 
 唯一被设计出来的**表面环**是 `motion ⇄ check_coverage`：
 `motion.py check` 子命令用**函数内延迟导入**转发到 `check_coverage.main()`。
 这是**刻意打断环**的手法，不是违规 —— 所以依赖扫描只统计模块级 import。
 
 > 想知道谁依赖谁、被依赖多少：跑 `python tools/scan_deps.py`（只读）。
+>
+> ⚠️ **2026-10-09 修过两个"依赖图静默失真"的 bug**：相对导入缺点号、
+> `__init__.py` 的包算成父目录 —— 两次都让整个包的依赖**在图上消失**，
+> 看起来像"这里没有依赖"。**图上没有依赖，要先怀疑判据，再下结论。**
 
 ---
 
@@ -127,7 +144,7 @@ Layer 0  数据（无本地依赖）
 | 加一种验证 | `scripts/verify_*.py` | 四道门各有位置，见下|
 | 加一条体检规则 | `scripts/check_structure.py` | **必须同时更新 `CONTRIBUTING.md`**，否则体检和文档会分叉 |
 | 改文档结构 / 加文档 | `scripts/verify_docs.py` 的 `SCAN_DIRS` | **不同步登记 = 该目录完全不被检查** |
-| 加探针实测 | `scripts/transition_probe/` | 严格分层：`common → data → decks → analysis → commands` |
+| 加探针实测 | `scripts/transition_probe/` | 严格分层：`common → data → decks → analysis → commands_*`（五个 commands 是同层兄弟） |
 | 改页面切换机制 | `reference/transition-model.md` | 机制层文档是**唯一真相源**，`facts/transitions.json` 声明它 |
 | 改设计规范 | `reference/motion-design-spec.md` | 与 `facts/` 冲突时以 `facts/` 为准 |
 
@@ -150,10 +167,11 @@ Layer 0  数据（无本地依赖）
 
 | 文件 / 位置 | 症状 | 为什么特殊 | 现状 |
 | --- | --- | --- | --- |
-| `scripts/motion.py` | 1914 行，**逼近 2000 硬上限** | 全库被依赖最多的文件（10 个模块） | 已定：**本轮只立规范，不拆**。拆它要动 10 个依赖者，不是单次改动能验证的 |
-| `scripts/transition_probe/commands.py` | 1367 行，超 800 软上限 | 19 个 CLI 子命令都在这里 | 拆分样板（见 `history/`）已验证可行，待拆时照抄 |
+| `scripts/motion.py` | 1914 行，**逼近 2000 硬上限** | 全库被依赖最多的文件（10 个模块） | 已定：**只立规范，不拆**。拆它要动 10 个依赖者，不是单次改动能验证的 |
+| `transition_probe/` 包内四层 | `common`(8) / `data`(7) / `decks`(6) / `analysis`(5) 被依赖 ≥5 | 数字大是因为含 `__init__.py` 的再导出 | **正常，不是问题** —— 包对外只有 1 个依赖者，复杂度关在包里了 |
+| ~~`scripts/transition_probe/commands.py`~~ | ~~1367 行，超 800 软上限~~ | 19 个 CLI 子命令曾经都挤在一处 | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按探测维度分。无损：19 个函数逐字节相同 |
 | `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉" |
-| `tools/` | 15 个脚本，含一次性拆分工具 | 一次性工具拆完即删 | 删不删由我逐个问你 —— 见 [`CONTRIBUTING.md`](CONTRIBUTING.md) §九 |
+| `tools/` | 26 个脚本，含 7 个一次性拆分/归档器 | 一次性工具拆完即删 | **默认留着当样板**（`split_*.py` 是"怎么拆"的唯一记录）；要删会先问你 —— 见 [`CONTRIBUTING.md`](CONTRIBUTING.md) §六.6.1 |
 
 ---
 

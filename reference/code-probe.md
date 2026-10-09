@@ -21,25 +21,36 @@
 
 | 文件 | 职责 | 对外接口 / 入口 | 依赖谁 | 被谁依赖 | 体积 |
 | --- | --- | --- | --- | --- | --- |
-| `scripts/build_transition_table.py` | Build the slide-transition reference table（入口） | 切换实测入口，转发到 `transition_probe/` | `transition_probe` | —（没人依赖） | 139 行 |
-| `scripts/transition_probe/__init__.py` | transition_probe — 切换实测探针工具包（从单文件拆出） | 包标记 | —（叶子） | `build_transition_table` | 20 行 |
-| `scripts/transition_probe/common.py` | transition_probe.common — 共享常量与通用工具 | COM 会话与共用小工具 | —（叶子） | —（没人依赖） | 108 行 |
-| `scripts/transition_probe/data.py` | transition_probe.data — 探测数据表 | 切换形态定义 | —（叶子） | —（没人依赖） | 397 行 |
-| `scripts/transition_probe/decks.py` | transition_probe.decks — deck 构造器 | 造 deck | —（叶子） | —（没人依赖） | 521 行 |
-| `scripts/transition_probe/analysis.py` | transition_probe.analysis — 帧分析与表构造 | 量帧与数据分析 | —（叶子） | —（没人依赖） | 629 行 |
-| `scripts/transition_probe/commands.py` | transition_probe.commands — CLI 子命令 | 19 个 CLI 子命令的实现 | —（叶子） | —（没人依赖） | 1367 行 ⚠️ 超 800 |
-| `scripts/build_camera_table.py` | Build the 3D camera reference table: parameter -> MEASURED rendered result | 相机路径实测表 | —（叶子） | —（叶子） | 664 行 |
-| `scripts/build_shape_evidence.py` | 把 3a 的【文字判定】与【渲染实物】放进同一份 deck，供人眼复核 | 形状证据实测 | —（叶子） | —（叶子） | 361 行 |
+| `scripts/build_transition_table.py` | Build the slide-transition reference table（入口） | 切换实测入口，转发到 transition_probe/ | `transition_probe` | —（没人依赖） | 143 行 |
+| `scripts/transition_probe/__init__.py` | transition_probe — 切换实测探针工具包（从单文件拆出） | 包标记 | `analysis`、`commands_attr`、`commands_mechanism`、`commands_shape`、`commands_table`、`commands_timing`、`common`、`data`、`decks` | `build_transition_table` | 24 行 |
+| `scripts/transition_probe/common.py` | transition_probe.common — 共享常量与通用工具 | COM 会话与共用小工具 | —（叶子） | `transition_probe`、`analysis`、`commands_attr`、`commands_mechanism`、`commands_shape`、`commands_table`、`commands_timing`、`decks` | 108 行 |
+| `scripts/transition_probe/data.py` | transition_probe.data — 探测数据表 | 切换形态定义 | —（叶子） | `transition_probe`、`analysis`、`commands_attr`、`commands_shape`、`commands_table`、`commands_timing`、`decks` | 397 行 |
+| `scripts/transition_probe/decks.py` | transition_probe.decks — deck 构造器 | 造deck | `common`、`data` | `transition_probe`、`commands_attr`、`commands_mechanism`、`commands_shape`、`commands_table`、`commands_timing` | 521 行 |
+| `scripts/transition_probe/analysis.py` | transition_probe.analysis — 帧分析与表构造 | 量帧与数据分析 | `common`、`data` | `transition_probe`、`commands_attr`、`commands_shape`、`commands_table`、`commands_timing` | 629 行 |
+| `scripts/transition_probe/commands_table.py` | transition_probe.commands_table — 建表主链路 | 建表主链路：造 deck → 枚举扫描 → 合并成表 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 395 行 |
+| `scripts/transition_probe/commands_mechanism.py` | transition_probe.commands_mechanism — 机制层 | 机制层：切换挂在哪一页 | `common`、`decks` | `transition_probe` | 206 行 |
+| `scripts/transition_probe/commands_shape.py` | transition_probe.commands_shape — 形态层与方向 | 形态层与方向：效果看起来在做什么 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 351 行 |
+| `scripts/transition_probe/commands_attr.py` | transition_probe.commands_attr — 属性取值全集 | 属性取值全集 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 160 行 |
+| `scripts/transition_probe/commands_timing.py` | transition_probe.commands_timing — 切换 × 页内动画 | 切换 × 页内动画：结构平行、时间串行 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 315 行 |
+| `scripts/build_camera_table.py` | Build the 3D camera reference table: parameter -> MEASURED rendered result | 相机路径实测表 | —（叶子） | —（没人依赖） | 664 行 |
+| `scripts/build_shape_evidence.py` | 把 3a 的【文字判定】与【渲染实物】放进同一份 deck，供人眼复核 | 形状证据实测 | —（叶子） | —（没人依赖） | 361 行 |
 | `scripts/build_dual_photo.py` | 构造"同图双版本"版式的样例页，供 verify_dual_photo.py 做正/负对照 | 双色照片对照实验 | —（叶子） | `test_dual_photo` | 184 行 |
 | `scripts/analyze_video.py` | dsh-ppt-office-motion :: motion analysis from a video recording | 视频逐帧分析 | —（叶子） | —（没人依赖） | 424 行 |
 | `scripts/build_pitfall_map.py` | 生成 reference/pitfall-map.md —— §编号 → 文件的唯一映射 | 生成症状→根因映射表 | —（叶子） | —（没人依赖） | 138 行 |
 
-共 12 个文件，其中 Python 4952 行。
+共 16 个文件，其中 Python 5020 行。
 
-> **包内为什么显示"叶子"**：`transition_probe/` 各模块之间用**相对导入**
-> （`from .common import ...`），扫描按包边界处理，所以对外呈现为叶子节点。
-> 这不是依赖缺失 —— 包内**严格分层**：`common → data → decks → analysis → commands`，
-> 下层不反向 import 上层。这条分层是有意的，别为了"让依赖图好看"改掉。
+> **包内依赖现在是可见的（2026-10-09 修复）。**
+> `scan_deps` 曾把相对导入 `from .common import X` 拼成
+> `...transition_probecommon`（**缺点号**），于是在依赖图上整个包的内部依赖
+> **静默消失** —— 看起来像"包内没有依赖"。
+>
+> 更糟的是：当时给这个现象编了个听起来合理的解释（"扫描按包边界处理"）
+> 写在这里 —— **一个 bug 就这么被解释成了设计**。
+> 这与 `CONTRIBUTING.md` §十.4 记的是同一类错：**度量工具错了，结论就反了。**
+>
+> 修好后实测（下面那张图现在是**跑出来的**，不是读代码看出来的）：
+> 包内**严格分层、0 环**。
 
 ---
 
@@ -48,19 +59,41 @@
 拆开之后单文件都不大（最大 629 行），但**依赖必须单向**：
 
 ```text
-  commands.py        19 个 CLI 子命令，只做参数解析与调度
+  commands_table.py      建表主链路：造 deck → 枚举扫描 → 合并成表
+  commands_mechanism.py  机制层：切换挂在哪一页
+  commands_shape.py      形态层与方向：效果看起来在做什么
+  commands_attr.py       属性取值全集
+  commands_timing.py     切换 × 页内动画：结构平行、时间串行
+      ▲  19 个 CLI 子命令（同一层的五个兄弟，互不调用）
+      │
+  analysis.py            量帧、算差异、构造结果表      （被 5 个依赖）
       ▲
-  analysis.py        量帧、算差异、构造结果表
+  decks.py               造 deck（每候选一个）          （被 6 个依赖）
       ▲
-  decks.py           造 deck（每候选一个）
+  data.py                形态定义（哪些要测）            （被 7 个依赖）
       ▲
-  data.py            形态定义（哪些要测）
-      ▲
-  common.py          COM 会话、常量、通用小工具
+  common.py              COM 会话、常量、通用小工具      （被 8 个依赖）
 ```
 
+**这张图是 `python tools/scan_deps.py` 跑出来的**（0 环），不是读代码看出来的。
+「被 N 个依赖」就是**改动波及面**：改 `common.py` 会影响 8 个模块 ——
+它虽然只有 108 行，但它是全包的地基。
+
+> 依赖者里包含 `__init__.py`（它 import 全部五个层是为了再导出，那是它的职责）。
+> 所以这里的 N 比"业务模块"数多 1 —— **不是虚高**：改 `common.py` 时
+> `__init__.py` 的再导出行确实也要看一眼。
+
+> **包内也有热点，这是正常的。** 包**对外**只有 1 个依赖者
+> （`build_transition_table.py`），把复杂度关在了包里 —— 这正是拆包的目的。
+> 但**包内**的 `common` / `data` / `decks` / `analysis` 被依赖 ≥5，
+> 体检会报 `hot-module` ADVISE。那不是问题，是提醒"改之前先看清谁在用"。
+
 **唯一入口**：`build_transition_table.py`转发到包。
-其他模块**不许**直接 import `commands`—— 想跑实测请走入口，那是接口。
+其他模块**不许**直接 import `commands_*` —— 想跑实测请走入口，那是接口。
+
+> **五个 `commands_*` 是同一层的兄弟，不是一个调用链。**
+> 实测：19 个函数**没有一个调用另一个**，它们都只依赖下面四层。
+> 所以拆它们不影响分层 —— 是"五个并列的门面"，不是"五级台阶"。
 
 ### 为什么"一候选一个 deck"
 
@@ -104,14 +137,21 @@
 
 ## 已知热点
 
-`transition_probe/commands.py` **1367 行，超 800 软上限** —— 19 个 CLI 子命令都在这里。
+**`commands.py` 已拆完（2026-10-09）。** 1367 行 / 19 个子命令 →
+5 个 `commands_*.py`（最大 395 行），按**探测维度**分。
 
-**拆分样板已经验证过**：`tools/split_transition_probe.py` 就是把3048 行的单体
-拆成现在这个包的脚本，拆完全绿。真要拆 `commands.py` 时照抄它的做法，
-四条硬约束见 [`CONTRIBUTING.md`](../CONTRIBUTING.md)。
+**两次拆分的样板都在 `tools/`，留着照抄**：
 
-拆的时候按**子命令的领域**分（enum / deck / roundtrip / camera / shape），
-不要按行数硬切—— 按行数切出来的文件职责是乱的。
+| 样板 | 干了什么 | 适用场景 |
+| --- | --- | --- |
+| `tools/split_transition_probe.py` | 3048 行单体 → 包（`common/data/decks/analysis/commands`） | 拆**整个模块**成多层包 |
+| `tools/split_commands.py` | 1367 行模块 → 5 个平级文件 | 拆**一个层**成同层兄弟 |
+
+**为什么按"探测维度"分而不是按行数**：这五个维度是它自己 docstring
+里那张内容表**已经分好的组** —— 建表主链路 / 机制层 / 形态层 / 属性 / 时序。
+按行数切出来的文件职责是乱的；按维度切出来的文件，名字就说明了它装什么。
+
+**无损证据**：拆前 19 个函数 → 拆后 19 个，**逐字节对比无一字差异**。
 
 ---
 
@@ -123,4 +163,4 @@
 | 加一种相机路径 | `facts/cameras.json` + `transition_probe/data.py` |
 | 加一种形状证据实验 | `build_shape_evidence.py` + `probe_shapes.ps1` |
 | 改页面切换机制（为什么挂终点页） | `reference/transition-model.md` —— **唯一真相源** |
-| 加探针子命令 | `transition_probe/commands.py`，注意分层 |
+| 加探针子命令 | 按维度选一个 `transition_probe/commands_*.py`（table/mechanism/shape/attr/timing）|

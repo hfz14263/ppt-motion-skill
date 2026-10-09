@@ -29,7 +29,11 @@ from transition_probe.common import NS, NSDECL, DUR_MS, PROBE_SPD, SLIDE_SECONDS
 from transition_probe.data import HYPOTHESES, MOTION_SPECS, RULES, DEFAULT_ATTRS, DECK2_SPECS, DIR_PROBE, ATTR_PROBE, TIMING_ANIM, TIMING_PROBE  # noqa: F401
 from transition_probe.decks import _with_dir, wrap_transition, _slide_xml, _two_slide_deck, _flat_deck, _shape_deck, _shape_deck2, _set_attrs, _probe_deck, _anim_deck  # noqa: F401
 from transition_probe.analysis import _child_tag, _child_attrs, _child_render, _lookup_enum, _template, _dir_pairs, _profile_metrics, mirror_verdict, _read_frames, _window, _energy_trace, _hot_runs, _entry_trace, _timing_chart  # noqa: F401
-from transition_probe.commands import cmd_build, cmd_collect, cmd_enumdeck, cmd_enumread, cmd_table, cmd_anchordeck, cmd_anchors, cmd_video, cmd_sheets, cmd_shapedeck2, cmd_shapedeck, cmd_attrdeck, cmd_timingdeck, cmd_dirdeck, cmd_dirmirror, cmd_attrdiff, cmd_timingdiff, cmd_shapeanalyze, cmd_shapes  # noqa: F401
+from transition_probe.commands_table import cmd_build, cmd_collect, cmd_enumdeck, cmd_enumread, cmd_table, cmd_video, cmd_sheets  # noqa: F401
+from transition_probe.commands_mechanism import cmd_anchordeck, cmd_anchors  # noqa: F401
+from transition_probe.commands_shape import cmd_shapedeck, cmd_shapedeck2, cmd_shapeanalyze, cmd_shapes, cmd_dirdeck, cmd_dirmirror  # noqa: F401
+from transition_probe.commands_attr import cmd_attrdeck, cmd_attrdiff  # noqa: F401
+from transition_probe.commands_timing import cmd_timingdeck, cmd_timingdiff  # noqa: F401
 
 
 def main(argv=None):

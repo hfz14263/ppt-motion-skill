@@ -87,7 +87,9 @@ spec 解释权只留一份，否则预览和真注入会漂。
 新增逻辑时：
 
 1. 优先放进现有职责区段（标注清楚属于哪一块）
-2. 实在放不下，**先看 `transition_probe/commands.py` 的拆分样板**（`tools/split_transition_probe.py` 已验证可行）
+2. 实在放不下，**先看两个拆分样板**（都在 `tools/`，都验证过）：
+   - `split_transition_probe.py` —— 3048 行单体 → 多层包（拆**模块**）
+   - `split_commands.py` —— 1367 行模块 → 5 个同层文件（拆**一层**）
 3. 拆分四条硬约束见 [`CONTRIBUTING.md`](../CONTRIBUTING.md) —— 外部接口不许变、不许改调用方向、一次只拆一层、搬代码前先 grep `__file__` 与相对路径拼装
 
 > **别"顺手"把 `motion ⇄ check_coverage` 的表面环修掉。**

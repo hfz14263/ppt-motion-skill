@@ -286,15 +286,23 @@ def check_reachability(fails, advises):
             referenced.add(mod.replace(".", "/") + ".py")
 
     # ③ 索引登记
+    # ⚠️ 先剥掉 `~~删除线~~` 里的内容 —— 那是**已废弃记录**（"这个文件已拆，
+    # 原条目留作参照"），不是活引用。不剥掉的话，一份"已拆"的留痕
+    # 会被判成"索引登记了不存在的文件"（2026-10-09 实际撞到）。
+    # Markdown 的删除线语义就是"此条作废"，判据应该理解它。
+    def live_refs(text):
+        for ln in text.split("\n"):
+            ln = re.sub(r"~~[^~]*~~", "", ln)      # 行内删除线
+            for m in re.finditer(r"`([\w/.\-]+\.(?:py|ps1))`", ln):
+                yield m.group(1)
+
     idx_p = os.path.join(ROOT, "CODE_INDEX.md")
     if os.path.exists(idx_p):
-        for m in re.finditer(r"`([\w/.\-]+\.(?:py|ps1))`", read(idx_p)):
-            referenced.add(m.group(1))
+        referenced |= set(live_refs(read(idx_p)))
     for k in ("injection", "probe", "verify", "tooling"):
         p = os.path.join(ROOT, "reference", "code-%s.md" % k)
         if os.path.exists(p):
-            for m in re.finditer(r"`([\w/.\-]+\.(?:py|ps1))`", read(p)):
-                referenced.add(m.group(1))
+            referenced |= set(live_refs(read(p)))
 
     # ② 分发清单
     for rel in sorted(walk_files(".py")):
@@ -429,8 +437,10 @@ def check_import_cycles(fails, advises):
                     "注意：函数内延迟导入不算环，判据只扫 tree.body",
         })
     # 改动波及面：被依赖最多的文件，作为 ADVISE 暴露出来
-    hot = sorted(rev.items(), key=lambda kv: -len(kv[1]))[:3]
-    for mod, users in hot:
+    # ⚠️ 不要取 top-N 截断 —— 阈值是「≥5 就是热点」，截断会让
+    # 第 4 名之后的热点**静默不报**（2026-10-09 实际发生：decks 被 5 个
+    # 依赖却没报，因为写了 [:3]）。判据是阈值，不是排名。
+    for mod, users in sorted(rev.items(), key=lambda kv: -len(kv[1])):
         if len(users) >= 5:
             advises.append({
                 "rule": "hot-module", "module": mod, "depended_by": len(users),

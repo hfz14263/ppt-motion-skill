@@ -84,6 +84,7 @@ if ((Test-Path $dest) -and -not $Force) {
   # 与 HANDOVER 是同一层的治理文档。
   # 与之相对，`tools/` 是一次性开发脚本，**故意不在这里** —— 使用者不需要它。
   foreach ($item in 'SKILL.md', 'INDEX.md', 'HANDOVER.md', 'CONTRIBUTING.md',
+                  'CODE_INDEX.md',
                   'README.md', 'LICENSE',
                   'scripts', 'reference', 'facts', 'history', 'examples', 'install.ps1',
                   'requirements.txt') {

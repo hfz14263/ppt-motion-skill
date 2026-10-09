@@ -34,20 +34,33 @@ def local_name(mod):
 
 
 def module_level_imports(path):
-    """返回 [(目标模块名, 是否相对导入)]，只取模块级。"""
+    """返回 [(目标模块名, 相对级别)]，只取模块级。级别 `0` = 绝对导入。
+
+    ⚠️ **必须把 `level` 单独传出去，不能拼成 `"." * level + mod` 的字符串。**
+    第一版就是那么写的，于是 `from .common import X`（level=1, mod="common"）
+    被解析成 `scripts.transition_probe` + `common` = **`...transition_probecommon`**
+    —— **缺点号**，在模块表里永远匹配不上。
+
+    后果**不是报错，是静默消失**：整个 `transition_probe/` 包的内部依赖
+    在依赖图上全部不可见，看起来像"包内没有依赖"。
+    更糟的是我给它编了个听起来合理的解释（"扫描按包边界处理"）写进了
+    `reference/code-probe.md` —— **一个 bug 就这么被解释成了设计**。
+
+    → 所以这里返回级别本身，由调用方按 `level` 正确拼。
+    """
     with open(path, encoding="utf-8") as f:
         tree = ast.parse(f.read(), filename=path)
     out = []
     for node in tree.body:  # 只扫模块级，函数内的刻意忽略
         if isinstance(node, ast.Import):
             for a in node.names:
-                out.append((a.name, False))
+                out.append((a.name, 0))
         elif isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                mod = node.module or ""
-                out.append(("." * node.level + mod, True))
+            lvl = node.level or 0
+            if lvl > 0:
+                out.append((node.module or "", lvl))
             elif node.module:
-                out.append((node.module, False))
+                out.append((node.module, 0))
     return out
 
 
@@ -79,14 +92,22 @@ def build_graph():
     edges = defaultdict(set)
     unresolved = defaultdict(list)
     for mod, path in sorted(mods.items()):
-        pkg = mod.rsplit(".", 1)[0] if "." in mod else mod
-        for target, is_rel in module_level_imports(path):
+        # ⚠️ `__init__.py` 的"所属包"是**它自己**，不是父目录。
+        # 第一版一律用 `rsplit(".", 1)[0]`，于是 `transition_probe/__init__.py`
+        # 的 pkg 被算成 `scripts` —— 它那 5 行 `from .common import ...`
+        # 全被解析到 `scripts.common`（不存在），整个包的对外再导出
+        # 在依赖图上**完全消失**，看起来像"__init__.py 是个叶子"。
+        is_init = os.path.basename(path) == "__init__.py"
+        pkg = mod if is_init else (mod.rsplit(".", 1)[0] if "." in mod else mod)
+        for target, level in module_level_imports(path):
             hit = None
-            if is_rel:
+            if level:
+                # `from .X import ...`（level=1）→ pkg.X
+                # `from ..X import ...`（level=2）→ pkg 的父包 . X
                 base = pkg
-                for _ in range(target.count(".") - 1):
+                for _ in range(level - 1):
                     base = base.rsplit(".", 1)[0] if "." in base else base
-                cand = (base + target.lstrip(".")).strip(".")
+                cand = (base + "." + target) if target else base
                 hit = cand if cand in mods else None
             else:
                 top = target.split(".")[0]
