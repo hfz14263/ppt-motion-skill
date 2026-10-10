@@ -133,7 +133,7 @@ PERSON图片 10: (396.8, 190.6) 207.4x239.8  ->  (364.9, 104.2) 326.0x377.0
 # 写进去没有
 python -c "import zipfile,re; x=zipfile.ZipFile('out.pptx').read('ppt/slides/slide2.xml').decode('utf8'); print('p159:morph' in x)"
 
-# PowerPoint 认不认（读回 3842 = 0xF72 即成功）
+# PowerPoint 认不认（读回 3954 = 0xF72 即成功）
 powershell -NoProfile -File scripts/motion.ps1 -Pptx out.pptx -OutDir review
 ```
 

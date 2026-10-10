@@ -109,6 +109,7 @@ LAYERS = {
             ("tools/split_morph_recipes.py", "一次性：拆 morph 配方"),
             ("tools/split_tests.py", "一次性：拆 test_transition_table.py 成三份"),
             ("tools/archive_handover_85.py", "一次性：把 HANDOVER §8 已完成的三节搬进 history/"),
+            ("tools/make_lotus_fixture.py", "一次性：从用户莲花 deck 制结构复核副本（洗私人元数据 + 换版权素材图）"),
             ("tools/gen_code_tables.py", "生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源）"),
             ("tools/add_toc.py", "给长文档加目录"),
             ("tools/collapse_symptom.py", "根因收敛 1/3：重复节收敛为索引（幂等）"),

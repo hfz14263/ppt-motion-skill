@@ -39,7 +39,7 @@
     "忘了内阴影 → 结构对了但看不出结构",
     "图会动 → 失去【同一张图被展开】的读法"
    ],
-   "evidence": "从用户的莲花 deck 读出：八片 pie 位置尺寸完全一致，唯一变量 rot 从 0 到 -15/-30/-45/-60/-75/-90/-105；reproduced in building/out/fan_final.pptx，EntryEffect=3954",
+   "evidence": "从用户的莲花 deck 读出（2026-10-10 逐值复核）：八片 pie 尺寸完全一致、位置一致（2 片 x 有 ≤5pt 手工微调），唯一变量 rot 从 0 到 -15/-30/-45/-60/-75/-90/-105（8 个值跨两页）；第 2 页带 p159:morph（平滑 2000ms、fade 兜底），回读 EntryEffect=3954（见 reference/pitfall-morph-3d.md）；结构复核件 tests/fixtures/lotus-fan-structure.pptx（原件含私人元数据与第三方版权素材、不入库，副本结构逐值保留）",
    "verified_by": "building/qa/lotus_angles.py, building/qa/fan_fixed.py"
   },
   {

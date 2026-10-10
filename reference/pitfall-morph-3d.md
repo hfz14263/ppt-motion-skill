@@ -76,7 +76,7 @@
 | 检查 | 结果 |
 | --- | --- |
 | PowerPoint 打开 | 正常，无修复提示 |
-| `SlideShowTransition.EntryEffect` 读回 | **`0xF72`（3842）** —— 它认得 |
+| `SlideShowTransition.EntryEffect` 读回 | **`0xF72`（3954）** —— 它认得 |
 | `SaveCopyAs` 往返后 | slide XML 里 `p159:morph` **仍在** |
 | 两页间的形状差异 | 位置/尺寸/3D 角度不同 → 有可补间的差值 |
 

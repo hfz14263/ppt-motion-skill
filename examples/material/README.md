@@ -50,7 +50,7 @@ template2: 2 slides, 960x540pt
   slide 2: shapes=5  effects=0  transition=0xF72
 ```
 
-`0xF72` = 3842 = **平滑（Morph）**。注意两点：
+`0xF72` = 3954 = **平滑（Morph）**。注意两点：
 
 - **两页都靠 morph，没有任何时间轴动画**（`effects=0`）。这是"两份 PPT 讲一个变化"
   的典型做法：变化本身是**页间**的，不是页内的。

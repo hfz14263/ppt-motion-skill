@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""文档与规范的回归测试（16–23 组）。
+"""文档与规范的回归测试（16–24 组）。
 
 为什么需要这份测试：这一组守的不是代码，是**文档与实现的一致性**。
 本项目里最危险的失败模式是**静默丢失**—— 文件能开、能跑、报告全绿，
 但根因编号对不上了、目录漏了、规范里的数字和实现里的常量漂了。
 
 这一组因此**只做机械可判的事**：编号完整/唯一、映射表一致、目录存在、
-阈值三处同值、生成器产物不漂。它**不**判断"哪一节该在哪份文件" —— 那是设计判断，会变。
+阈值三处同值、生成器产物不漂、证据结构逐值可核对。它**不**判断
+"哪一节该在哪份文件" —— 那是设计判断，会变。
 
 > **2026-10-08 从 test_transition_table.py 拆出。** 拆分依据是**被测对象**：
 > 16–22 组守的是文档与规范，与切换实测表无关。组号**保持原编号**。
 > 23 组为 2026-10-09 新增（生成器产物判据，§十.7）。
+> 24 组为 2026-10-10 新增（配方证据的结构复核件逐值核对）。
 
-模块内容表（8 组；组号是稳定接口，与拆分前一致）
+模块内容表（9 组；组号是稳定接口，与拆分前一致）
 ------------------------------------------------
   16  踩坑手册拆分：编号完整、唯一、映射表一致
   17  症状文档拆分：现象栏可路由
@@ -23,12 +25,15 @@
   21  更正守则（打补丁，不重写）
   22  根因收敛后的两族结构
   23  设计系统索引：生成器产物可复现
+  24  配方证据（莲花 fan）：结构复核件逐值可核对
 """
 import io
 import os
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
+import zipfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from helpers import HERE, ROOT, read_text, make_checker, report
@@ -500,6 +505,66 @@ def main():
         check("「已内置」表里的 %d 份文件都在磁盘上" % len(rows),
               bool(rows) and not missing,
               "缺: " + ", ".join(missing[:4]))
+
+    # ---- 24. 配方证据（莲花 fan）：结构复核件逐值可核对 ------------------------
+    # 为什么需要这一组：recipe「move-the-mask-not-the-image」的证据说
+    # "八片 pie、位置尺寸一致、唯一变量 rot 0→-105、第 2 页 morph"。
+    # 原件（用户莲花 deck）含私人元数据与第三方版权素材、**不能入库**，
+    # 入库的是**结构复核副本**（tools/make_lotus_fixture.py 制作）——
+    # 那么"副本结构与原件一致"这件事必须有判据，否则副本只是传闻的替身。
+    # 这一组把配方声明逐值钉在副本上（含藏在 mc:AlternateContent 里的 morph）。
+    print()
+    print("== 24. 配方证据（莲花 fan）：结构复核件逐值可核对 ==")
+    fix_p = os.path.join(ROOT, "tests", "fixtures", "lotus-fan-structure.pptx")
+    check("结构复核件存在", os.path.exists(fix_p))
+    if os.path.exists(fix_p):
+        A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
+        P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+        z = zipfile.ZipFile(fix_p)
+
+        def _pies(slide):
+            root = ET.fromstring(z.read(slide))
+            out = []
+            for sp in root.iter(P + "sp"):
+                pg = sp.find(".//" + A + "prstGeom")
+                if pg is None or pg.get("prst") != "pie":
+                    continue
+                xf = sp.find(".//" + A + "xfrm")
+                o, e = xf.find(A + "off"), xf.find(A + "ext")
+                rot = xf.get("rot")
+                out.append({"x": int(o.get("x")), "y": int(o.get("y")),
+                            "cx": int(e.get("cx")), "cy": int(e.get("cy")),
+                            "rot": int(rot) // 60000 if rot else 0,
+                            "useBg": sp.get("useBgFill"),
+                            "shdw": sp.find(".//" + A + "innerShdw") is not None})
+            return out
+
+        p1, p2 = _pies("ppt/slides/slide1.xml"), _pies("ppt/slides/slide2.xml")
+        check("两页各 8 片 pie", len(p1) == 8 and len(p2) == 8,
+              "slide1=%d slide2=%d" % (len(p1), len(p2)))
+        check("8 片尺寸完全一致",
+              len({(p["cx"], p["cy"]) for p in p1 + p2}) == 1)
+        xs = [p["x"] for p in p1 + p2]
+        check("位置一致（x 跨度 ≤ 100000 EMU，含 2 片手工微调）",
+              max(xs) - min(xs) <= 100000, "x 跨度 %d" % (max(xs) - min(xs)))
+        check("y 全部一致", len({p["y"] for p in p1 + p2}) == 1)
+        check("第 1 页全 rot=0、第 2 页 rot = {0,-15,…,-105}",
+              all(p["rot"] == 0 for p in p1) and
+              sorted(p["rot"] for p in p2) ==
+              [-105, -90, -75, -60, -45, -30, -15, 0])
+        check("全部 useBgFill=1（窗口继承背景）",
+              all(p["useBg"] == "1" for p in p1 + p2))
+        check("全部带 innerShdw（瓣边可见）",
+              all(p["shdw"] for p in p1 + p2))
+        s1 = z.read("ppt/slides/slide1.xml").decode("utf-8")
+        s2 = z.read("ppt/slides/slide2.xml").decode("utf-8")
+        check("两页都有 p:bg（要继承的照片背景）",
+              ET.fromstring(s1).find(P + "cSld/" + P + "bg") is not None and
+              ET.fromstring(s2).find(P + "cSld/" + P + "bg") is not None)
+        check("slide2 带 p159:morph（平滑；mc:AlternateContent + fade 兜底）",
+              "p159:morph" in s2 and "mc:AlternateContent" in s2 and
+              "<p:fade/>" in s2)
+        z.close()
 
     return report(TITLE, fails)
 

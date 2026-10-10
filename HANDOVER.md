@@ -345,18 +345,18 @@ spec 字段全表见 `SKILL.md` §3，含 `cameras:`（3D 相机，度数为单�
 
 ## 8. 还没做的
 
-**两条真·待办** —— 其余 7 条都已完成，归档在 [`history/`](history/README.md)。
+**只有这一条是真·待办**（原第 3 条已于 2026-10-10 处理）——
+其余 7 条都已完成，归档在 [`history/`](history/README.md)。
 
 2. **多 API 协作** —— 素材生成（尤其抠图/插画）接专门的图像生成 AI，
    替代 `grabCut` 这类兜底方案。
 
-3. **`verify_recipes` 的最后一条悬空证据** —— 配方 `move-the-mask-not-the-image`
-   的证据里写着 `reproduced in building/out/fan_final.pptx`，而那个文件**从未入库**
-   （`building/` 已不存在，全盘找过）。判据把"无法验证的复现声明"报为悬空
-   （2026-09-30 时 5 条，现剩 1 条）。
-   **2026-10-09 用户定：等文件** —— 用户次日把 fan 的 pptx 带来 →
-   把证据改指向它（先核对它确实是那个机制：pie 扇形 + `useBgFill` + rot 差），
-   `verify_recipes` 即可全绿。
+3. ~~**`verify_recipes` 的最后一条悬空证据**~~ ✅ **已处理**（2026-10-10）——
+   用户带来原件（莲花 deck），逐值核对吻合：8 片 pie、rot 0→-105、
+   slide2 带 `p159:morph`（平滑、2000ms）。原件含私人元数据与第三方版权素材、
+   **不入库**；入库为**结构复核副本** `tests/fixtures/lotus-fan-structure.pptx`
+   （制作：`tools/make_lotus_fixture.py`；判据：`tests/test_docs.py` 第 24 组）。
+   证据已改指向，`verify_recipes` 全绿。
 
 ### 8.1 已经做完的 → 归档在 [`history/`](history/README.md)
 

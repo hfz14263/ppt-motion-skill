@@ -304,7 +304,7 @@ python tests/test_transition_table.py   # 编号 / 目录 / 拆分完整性
 | [`tools/scan_deps.py`](tools/scan_deps.py) | 依赖图、环、改动波及面（只读，体检调用它） |
 | [`tools/gen_code_tables.py`](tools/gen_code_tables.py) | 代码索引的表格数据（行数/职责/依赖，只输出不写文件） |
 | [`tests/test_transition_table.py`](tests/test_transition_table.py) 第 1–15 组 | 切换实测表与注入引擎不漂 |
-| [`tests/test_docs.py`](tests/test_docs.py) 第 16–23 组 | 编号完整/唯一、目录存在、规范与实现一致、生成器产物可复现 |
+| [`tests/test_docs.py`](tests/test_docs.py) 第 16–24 组 | 编号完整/唯一、目录存在、规范与实现一致、生成器产物可复现、配方证据结构可核对 |
 | [`tests/test_code_index.py`](tests/test_code_index.py) | 代码索引与真实代码同步（登记/行数/依赖/层级） |
 | [`tests/test_install_manifest.py`](tests/test_install_manifest.py) | 新增顶层项是否登记进 `install.ps1` 的复制清单；随包目录里的隐藏文件是否被显式清理（本机状态不该出门） |
 
@@ -593,6 +593,7 @@ CODE_INDEX.md总览：分层图 + 入口 + 扩展点 + 热点 + 各子索引链�
 | `scripts/build_pitfall_map.py` | `reference/pitfall-map.md` | `tests/test_docs.py` 第 16 组 |
 | `tools/add_toc.py` | 目录 + 锚点 | `scripts/verify_docs.py` 的 `check_anchors()` |
 | `reference/design-system/build_index.py` | `reference/design-system/README.md` | `tests/test_docs.py` 第 23 组（`--check`，2026-10-09 补） |
+| `tools/make_lotus_fixture.py` | `tests/fixtures/lotus-fan-structure.pptx` | `tests/test_docs.py` 第 24 组（结构逐值核对，2026-10-10 补） |
 | 收敛类（`collapse_*` / `add_*` / `link_*`） | symptom 族文档 | 显式幂等判据 + `tests/test_docs.py` 第 22 组 |
 
 **新增一个生成器时，必须同时回答：它的产物谁来验？**

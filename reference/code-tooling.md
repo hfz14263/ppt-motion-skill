@@ -45,7 +45,8 @@
 | `tools/split_morph_recipes.py` | 一次性拆分器：把 morph-and-3d-recipes.md 按主题切成 3 份 + 目录页 | 一次性：拆 morph 配方 | —（叶子） | —（没人依赖） | 105 行 |
 | `tools/split_tests.py` | 一次性拆分器：把 test_transition_table.py（1633 行 / 22 组）拆成三份 | 一次性：拆 test_transition_table.py 成三份 | —（叶子） | —（没人依赖） | 243 行 |
 | `tools/archive_handover_85.py` | 一次性归档器：把 HANDOVER.md §8 里**已完成**的三节搬进 history/ | 一次性：把 HANDOVER §8 已完成的三节搬进 history/ | —（叶子） | —（没人依赖） | 138 行 |
-| `tools/gen_code_tables.py` | 生成 reference/code-*.md 里的速查表 —— 表格数据不手抄 | 生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源） | —（叶子） | `test_code_index` | 228 行 |
+| `tools/make_lotus_fixture.py` | 从用户的莲花 deck 制作「结构复核副本」——入库用（原件不入库） | 一次性：从用户莲花 deck 制结构复核副本（洗私人元数据 + 换版权素材图） | —（叶子） | —（没人依赖） | 135 行 |
+| `tools/gen_code_tables.py` | 生成 reference/code-*.md 里的速查表 —— 表格数据不手抄 | 生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源） | —（叶子） | `test_code_index` | 229 行 |
 | `tools/add_toc.py` | 给长文档补一张目录（TOC）—— 只加导航，不动正文一个字 | 给长文档加目录 | —（叶子） | —（没人依赖） | 172 行 |
 | `tools/collapse_symptom.py` | 分级收敛 symptom 侧正文：把重复正文换成指向根因的链接 | 根因收敛 1/3：重复节收敛为索引（幂等） | —（叶子） | —（没人依赖） | 199 行 |
 | `tools/add_symptom_view.py` | 给已收敛的 symptom 节补「现象」导语 | 根因收敛 2/3：给已收敛节补现象导语（幂等） | —（叶子） | —（没人依赖） | 109 行 |
@@ -53,7 +54,7 @@
 | `tools/add_symptom_leadin.py` | 给 pitfall 顶层编号节插入「现象」导语 | 按 TSV 给 pitfall 顶层节插现象导语 | —（叶子） | —（没人依赖） | 145 行 |
 | `reference/design-system/build_index.py` | Generate the design-system index for this skill | 生成 / 校验 design-system 索引（--check 只读） | —（叶子） | —（没人依赖） | 299 行 |
 
-共 27 个文件，其中 Python 3511 行。
+共 28 个文件，其中 Python 3647 行。
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。
