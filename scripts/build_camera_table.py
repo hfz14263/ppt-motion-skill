@@ -654,7 +654,9 @@ def main():
     print("  distinct convergence values: %s"
           % table["summary"]["distinct_native_convergences"])
 
-    with open(OUT, "w", encoding="utf-8") as fh:
+    # newline="\n": Windows 的 open() 默认把 \n 写成 CRLF，与 .gitattributes
+    # 的 *.json eol=lf 打架 —— 每次重跑都会在 git 状态里留下一次"换行被改写"。
+    with open(OUT, "w", encoding="utf-8", newline="\n") as fh:
         json.dump(table, fh, ensure_ascii=False, indent=1)
     print("\nwrote %s" % OUT)
     print("  presets %d, presets-native %d, rotation %d, rev %d, fov %d, zoom %d"

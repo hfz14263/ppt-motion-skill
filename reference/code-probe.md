@@ -33,12 +33,12 @@
 | `scripts/transition_probe/commands_shape.py` | transition_probe.commands_shape — 形态层与方向 | 形态层与方向：效果看起来在做什么 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 351 行 |
 | `scripts/transition_probe/commands_attr.py` | transition_probe.commands_attr — 属性取值全集 | 属性取值全集 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 160 行 |
 | `scripts/transition_probe/commands_timing.py` | transition_probe.commands_timing — 切换 × 页内动画 | 切换 × 页内动画：结构平行、时间串行 | `analysis`、`common`、`data`、`decks` | `transition_probe` | 315 行 |
-| `scripts/build_camera_table.py` | Build the 3D camera reference table: parameter -> MEASURED rendered result | 相机路径实测表 | —（叶子） | —（没人依赖） | 667 行 |
+| `scripts/build_camera_table.py` | Build the 3D camera reference table: parameter -> MEASURED rendered result | 相机路径实测表 | —（叶子） | —（没人依赖） | 669 行 |
 | `scripts/build_shape_evidence.py` | 把 3a 的【文字判定】与【渲染实物】放进同一份 deck，供人眼复核 | 形状证据实测 | —（叶子） | —（没人依赖） | 361 行 |
 | `scripts/build_dual_photo.py` | 构造"同图双版本"版式的样例页，供 verify_dual_photo.py 做正/负对照 | 双色照片对照实验 | —（叶子） | `test_dual_photo` | 184 行 |
 | `scripts/analyze_video.py` | dsh-ppt-office-motion :: motion analysis from a video recording | 视频逐帧分析 | —（叶子） | —（没人依赖） | 424 行 |
 | `scripts/build_pitfall_map.py` | 生成 reference/pitfall-map.md —— §编号 → 文件的唯一映射 | 生成症状→根因映射表 | —（叶子） | —（没人依赖） | 138 行 |
-共 16 个文件，其中 Python 5023 行。
+共 16 个文件，其中 Python 5025 行。
 <!-- gen:probe:table:end -->
 
 > **包内依赖现在是可见的（2026-10-09 修复）。**
