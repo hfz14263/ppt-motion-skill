@@ -1,6 +1,6 @@
 # 3D 相机与旋转:参数 → **实测**结果
 
-每一个数都是**在这台机器上渲染出来量到的**,不是从规范抄的。
+每一个数都是**在真机上渲染出来量到的**(2026-10-12 **本机复测**:Office 16.0 build 17928.20148;首测于上游机器 build 20228 —— **3325 个数值逐值一致**),不是从规范抄的。
 机器可读版 `scripts/camera_reference.json`;测量脚本 `scripts/build_camera_table.py`。
 
 <!-- toc -->
@@ -303,6 +303,10 @@ ECMA-376 对 `@prst` 只说:
 **可比性**:收敛比是两个投影边长之比,**绝对值依赖探针几何**。
 只和同一探针测的数比;探针参数存在 `meta.probe_geometry` 里。
 
+**跨机器对照**(2026-10-12):按同探针在本机(build 17928.20148)完整复测,
+与首测(上游机器 build 20228)**3325 个数值逐值一致** —— 换机器、同探针时,
+这张表可直接继承。
+
 ---
 
 ## 10. 怎么用这张表
@@ -341,4 +345,4 @@ ECMA-376 对 `@prst` 只说:
 | 62 个预设名称与枚举值 | [MsoPresetCamera](https://learn.microsoft.com/en-au/dotnet/api/microsoft.office.core.msopresetcamera) |
 | 预设角度 | **规范未公布**,本表实测反推(§4) |
 | 预设相机的参考角度值 | LibreOffice `oox/source/drawingml/scene3dhelper.cxx`(⚠️ 单位换算与实测对不上,**不要照抄**) |
-| **全部数值** | **本机 PowerPoint 16.0 build 20228 渲染实测** |
+| **全部数值** | **本机 PowerPoint 16.0 build 17928.20148 渲染实测**(2026-10-12 复测;首测上游机器 build 20228,**逐值一致**) |

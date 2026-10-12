@@ -499,7 +499,10 @@ def main():
 
     table = {
         "meta": {
-            "measured_on": "PowerPoint 16.0 build 20228",
+            # 2026-10-12 在本机重跑（首测是上游机器 build 20228，两台机器的数据比对
+            # 见 reference/camera-reference.md）。换机器重跑后，这一行要跟着改成本次
+            # 实际测量机器的构建号。
+            "measured_on": "PowerPoint 16.0 build 17928（本机，LTSC 2024，2026-10-12 复测）",
             "method": ("white plane with a calibration cross on a dark ground, "
                        "exported by PowerPoint, silhouette thresholded. "
                        "convergence = far_edge/near_edge (1.000 = parallel "

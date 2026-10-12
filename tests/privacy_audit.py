@@ -10,9 +10,21 @@ Looks for things that should not ship:
   * the user's private material files
 
 Two passes, because the plain text scan cannot see into binaries:
-  * content scan  -- tracked text files
+  * content scan  -- text files
   * container scan -- decompresses .pptx entries and reads PNG text chunks, so an
     author name in docProps/core.xml is caught instead of hiding behind SKIP_EXT
+
+Both passes need a definition of "what to look at", and they differ on purpose:
+  * content scan -- the files a commit WOULD ship (`git ls-files --cached
+    --others --exclude-standard`: tracked + untracked, .gitignore respected).
+    A gitignored build artifact is not shipped, and reading its compressed
+    bytes as text finds phantom matches -- a PDF under out/ "contained" an
+    email address that does not exist. Outside a git work tree: tree walk.
+  * container scan -- the tree minus tool residue (.workbuddy/; see SKIP_DIRS).
+    out/ IS included on purpose: those decks are the ones actually handed to
+    people, and an author name there matters. Findings in this pass are exact
+    fields rather than guesses, so breadth costs little -- only noise does,
+    which is what the residue exclusion is for.
 
 Run from anywhere:  python privacy_audit.py [--repo <path>]
 """
@@ -25,13 +37,43 @@ import sys
 import xml.etree.ElementTree as ET
 import zipfile
 
+# ---- the possible-secret rule, and why it is built from three fragments ----
+# A secret-looking assignment is one of two things, and only the first is a leak:
+#
+#   literal    client_secret = "AbCdEf0123456789"   <- the secret itself
+#   reference  token = os.environ["GH_TOKEN"]       <- where it is read from,
+#              TOKEN=$(git credential fill ...)        which is the SAFE way
+#              GH_TOKEN="$TOKEN"   /  GH_TOKEN=<pat>
+#
+# The old single-regex rule was wrong in both directions (review, 2026-10-12):
+#   * `\bsecret\b` has no word boundary after an underscore -- so `client_secret`,
+#     `access_token`, `db_password`, the most common shapes, were all invisible;
+#   * the value side accepted any 8+ run of non-space, so every reference to an
+#     env var or the credential manager was reported AS IF it were the secret,
+#     which trains the reader to ignore this rule.
+# So the pattern is split: the NAME half treats `_` as a component separator
+# (lookbehind only forbids alnum, so a match may start after `_`) and lets
+# trailing components pass; the VALUE half accepts only a literal (a quoted
+# string, or an unquoted token long enough to be one) and refuses the known
+# reference/placeholder forms. Changes here must be verified against the
+# catch / no-catch sample lists in tests/test_privacy_audit.py -- a clean run
+# on this repo alone proves nothing (see this file's docstring and CODE_RULES
+# §十.4.1: a 0 has two possible explanations until the judge itself is tested).
+_SECRET_NAME = (r'(?<![A-Za-z0-9])'
+                r'(?:api[_-]?key|secret|token|passwo?rd|credentials?)'
+                r'(?:[_-][A-Za-z0-9]+)*')
+_SECRET_REF = (r'(?!["\']?(?:os\.environ|os\.getenv|getenv|process\.env'
+               r'|environ|\$|%|<|\{))')
+_SECRET_VALUE = r"""(?:"[^"\n]{8,}"|'[^'\n]{8,}'|[A-Za-z0-9+/=_\-]{12,})"""
+
 # patterns worth flagging in file CONTENT
 CONTENT_RULES = [
     ('absolute path (this machine)', re.compile(r'[A-Za-z]:\\\\?(?:Users|idea|Git|Program Files|Windows)', re.I)),
     ('temp dir path', re.compile(r'AppData\\\\?Local\\\\?Temp|/tmp/', re.I)),
     ('windows user profile', re.compile(r'C:\\\\?Users\\\\?\w+', re.I)),
     ('email address', re.compile(r'[\w.+-]+@[\w-]+\.[\w.]+')),
-    ('possible secret', re.compile(r'(?i)\b(api[_-]?key|secret|token|passwo?rd|credential)\b\s*[:=]\s*\S{8,}')),
+    ('possible secret', re.compile(r'(?i)' + _SECRET_NAME + r'[ \t]*[:=][ \t]*'
+                                   + _SECRET_REF + _SECRET_VALUE)),
     ('github token shape', re.compile(r'\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_\w{20,})')),
     ('private key block', re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')),
     ('aws key shape', re.compile(r'\bAKIA[0-9A-Z]{16}\b')),
@@ -55,11 +97,17 @@ ALLOW = [
     re.compile(r'Copyright \(c\) 2026 Binaryify Zhuang'),
 ]
 
-SKIP_DIRS = {'.git', '__pycache__', 'node_modules', '.office-tmp'}
+SKIP_DIRS = {'.git', '__pycache__', 'node_modules', '.office-tmp', '.workbuddy'}
+# ^ .workbuddy/ is THIS machine's probe residue (see .gitignore): every probe /
+#   test run regenerates it, it is meaningless on another machine, and it is
+#   never distributed. Scanning it adds ~40 findings that are all true-but-noise
+#   and would drown the one finding that matters -- unlike out/, whose decks ARE
+#   handed to people and therefore stay in scope.
 SKIP_EXT = {'.pptx', '.png', '.jpg', '.jpeg', '.mp4', '.gif', '.zip', '.pyc'}
-# This file necessarily contains the very patterns it searches for, so it would
-# always flag itself. Skip it rather than weakening the rules.
-SKIP_FILES = {'privacy_audit.py'}
+# These files necessarily contain the very patterns the rules search for, so
+# they would always flag themselves. Skip them rather than weakening the rules
+# (test_privacy_audit.py holds the catch/no-catch samples on purpose).
+SKIP_FILES = {'privacy_audit.py', 'test_privacy_audit.py'}
 
 # --------------------------------------------------------------- containers
 # SKIP_EXT above keeps the *plain text* scan out of binaries -- but that also
@@ -138,7 +186,50 @@ def author_metadata(rel, text):
     return out
 
 
+# ----------------------------------------------------------------- file set
+# The TEXT pass runs over the files a commit would carry: tracked files +
+# untracked-but-not-ignored ones. Asking git (instead of walking) is the point:
+# build output under the gitignored out/ is not shipped, and reading a
+# compressed PDF there as text is how the old walk "found" an email address
+# that does not exist. (The container pass deliberately still walks the whole
+# tree -- see the docstring.) Outside a git work tree: plain walk.
+_WORKTREE_CACHE = {}
+
+
+def worktree_files(root):
+    """Sorted absolute paths a commit would ship, or None outside a work tree."""
+    if root in _WORKTREE_CACHE:
+        return _WORKTREE_CACHE[root]
+    result = None
+    try:
+        r = subprocess.run(['git', '-C', root, 'ls-files', '-z', '--cached',
+                            '--others', '--exclude-standard'],
+                           capture_output=True)
+        if r.returncode == 0:
+            rels = [p for p in r.stdout.decode('utf-8', 'replace').split('\0') if p.strip()]
+            result = sorted(os.path.join(root, p.replace('/', os.sep)) for p in rels)
+    except Exception:
+        result = None
+    _WORKTREE_CACHE[root] = result
+    return result
+
+
+def iter_all_files(root):
+    """Every candidate file -- the would-ship set, or a plain tree walk."""
+    files = worktree_files(root)
+    if files is not None:
+        for p in files:
+            if os.path.isfile(p):
+                yield p
+        return
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+        for fn in filenames:
+            yield os.path.join(dirpath, fn)
+
+
 def iter_container_files(root):
+    """Whole-tree walk, deliberately NOT the would-ship set -- see docstring."""
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         for fn in filenames:
@@ -186,14 +277,12 @@ def audit_containers(root):
 
 
 def iter_files(root):
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
-        for fn in filenames:
-            if fn in SKIP_FILES:
-                continue
-            if os.path.splitext(fn)[1].lower() in SKIP_EXT:
-                continue
-            yield os.path.join(dirpath, fn)
+    for path in iter_all_files(root):
+        if os.path.basename(path) in SKIP_FILES:
+            continue
+        if os.path.splitext(path)[1].lower() in SKIP_EXT:
+            continue
+        yield path
 
 
 def audit_content(root):
@@ -284,6 +373,11 @@ def main():
     print()
 
     print('-- content scan (absolute paths, identities, secrets) --')
+    if worktree_files(root) is None:
+        print('   file set: whole tree (not a git work tree)')
+    else:
+        print('   file set: what a commit would ship -- %d text files, .gitignore respected'
+              % sum(1 for _ in iter_files(root)))
     f = audit_content(root)
     if not f:
         print('   CLEAN -- nothing flagged')
@@ -294,6 +388,8 @@ def main():
     print()
 
     print('-- container scan (inside .pptx, and PNG text chunks) --')
+    print('   file set: %d containers (tree minus .workbuddy residue; incl. out/)'
+          % sum(1 for _ in iter_container_files(root)))
     c = audit_containers(root)
     if not c:
         print('   CLEAN -- no author metadata, no text chunk carrying an identity')

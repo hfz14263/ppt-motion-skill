@@ -8,7 +8,7 @@
    "location": "reference/camera-reference.md",
    "machine_readable": "scripts/camera_reference.json",
    "regenerate_with": "python scripts/build_camera_table.py",
-   "measured_on": "PowerPoint 16.0 build 20228"
+   "measured_on": "PowerPoint 16.0 build 17928.20148（本机，2026-10-12 复测）"
   }
  ],
  "axes": [

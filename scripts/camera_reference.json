@@ -1,6 +1,6 @@
 {
  "meta": {
-  "measured_on": "PowerPoint 16.0 build 20228",
+  "measured_on": "PowerPoint 16.0 build 17928（本机，LTSC 2024，2026-10-12 复测）",
   "method": "white plane with a calibration cross on a dark ground, exported by PowerPoint, silhouette thresholded. convergence = far_edge/near_edge (1.000 = parallel projection); pitch/yaw inferred from the projected axis lengths against the source axis length.",
   "probe_geometry": {
    "plane_position_in": [
