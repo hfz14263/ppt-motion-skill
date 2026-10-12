@@ -19,8 +19,10 @@
 本机（这台开发机）的完整流程 —— token 从 Windows 凭据管理器里取，
 不用手抄 PAT：
 
-    TOKEN=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill \
-            2>/dev/null | sed -n 's/^password=//p')
+    # ⚠️ 输入里**要带 path**：本机 GCM 的凭据按仓库存。不带 path 时
+    # `git credential fill` 会去走交互（实测 rc=124 超时，看起来像"没凭据"）。
+    TOKEN=$(printf 'protocol=https\nhost=github.com\npath=hfz14263/ppt-motion-skill\n\n' \
+            | git credential fill 2>/dev/null | sed -n 's/^password=//p')
     # REPO_DIR 给**仓库根目录**（不是安装目录下 —— 2026-10-12 已迁到
     # D:/Projects/idea/ppt-motion-skill）。别再写死绝对路径，换机器就断。
     GH_TOKEN="$TOKEN" REPO_DIR="$(pwd)" \
@@ -237,7 +239,14 @@ def main():
         parent = cres["sha"]
         SHA_MAP[parent] = sha
         _save_sha_map()
-        print("  -> 新 commit %s（本地 %s）" % (parent[:7], sha[:7]))
+        # 判成功**看 tree 哈希**（内容寻址：树的 sha 一致 = 内容逐字节一致）。
+        # 这是端到端口径；逐 blob 的 assert 只保证单个文件。不同就人工查
+        # （GitHub 侧 normalize / dedup），不中止。
+        ltree = git("rev-parse", "%s^{tree}" % sha)
+        mark = ("== 本地" if tres["sha"] == ltree
+                else "!! 与本地不同（查 normalize/dedup）")
+        print("  -> 新 commit %s（本地 %s）tree %s %s"
+              % (parent[:7], sha[:7], tres["sha"][:10], mark))
 
     st, res = api("PATCH", "/repos/%s/git/refs/heads/main" % REPO,
                   {"sha": parent, "force": False})
