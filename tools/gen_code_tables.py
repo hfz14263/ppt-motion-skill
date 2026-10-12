@@ -23,6 +23,7 @@
     自动按目录分会把它们全塞进工具层，那张表就没意义了。
 """
 import ast
+import io
 import os
 import sys
 
@@ -31,6 +32,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # 四层各自的成员。显式列出，不自动推导 —— 理由见模块 docstring。
 LAYERS = {
     "injection": {
+        "out": "reference/code-injection.md",
+        "start": "<!-- gen:injection:table:start -->",
+        "end": "<!-- gen:injection:table:end -->",
         "title": "注入层",
         "desc": "改OOXML、生成浏览器端重放。全库被依赖最多的两个文件在这一层。",
         "files": [
@@ -43,6 +47,9 @@ LAYERS = {
         ],
     },
     "probe": {
+        "out": "reference/code-probe.md",
+        "start": "<!-- gen:probe:table:start -->",
+        "end": "<!-- gen:probe:table:end -->",
         "title": "探针层",
         "desc": "造deck、实测参数、量帧。这一层产出的是**证据**，不是动效。",
         "files": [
@@ -65,6 +72,9 @@ LAYERS = {
         ],
     },
     "verify": {
+        "out": "reference/code-verify.md",
+        "start": "<!-- gen:verify:table:start -->",
+        "end": "<!-- gen:verify:table:end -->",
         "title": "校验层",
         "desc": "证明「它真的生效了」。这一层的产出是**结论**：过 / 不过 + 原因。",
         "files": [
@@ -86,6 +96,9 @@ LAYERS = {
         ],
     },
     "tooling": {
+        "out": "reference/code-tooling.md",
+        "start": "<!-- gen:tooling:table:start -->",
+        "end": "<!-- gen:tooling:table:end -->",
         "title": "工具层",
         "desc": "不产动效，但项目运转要靠它们。PowerShell 脚本全在这一层。",
         "files": [
@@ -110,6 +123,7 @@ LAYERS = {
             ("tools/split_tests.py", "一次性：拆 test_transition_table.py 成三份"),
             ("tools/archive_handover_85.py", "一次性：把 HANDOVER §8 已完成的三节搬进 history/"),
             ("tools/make_lotus_fixture.py", "一次性：从用户莲花 deck 制结构复核副本（洗私人元数据 + 换版权素材图）"),
+            ("tools/make_solar_fixture.py", "把注入动效后的太阳系 deck 洗成结构复核副本（洗 docProps + 结构逐值断言）"),
             ("tools/gen_code_tables.py", "生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源）"),
             ("tools/add_toc.py", "给长文档加目录"),
             ("tools/collapse_symptom.py", "根因收敛 1/3：重复节收敛为索引（幂等）"),
@@ -119,6 +133,9 @@ LAYERS = {
             # 不在 scripts/ 也不在 tools/ —— 它跟着产物住：
             # design-system/README.md 的生成器（README 声称的文件是否在磁盘上，靠它 --check）
             ("reference/design-system/build_index.py", "生成 / 校验 design-system 索引（--check 只读）"),
+            # 同理：decision-tree.md 是产物，唯一真相源是 recipes.json。
+            # 换配方只改 JSON，重跑这个生成器刷新树与三张速查表。
+            ("reference/design-system/build_decision_tree.py", "生成 / 校验动效决策树（--check 只读）"),
         ],
     },
 }
@@ -158,6 +175,11 @@ def read_head(path):
             para = para.split(sep)[0]
             break
     return para.strip(" .") or None
+
+
+def read_text(path):
+    with io.open(path, encoding="utf-8-sig") as f:
+        return f.read()
 
 
 def line_count(path):
@@ -205,25 +227,84 @@ def table(key, edges, rev):
         r = sorted(rev.get(mn, ()))
         rev_s = "、".join("`%s`" % x.split(".")[-1] for x in r) or "—（没人依赖）"
         vol = f"{n} 行" + (" ⚠️ 超 800" if n > 800 else "")
+        # 本文件不写自己的行数。它是表的生产者，把 producer 的体积也写进
+        # 表里就构成自指：改这行字就得改行数，改行数又得改这行字 ——
+        # test_code_index 于是永远差 1，追到最后只会养成"随手改判据"的习惯。
+        # 它自己的体积由 test_code_index 直接量磁盘，不需要第二份抄本。
+        if path == os.path.relpath(__file__, ROOT).replace("\\", "/"):
+            vol = "—（本文件，生产者不自报）"
         rows.append(f"| `{path}` | {duty} | {human} | {deps_s} | {rev_s} | {vol} |")
     return "\n".join(rows)
 
 
 def main():
     args = [a for a in sys.argv[1:] if a != "--check"]
+    check = "--check" in sys.argv[1:]
     edges, rev = build_dep_index()
     keys = args or list(LAYERS)
+
+    rendered = {}
     for k in keys:
         if k not in LAYERS:
             print("未知层: %s（可选: %s）" % (k, ", ".join(LAYERS)))
             continue
         L = LAYERS[k]
-        print("\n### %s\n" % L["title"])
-        print("%s\n" % L["desc"])
-        print(table(k, edges, rev))
-        py = sum(line_count(p) for p, _ in L["files"] if p.endswith(".py"))
-        print("\n共 %d 个文件，其中 Python %d 行。" % (len(L["files"]), py))
+        rendered[k] = "\n".join([
+            table(k, edges, rev),
+            "共 %d 个文件，其中 Python %d 行。" % (
+                len(L["files"]),
+                sum(line_count(p) for p, _ in L["files"] if p.endswith(".py"))),
+        ])
+
+    # 这个生成器以前只往 stdout 打印，表里的数字全靠人手粘贴 ——
+    # 于是「数据唯一来源」其实是假的：源会变，表不会自己跟。
+    # 现在按 --check 双向对齐：写盘用 replace_between（幂等，只换区间），
+    # 校验则报出「该跑刷新了」而不是让人自己去比。
+    touched, drifted = [], []
+    for k, body in rendered.items():
+        target = LAYERS[k].get("out")
+        if not target:
+            continue
+        full = os.path.join(ROOT, target)
+        if not os.path.exists(full):
+            print("目标不存在，跳过: %s" % target)
+            continue
+        s = LAYERS[k]["start"]
+        e = LAYERS[k]["end"]
+        cur = read_text(full)
+        if s not in cur or e not in cur:
+            print("标记缺失，跳过（表结构手改过？）: %s" % target)
+            continue
+        new = cur[:cur.index(s) + len(s)] + "\n" + body + "\n" + cur[cur.index(e):]
+        if new == cur:
+            continue
+        touched.append(target)
+        if check:
+            drifted.append(target)
+        else:
+            with io.open(full, "w", encoding="utf-8", newline="\n") as f:
+                f.write(new)
+
+    for k in keys:
+        if k in LAYERS:
+            print("\n--- %s ---" % k)
+            print(rendered[k])
+
+    if check:
+        if drifted:
+            print("\n漂移 %d 处（跑 `python tools/gen_code_tables.py %s` 刷新）:"
+                  % (len(drifted), " ".join(keys)))
+            for t in drifted:
+                print("  " + t)
+            return 1
+        print("\nOK: 各表与扫描结果一致")
+        return 0
+    if touched:
+        print("\nwritten: " + ", ".join(touched))
+    else:
+        print("\nNO-CHANGE: 各表已是最新")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -23,11 +23,12 @@
 
 ## 速查表
 
+<!-- gen:tooling:table:start -->
 | 文件 | 职责 | 对外接口 / 入口 | 依赖谁 | 被谁依赖 | 体积 |
 | --- | --- | --- | --- | --- | --- |
-| `scripts/push_via_api.py` | 当 github.com 被代理挡住、但 api.github.com 通时，用 Git Data API 推送 | 走 API 推送 | —（叶子） | —（没人依赖） | 248 行 |
+| `scripts/push_via_api.py` | 当 github.com 被代理挡住、但 api.github.com 通时，用 Git Data API 推送 | 走 API 推送 | —（叶子） | —（没人依赖） | 250 行 |
 | `scripts/vendor_themes.py` | Vendor a curated set of design systems from open-kimi-ppt-skill (MIT) | 主题文件入库 | —（叶子） | —（没人依赖） | 89 行 |
-| `scripts/motion.ps1` | dsh-ppt-office-motion :: Office COM layer | Office COM 层：media 插入 + 真渲染 | —（叶子） | —（没人依赖） | 482 行 |
+| `scripts/motion.ps1` | dsh-ppt-office-motion :: Office COM layer | Office COM 层：media 插入 + 真渲染 | —（叶子） | —（没人依赖） | 572 行 |
 | `scripts/make_calibration.ps1` | dsh-ppt-office-motion :: build the known-answer calibration deck + video | 造标定deck + 标定视频 | —（叶子） | —（没人依赖） | 103 行 |
 | `scripts/probe_anchor.ps1` | dsh-ppt-office-motion :: measure WHERE a slide transition actually takes effect | 测 `<p:transition>` 锚点在终点页还是出发页 | —（叶子） | —（没人依赖） | 185 行 |
 | `scripts/probe_createvideo.ps1` | dsh-ppt-office-motion :: probe whether Presentation.CreateVideo works HERE | 探测本机 CreateVideo 是否可用 | —（叶子） | —（没人依赖） | 146 行 |
@@ -46,15 +47,17 @@
 | `tools/split_tests.py` | 一次性拆分器：把 test_transition_table.py（1633 行 / 22 组）拆成三份 | 一次性：拆 test_transition_table.py 成三份 | —（叶子） | —（没人依赖） | 243 行 |
 | `tools/archive_handover_85.py` | 一次性归档器：把 HANDOVER.md §8 里**已完成**的三节搬进 history/ | 一次性：把 HANDOVER §8 已完成的三节搬进 history/ | —（叶子） | —（没人依赖） | 138 行 |
 | `tools/make_lotus_fixture.py` | 从用户的莲花 deck 制作「结构复核副本」——入库用（原件不入库） | 一次性：从用户莲花 deck 制结构复核副本（洗私人元数据 + 换版权素材图） | —（叶子） | —（没人依赖） | 135 行 |
-| `tools/gen_code_tables.py` | 生成 reference/code-*.md 里的速查表 —— 表格数据不手抄 | 生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源） | —（叶子） | `test_code_index` | 229 行 |
+| `tools/make_solar_fixture.py` | 把注入动效后的 deck 洗成**结构复核副本**（fixture），供 test_docs 逐值核对 | 把注入动效后的太阳系 deck 洗成结构复核副本（洗 docProps + 结构逐值断言） | —（叶子） | —（没人依赖） | 132 行 |
+| `tools/gen_code_tables.py` | 生成 reference/code-*.md 里的速查表 —— 表格数据不手抄 | 生成 / 刷新四份 code-*.md 的速查表（表的数据唯一来源） | —（叶子） | `test_code_index` | —（本文件，生产者不自报） |
 | `tools/add_toc.py` | 给长文档补一张目录（TOC）—— 只加导航，不动正文一个字 | 给长文档加目录 | —（叶子） | —（没人依赖） | 172 行 |
 | `tools/collapse_symptom.py` | 分级收敛 symptom 侧正文：把重复正文换成指向根因的链接 | 根因收敛 1/3：重复节收敛为索引（幂等） | —（叶子） | —（没人依赖） | 199 行 |
 | `tools/add_symptom_view.py` | 给已收敛的 symptom 节补「现象」导语 | 根因收敛 2/3：给已收敛节补现象导语（幂等） | —（叶子） | —（没人依赖） | 109 行 |
 | `tools/link_symptom_to_pitfall.py` | 给档3（保留现象正文的节）补根因链接 | 根因收敛 3/3：给保留正文的节补根因链接（幂等） | —（叶子） | —（没人依赖） | 123 行 |
 | `tools/add_symptom_leadin.py` | 给 pitfall 顶层编号节插入「现象」导语 | 按 TSV 给 pitfall 顶层节插现象导语 | —（叶子） | —（没人依赖） | 145 行 |
 | `reference/design-system/build_index.py` | Generate the design-system index for this skill | 生成 / 校验 design-system 索引（--check 只读） | —（叶子） | —（没人依赖） | 299 行 |
-
-共 28 个文件，其中 Python 3647 行。
+| `reference/design-system/build_decision_tree.py` | 从 recipes.json 生成 reference/decision-tree.md 的三块内容 | 生成 / 校验动效决策树（--check 只读） | —（叶子） | —（没人依赖） | 222 行 |
+共 30 个文件，其中 Python 4084 行。
+<!-- gen:tooling:table:end -->
 
 > **`.ps1` 显示"叶子"是正常的** —— PowerShell 脚本之间不 import，
 > 它们被**人**从命令行调用，不是被代码依赖。上表的依赖分析只对 `.py` 有效。

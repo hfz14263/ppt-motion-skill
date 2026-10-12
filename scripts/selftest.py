@@ -445,6 +445,69 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
+    # ---- [12] with 的并行语义（2026-10-12：分组结构 + time table） ----------
+    # 平铺结构下 with 与 after 行为完全相同（实测：全 with 链条逐项等前一项
+    # 播完）—— 这是"动效与预期不符"级别的静默失败。修复 = build_timing 分组。
+    # 这一组钉两件事：① 连续 with 归入同一组（一个组容器 + 多成员）；
+    # ② schedule_spec 的 with 分支带 delay（与 build_timing 保持一致）。
+    print("[12] with = parallel within a group (delay = offset from group start)")
+    import motion_timing as MT
+    import xml.etree.ElementTree as _ET
+    PNS = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
+    cat = json.load(open(motion.catalog_path(), encoding="utf-8"))
+    _tpl = cat["fade"]["template"]
+
+    def _ent(sid, delay, trigger):
+        return {"shape_id": sid, "tpl": _tpl,
+                "effect": {"effect": "fade", "duration": 0.4,
+                           "trigger": trigger, "delay": delay}}
+
+    def _parse(fragment):
+        # build_timing 返回的是片段（不含 xmlns 声明，声明由插入方提供）——
+        # 解析前必须自己包一层把前缀声明齐，否则 ET 直接报 unbound prefix。
+        wrapped = ('<w xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"'
+                   ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+                   ' xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"'
+                   ' xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main">'
+                   '%s</w>' % fragment)
+        return _ET.fromstring(wrapped)
+
+    xml = MT.build_timing([_ent("2", 0.0, "with"),
+                           _ent("3", 0.5, "with"),
+                           _ent("2", 0.5, "with")], MT.NodeIds(4))
+    root = _parse(xml)
+    mainseq = root.find(".//%scTn[@nodeType='mainSeq']" % PNS)
+    top = mainseq.find("%schildTnLst" % PNS).findall("%spar" % PNS)
+    check("3 个连续 with -> 1 个组容器（不是 3 个平级 par）",
+          len(top) == 1, "顶层 par 数 = %d" % len(top))
+    members = top[0].find("%scTn" % PNS).find("%schildTnLst" % PNS).findall("%spar" % PNS)
+    check("组容器里有 3 个成员", len(members) == 3, "成员数 = %d" % len(members))
+    delays = [m.find(".//%scond" % PNS).get("delay") for m in members]
+    check("成员 delay = 0/500/500（相对组开始的错开量）",
+          delays == ["0", "500", "500"], str(delays))
+
+    xml2 = MT.build_timing([_ent("2", 0.0, "with"),
+                            _ent("3", 0.5, "with"),
+                            _ent("2", 0.2, "after")], MT.NodeIds(4))
+    root2 = _parse(xml2)
+    top2 = (root2.find(".//%scTn[@nodeType='mainSeq']" % PNS)
+            .find("%schildTnLst" % PNS).findall("%spar" % PNS))
+    check("after 开启新组（2 组：1 个 with 组 + 1 个 after 组）",
+          len(top2) == 2, "顶层 par 数 = %d" % len(top2))
+    g2_delay = top2[1].find("%scTn/%sstCondLst/%scond" % (PNS, PNS, PNS)).get("delay")
+    check("after 组的容器 delay = 200（相对前组结束）", g2_delay == "200", g2_delay)
+
+    sched = motion.schedule_spec([
+        {"target": "a", "effect": "fade", "duration": 0.4, "trigger": "with", "delay": 0.0},
+        {"target": "b", "effect": "fade", "duration": 0.4, "trigger": "with", "delay": 0.5},
+        {"target": "c", "effect": "fade", "duration": 0.4, "trigger": "with", "delay": 1.0},
+        {"target": "d", "effect": "fade", "duration": 0.4, "trigger": "after", "delay": 0.2},
+    ])
+    check("schedule: with+delay 是相对组开始的错开（0 / 0.5 / 1.0）",
+          [s["start"] for s in sched[:3]] == [0.0, 0.5, 1.0], str(sched[:3]))
+    check("schedule: after 等组内最慢成员结束再加 delay（1.4 + 0.2）",
+          sched[3]["start"] == 1.6, str(sched[3]))
+
     print("\n%d passed, %d failed" % (len(PASS), len(FAIL)))
     if FAIL:
         for f in FAIL:

@@ -7,7 +7,12 @@
 #   1. media   - AddMediaObject2 inserts a real MP4/WAV into a slide. PowerPoint
 #                will not import media without its own transcoding pipeline, so
 #                this cannot be done by hand-writing OOXML.
-#   2. verify  - open the deck, read the animation sequence back, render slides
+#   2. svg     - AddPicture inserts a vector that stays sharp at any zoom.
+#                PowerPoint writes the dual-blip form (PNG fallback + asvg:svgBlip)
+#                itself; hand-writing it risks a structurally valid but subtly
+#                wrong extension. SVG cannot animate -- motion comes from
+#                <p:timing>. See reference/svg-in-ppt.md.
+#   3. verify  - open the deck, read the animation sequence back, render slides
 #                to PNG and export a PDF. This is the "true render" review track.
 #
 # PowerPoint requires a desktop session. On a sandboxed host, COM automation may
@@ -23,6 +28,11 @@
 #       { "src": "clip.mp4", "bounds": [100, 90, 520, 293],
 #         "loop": false, "rewind": true, "mute": false, "volume": 0.8,
 #         "autoplay": true, "elementId": "VIDEO" } ] } ] }
+#
+# map.json (svg layer) -- same shape, different key:
+#   { "slides": [ { "page": 3, "svg": [
+#       { "src": "icon.svg", "bounds": [60, 60, 240, 240],
+#         "elementId": "ICON" } ] } ] }
 
 [CmdletBinding()]
 param(
@@ -137,19 +147,27 @@ function ConvertFrom-MotionSpec {
 
   $slides = New-Object System.Collections.Generic.List[object]
   $cur = $null
+  # Which list the next "- {src: ...}" item belongs to. This has to be tracked
+  # explicitly: the item syntax is identical for media: and svg:, so matching on
+  # the item shape alone silently files every svg under media -- and then
+  # AddMediaObject2 chokes on a .svg. (Measured, not theorised.)
+  $bucket = 'media'
   foreach ($line in ($text -split "`r?`n")) {
     if ($line -match '^\s*#') { continue }
     if ($line -match '^\s*-\s*page:\s*(\d+)') {
-      $cur = [ordered]@{ page = [int]$Matches[1]; transition = $null; media = @() }
+      $cur = [ordered]@{ page = [int]$Matches[1]; transition = $null; media = @(); svg = @() }
       $slides.Add($cur) | Out-Null
       continue
     }
     if ($line -match '^\s*-\s*slide:\s*(\d+)') {
-      $cur = [ordered]@{ page = [int]$Matches[1]; transition = $null; media = @() }
+      $cur = [ordered]@{ page = [int]$Matches[1]; transition = $null; media = @(); svg = @() }
       $slides.Add($cur) | Out-Null
       continue
     }
     if ($null -eq $cur) { continue }
+
+    # A bare "media:" / "svg:" key switches the bucket for the items below it.
+    if ($line -match '^\s*(media|svg):\s*$') { $bucket = $Matches[1]; continue }
 
     # transition: {type: fade, duration: 0.8}
     if ($line -match '^\s*transition:\s*\{?\s*type:\s*([A-Za-z]+)') {
@@ -158,7 +176,7 @@ function ConvertFrom-MotionSpec {
       $cur.transition = $t
       continue
     }
-    # media item start:  - {src: "clip.mp4", bounds: [100, 90, 520, 293], loop: true}
+    # payload item start:  - {src: "clip.mp4", bounds: [100, 90, 520, 293], loop: true}
     if ($line -match '^\s*-\s*\{\s*src:\s*"?([^",}]+)"?' ) {
       $m = @{ src = $Matches[1].Trim(); bounds = @(60, 60, 480, 270); loop = $false; rewind = $true; mute = $false; autoplay = $true }
       if ($line -match 'bounds:\s*\[([^\]]+)\]') {
@@ -171,14 +189,14 @@ function ConvertFrom-MotionSpec {
       if ($line -match 'volume:\s*([0-9.]+)') { $m.volume = [double]$Matches[1] }
       if ($line -match 'kind:\s*"?([a-z]+)"?') { $m.kind = $Matches[1] }
       if ($line -match 'elementId:\s*"?([A-Za-z0-9_\-]+)"?') { $m.elementId = $Matches[1] }
-      $cur.media = @($cur.media) + $m
+      if ($bucket -eq 'svg') { $cur.svg = @($cur.svg) + $m } else { $cur.media = @($cur.media) + $m }
       continue
     }
   }
-  # drop pages that carry neither transition nor media
+  # drop pages that carry no COM-side work at all
   $keep = @()
   foreach ($s in $slides) {
-    if ($s.transition -or (@($s.media).Count -gt 0)) { $keep += $s }
+    if ($s.transition -or (@($s.media).Count -gt 0) -or (@($s.svg).Count -gt 0)) { $keep += $s }
   }
   return @{ slides = $keep }
 }
@@ -199,6 +217,66 @@ function Close-PowerPoint($ppt) {
 }
 
 # ---------------------------------------------------------------- media layer
+function Add-SvgLayer($ppt, $pres, $plan) {
+  # --------------------------------------------------------------- svg payload
+  # SVG goes through AddPicture, NOT the OOXML engine and NOT AddMediaObject2.
+  # Measured 2026-10-10: one AddPicture call makes PowerPoint write the whole
+  # dual-blip structure itself --
+  #   a:blip/@r:embed            -> PNG raster fallback
+  #   .../a:ext[@uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"]
+  #       /asvg:svgBlip/@r:embed -> the real vector
+  # plus a Default Extension="svg" in [Content_Types].xml.
+  #
+  # Why COM and not hand-written XML: the first version of this wrote the
+  # extension by hand and it round-tripped, but PowerPoint is the only authority
+  # on what a *legal* svgBlip looks like (it adds a16:creationId alongside).
+  # Letting PowerPoint write its own format removes a whole class of
+  # "structurally valid but subtly wrong" risk.
+  #
+  # NOT supported, on purpose:
+  # - SVG-internal animation (SMIL / CSS @keyframes). PowerPoint strips it --
+  #   Microsoft's own wording: "all Office applications support SVG images but
+  #   do not support SVG Animation". Motion must come from <p:timing>.
+  # - True shape morphing. PowerPoint tweens the PNG fallback, so a zoom
+  #   transition visibly blurs. Convert to Shape first (see reference/
+  #   svg-in-ppt.md), which is a manual PowerPoint action, not a spec field.
+  if (-not $plan) { return @() }
+  $applied = @()
+  foreach ($slideEntry in @($plan.slides)) {
+    $idx = [int]$slideEntry.page
+    if ($idx -lt 1 -or $idx -gt $pres.Slides.Count) {
+      Say ("  svg: page {0} out of range (deck has {1})" -f $idx, $pres.Slides.Count)
+      continue
+    }
+    $slide = $pres.Slides($idx)
+    foreach ($m in @($slideEntry.svg)) {
+      $src = [string]$m.src
+      # Resolve to a native absolute path first. A spec may carry a
+      # slash-separated path (YAML habit, and what tests use); Test-Path accepts
+      # it but AddPicture does not -- it reports "file not found" for a file that
+      # is plainly there. Normalising here keeps the error message honest.
+      if ($src) { $src = [IO.Path]::GetFullPath($src) }
+      if (-not (Test-Path -LiteralPath $src)) { throw "svg file not found: $src" }
+      if ([IO.Path]::GetExtension($src).ToLower() -ne ".svg") {
+        throw ("svg.src must be a .svg file (got {0}) -- put raster/video under media: instead" -f $src)
+      }
+      $b = @($m.bounds)
+      if ($b.Count -lt 4) { $b = @(60, 60, 240, 240) }
+      $shape = $null
+      try {
+        # LinkToFile=msoFalse(0) keeps the payload inside the pptx
+        $shape = $slide.Shapes.AddPicture($src, 0, -1, [single]$b[0], [single]$b[1], [single]$b[2], [single]$b[3])
+      } catch {
+        throw ("AddPicture failed for {0} (page {1}): {2}" -f $src, $idx, $_.Exception.Message)
+      }
+      if ($m.elementId) { $shape.Name = [string]$m.elementId }
+      $applied += [pscustomobject]@{ page = $idx; src = $src; name = $shape.Name; width = [int]$shape.Width; height = [int]$shape.Height }
+      Say ("  svg: page {0} <- {1} as '{2}' ({3}x{4}, type={5})" -f $idx, (Split-Path $src -Leaf), $shape.Name, [int]$shape.Width, [int]$shape.Height, $shape.Type)
+    }
+  }
+  return $applied
+}
+
 function Add-MediaLayer($ppt, $pres, $plan) {
   if (-not $plan) { throw "media plan is empty" }
   $applied = @()
@@ -211,7 +289,10 @@ function Add-MediaLayer($ppt, $pres, $plan) {
     $slide = $pres.Slides($idx)
     foreach ($m in @($slideEntry.media)) {
       $src = [string]$m.src
-      if (-not (Test-Path $src)) { throw "media file not found: $src" }
+      # Same normalisation as the svg layer: Test-Path tolerates forward
+      # slashes, the COM calls do not.
+      if ($src) { $src = [IO.Path]::GetFullPath($src) }
+      if (-not (Test-Path -LiteralPath $src)) { throw "media file not found: $src" }
       $b = @($m.bounds)
       if ($b.Count -lt 4) { $b = @(60, 60, 480, 270) }
       $shape = $null
@@ -364,10 +445,19 @@ try {
   }
 
   $mediaPlan = @()
+  $svgPlan = @()
   $transPlan = @()
   foreach ($s in @($plan.slides)) {
     if ($s.transition) { $transPlan += @{ page = $s.page; type = $s.transition.type; duration = $s.transition.duration } }
     if (@($s.media).Count -gt 0) { $mediaPlan += [pscustomobject]@{ page = $s.page; media = @($s.media) } }
+    if (@($s.svg).Count -gt 0) { $svgPlan += [pscustomobject]@{ page = $s.page; svg = @($s.svg) } }
+  }
+
+  # SVG first: it is a plain picture, so the verify layer below can census it
+  # like any other shape. Media goes after because AddMediaObject2 is the slow one.
+  if ($svgPlan.Count -gt 0) {
+    Say "-- svg layer --"
+    $result.svg = Add-SvgLayer $ppt $pres ([pscustomobject]@{ slides = $svgPlan })
   }
 
   if ($mediaPlan.Count -gt 0) {
@@ -408,10 +498,10 @@ try {
     $result.verify = Verify-Deck $pres
   }
 
-  # Persist COM-side additions (embedded media) to a NEW file. The engine's
+  # Persist COM-side additions (embedded media, svg) to a NEW file. The engine's
   # transitions and animations survive PowerPoint's own save, so this doubles as
   # the round-trip fidelity check.
-  if ((-not $NoSave) -and ($mediaPlan.Count -gt 0 -or $ExportPdf)) {
+  if ((-not $NoSave) -and ($mediaPlan.Count -gt 0 -or $svgPlan.Count -gt 0 -or $ExportPdf)) {
     $saved = Join-Path $OutDir ((Split-Path $pptxPath -Leaf) -replace '\.pptx$', '.com.pptx')
     try {
       $pres.SaveCopyAs($saved, $ppSaveAsOpenXMLPresentation)

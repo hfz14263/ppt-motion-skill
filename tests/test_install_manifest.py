@@ -30,7 +30,11 @@ ROOT = os.path.dirname(HERE)
 # `tools/` 是一次性搬迁/重构脚本的落脚处（例如 split_pitfalls.py 把踩坑手册
 # 切分成 10 份）。它们对**使用者**没有意义 —— 装出去只会让人以为要运行它们。
 # 与之相对，`scripts/` 是运行时工具，必须随包分发。这条界线由本集合表达。
-DEV_ONLY = {"tests", "tools", "__pycache__", "probe-createvideo", ".workbuddy"}
+DEV_ONLY = {"tests", "tools", "__pycache__", "probe-createvideo", ".workbuddy",
+            # 2026-10-10：out/ 是一次性构建产物（注入后的 deck、COM 往返件、
+            # 渲染 PNG、导出 PDF）。每次重建字节都不同，随包分发只会变成噪音；
+            # 承载判据的结构复核副本在 tests/fixtures/（已随包）。
+            "out"}
 
 # 同上，但针对**顶层文件**。当前为空 —— 2026-10-09 `SESSION-HANDOVER.md`
 # （2026-09-30 的会话交接）已删：使命结束，且它会过期、对使用者无意义。

@@ -84,7 +84,11 @@ CODE_SPLIT_EXEMPT = {
 }
 
 # 这些顶层目录是开发期的，明确不随包分发（与 test_install_manifest 同源）
-DEV_ONLY_DIRS = {"tests", "tools", "__pycache__", ".workbuddy", ".git"}
+DEV_ONLY_DIRS = {"tests", "tools", "__pycache__", ".workbuddy", ".git",
+                 # 2026-10-10：`out/` 是一次性构建产物（注入后的 deck、COM 往返件、
+                 # 渲染 PNG、导出 PDF）。每次重建字节都不同，入库只会在 git 里
+                 # 堆噪音；承载判据的是 tests/fixtures/ 里的结构复核副本。
+                 "out"}
 
 # 文档里引用的路径存在性检查 —— 举例性质的登记在此，带理由
 PATH_REF_EXEMPT = {

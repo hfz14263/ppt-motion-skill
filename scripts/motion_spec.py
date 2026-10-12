@@ -127,21 +127,22 @@ def normalize_spec(spec):
 def schedule_spec(effects):
     """Absolute start time per effect, in seconds.
 
-    Mirrors build_timing(): each effect becomes its own <p:par>, so `after` waits
-    for its whole PRECEDING GROUP to finish, while `with` shares the current
-    group's start (which is why a spec puts `with` entries directly after the
-    effect they accompany).
+    Mirrors build_timing(): 连续的 with 项共享一个【组】，成员从组的开始起算，
+    `delay` 是相对组开始的错开量；`after` 新建一组，从上一组的结束 + delay 起算。
 
-    The group's end is the max end of its members, not the last member's end: a
-    `with` effect can be longer than the one it accompanies, and the following
-    `after` must wait for the slower of them.
+    组的结束是该组各成员结束时间的最大值，不是最后一个成员的结束：一个
+    `with` 成员可以比它伴随的更长，后面的 `after` 必须等更慢的那个。
+
+    2026-10-12 修正：with 分支原先丢掉 delay（start = group_start），
+    与 build_timing 的分组实现（start = group_start + delay）不一致 ——
+    design_audit 的时间预算与 player 预览都会因此偏早。
     """
     out, group_start, group_end = [], 0.0, 0.0
     for eff in effects:
         dur = float(eff.get("duration") or 0.6)
         delay = float(eff.get("delay") or 0.0)
         if str(eff.get("trigger", "after")).lower() == "with" and out:
-            start = group_start
+            start = group_start + delay      # delay 相对组开始（错开量）
         else:
             start = group_end + delay
             group_start = start

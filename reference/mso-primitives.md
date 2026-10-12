@@ -71,20 +71,33 @@ OOXML —— 那会让你得到完全不同的效果,而且结构校验全过。
 | spec 写法 | PowerPoint `nodeType` | 语义 |
 | --- | --- | --- |
 | `trigger: click` | `clickEffect` | 点击触发 |
-| `trigger: with` | `withEffect` | 与上一个**同时**开始 |
-| `trigger: after` | `afterEffect` | 上一个**整组**结束后（默认） |
+| `trigger: with` | `withEffect` | 与**本组**同时开始；`delay` 是"相对组开始的错开量" |
+| `trigger: after` | `afterEffect` | 上一**组**结束后 + `delay`（默认） |
 
-⚠️ **`with` 有三个反直觉之处**，都会导致动效和预期不符:
+### 分组规则（2026-10-12 重做，实测驱动）
 
-1. **`with` 不能作为一组的第一个效果。** 它要和"上一个"同时,前面没有就退化成
-   `after`。把 `with` 放在首位,等于写错了触发方式而不报错。
-2. **`after` 等的是整组的最大值,不是最后一个效果的结束。** 一个 `with` 效果可以比
-   它伴随的那个更长,后面的 `after` 必须等更慢的那个。`motion.py` 的
-   `schedule_spec()` 就是按这个规则算时间的。
-3. **`after` 之后跟 `with`,那组的时间戳回退到组的起点。** 这是"一次出现多个元素"
-   的正确写法,但很容易误读成"它们各自延时"。
+连续的 `with` 项归入**同一组**：一个组容器 + 若干成员，成员 `delay` 相对
+**组的开始**。这是 PowerPoint UI 里「一列 With Previous」在 XML 里的形态，
+已对 PowerPoint 自己写的样本逐层核对。
 
-其余时序字段:`delay`（秒，写到外层 `stCondLst`）、`duration`（秒，写到叶子行为
+于是 spec 里的时间表可以当"绝对时间"读：
+
+```yaml
+- {target: A, effect: fade, trigger: with, delay: 0.0}
+- {target: B, effect: fade, trigger: with, delay: 0.5}
+- {target: C, effect: fade, trigger: with, delay: 1.0}
+```
+
+→ A 在 0s、B 在 0.5s、C 在 1.0s 出现，**三项并行**。
+
+> ⚠️ **踩过的坑（已修）：平铺结构下 `with` 与 `after` 完全同义。**
+> 生成器原先把每个效果平铺为平级 `<p:par>` —— 而平级兄弟的 `delay`
+> 相对**前一项的结束**，标了 `withEffect` 也不例外。实测：一个全 `with`、
+> delay 递增 0.5 的五项链条，首现时刻是 **0.1 / 1.0 / 1.9 / 2.8 / 3.7** 秒
+> （每项都在等前一项播完）。太阳系样例的 39 项入场因此要 **31 秒**才播完。
+> 修法见 `scripts/motion_timing.py` 的 `build_timing()`（分组）。
+
+其余时序字段：`delay`（秒，写到 `stCondLst`）、`duration`（秒，写到叶子行为
 `cTn` 的毫秒）、`repeat`（`repeatCount = 次数×1000`）、`autoReverse`（`autoRev="1"`）、
 `smooth`（0–1，同时设 `accel` 和 `decel`）。
 

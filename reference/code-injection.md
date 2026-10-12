@@ -11,16 +11,17 @@
 
 **这一层是全库耦合的顶点**，也是唯一一层「改一行可能影响别人」的地方：
 
+<!-- gen:injection:table:start -->
 | 文件 | 职责 | 对外接口 / 入口 | 依赖谁 | 被谁依赖 | 体积 |
 | --- | --- | --- | --- | --- | --- |
-| `scripts/motion.py` | **门面**：apply 主流程 + CLI + 重新导出下面四层 | `apply` / `inspect` / `preview` / `catalog` / `player` / `check` | `motion_media`、`motion_spec`、`motion_timing`、`motion_xml` | 10 个模块（见下） | 545 行 |
-| `scripts/motion_xml.py` | motion.xml — 常量与 XML 底层（**整个引擎的地基**） | 常量 + zip + XML 字符串手术 + 单例 + 形状索引 | —（叶子） | `motion`、`motion_media`、`motion_spec`、`motion_timing` | 528 行 |
-| `scripts/motion_timing.py` | motion.timing — timing 与 transition 的 XML 生成 | timing / transition 生成 | `motion_xml` | `motion` | 440 行 |
-| `scripts/motion_media.py` | motion.media — 3D 相机与图片填充 | 3D 相机 + 图片填充 | `motion_xml` | `motion` | 338 行 |
-| `scripts/motion_spec.py` | motion.spec — spec 处理与**结构校验** | spec 处理 + 三个校验函数 | `motion_xml` | `motion` | 228 行 |
-| `scripts/player.py` | 浏览器端动效重放（HTML） | 生成 HTML 预览 | `motion` | `check_coverage`、`design_audit`、`selftest` | 578 行 |
-
-共 6 个文件，其中 Python 2657 行。
+| `scripts/motion.py` | dsh-ppt-office-motion :: OOXML motion injection engine（**门面**） | 核心注入引擎：动画/切换/3D/图片填充 + CLI（门面） | `motion_media`、`motion_spec`、`motion_timing`、`motion_xml` | `check_coverage`、`design_audit`、`player`、`selftest`、`verify_motion`、`verify_singletons`、`test_camera`、`test_fill_window`、`test_morph`、`test_singletons` | 561 行 |
+| `scripts/motion_xml.py` | motion.xml — 常量与 XML 底层 —— **整个引擎的地基** | 常量 + zip + XML 字符串手术 + 单例 + 形状索引 | —（叶子） | `motion`、`motion_media`、`motion_spec`、`motion_timing` | 534 行 |
+| `scripts/motion_timing.py` | motion.timing — timing 与 transition 的 XML 生成 | timing / transition 的 XML 生成 | `motion_xml` | `motion` | 483 行 |
+| `scripts/motion_media.py` | motion.media — 3D 相机与图片填充 —— 两类「非时序」的视觉属性 | 3D 相机 + 图片填充 | `motion_xml` | `motion` | 338 行 |
+| `scripts/motion_spec.py` | motion.spec — spec 处理与**结构校验** | spec 处理 + 结构校验 | `motion_xml` | `motion` | 229 行 |
+| `scripts/player.py` | dsh-ppt-office-motion :: build a browser motion preview from a spec | 浏览器端动效重放（HTML） | `motion` | `check_coverage`、`design_audit`、`selftest` | 578 行 |
+共 6 个文件，其中 Python 2723 行。
+<!-- gen:injection:table:end -->
 
 **10 个依赖者全部只 import `motion`**（不直接 import 那四层）——
 `test_camera`、`test_fill_window`、`test_morph`、`test_singletons`
@@ -119,7 +120,7 @@ spec 解释权只留一份，否则预览和真注入会漂。
 ## 已知热点
 
 **`motion.py` 已拆完（2026-10-09）**：1914 行 / 81 符号 →
-门面 545 行 + 四层（528 / 440 / 338 / 228）。
+门面 561 行 + 四层（534 / 440 / 338 / 228）。
 
 **这次为什么推翻了 2026-10-08 的「不拆」**：
 当时的理由是「要动 10 个依赖者，不是单次改动能验证的」—— **理由是对的，

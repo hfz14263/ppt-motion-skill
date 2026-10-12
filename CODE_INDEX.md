@@ -39,8 +39,8 @@ Layer 2  校验与探针
               │
               ▼
 Layer 1  基础设施
-         motion.py（545 行 · 门面 · 被 10 个模块依赖）
-           ├─ motion_xml.py      528 行  ★ 地基：常量 + XML 手术 + 单例 + 形状索引
+         motion.py（561 行 · 门面 · 被 10 个模块依赖）
+           ├─ motion_xml.py      534 行  ★ 地基：常量 + XML 手术 + 单例 + 形状索引
            ├─ motion_timing.py   440 行  timing / transition 生成
            ├─ motion_media.py    338 行  3D 相机 + 图片填充
            └─ motion_spec.py     228 行  spec 处理 + 结构校验
@@ -56,14 +56,14 @@ Layer 0  数据（无本地依赖）
 > [`reference/code-injection.md`](reference/code-injection.md)。
 
 **实测：模块级 import 环 = 0 处。**
-全库共 **67 个 Python 模块**（`scripts/` 26+10 · `tools/` 19 · `tests/` 12），
+全库共 **69 个 Python 模块**（`scripts/` 36 · `tools/` 20 · `tests/` 13），
 另有 **9 个 `.ps1`** 不进 AST 图（它们被命令行调用，不是被 import）。
 
 **改动波及面 ≥5 的模块（改之前先看清谁在用）**：
 
 | 模块 | 被 N 个依赖 | 说明 |
 | --- | --- | --- |
-| `scripts/motion.py` | **10** | 全库第一。**门面**：545 行，实现分在四个子层 |
+| `scripts/motion.py` | **10** | 全库第一。**门面**：561 行，实现分在四个子层 |
 | `transition_probe/common.py` | 8 | 只有 108 行，但是全包的地基 |
 | `transition_probe/data.py` | 7 | 形态定义表 |
 | `transition_probe/decks.py` | 6 | 造 deck |
@@ -178,8 +178,8 @@ Layer 0  数据（无本地依赖）
 
 | 文件 / 位置 | 症状 | 为什么特殊 | 现状 |
 | --- | --- | --- | --- |
-| ~~`scripts/motion.py` 1914 行~~ | ~~逼近 2000 硬上限~~ | 全库被依赖最多的文件（10 个模块） | ✅ **已拆**（2026-10-09）→ **门面 545 行 + 四层**（xml 528 / timing 440 / media 338 / spec 228）。**10 个依赖者一行没改**（门面重新导出全部）。无损：81 符号逐字节相同 |
-| `scripts/motion_xml.py` | 528 行，被 4 个依赖 | 引擎地基：`element_spans` 被 10 处调用 | 拆出来才看见的耦合点。**它比 `motion.py` 更该小心** —— 改它要过 3 个兄弟层的眼 |
+| ~~`scripts/motion.py` 1914 行~~ | ~~逼近 2000 硬上限~~ | 全库被依赖最多的文件（10 个模块） | ✅ **已拆**（2026-10-09）→ **门面 561 行 + 四层**（xml 534 / timing 440 / media 338 / spec 228）。**10 个依赖者一行没改**（门面重新导出全部）。无损：81 符号逐字节相同 |
+| `scripts/motion_xml.py` | 534 行，被 4 个依赖 | 引擎地基：`element_spans` 被 10 处调用 | 拆出来才看见的耦合点。**它比 `motion.py` 更该小心** —— 改它要过 3 个兄弟层的眼 |
 | `transition_probe/` 包内四层 | `common`(8) / `data`(7) / `decks`(6) / `analysis`(5) 被依赖 ≥5 | 数字大是因为含 `__init__.py` 的再导出 | **正常，不是问题** —— 包对外只有 1 个依赖者，复杂度关在包里了 |
 | ~~`scripts/transition_probe/commands.py`~~ | ~~1367 行，超 800 软上限~~ | 19 个 CLI 子命令曾经都挤在一处 | ✅ **已拆**（2026-10-09）→ 5 个 `commands_*.py`（最大 395 行），按探测维度分。无损：19 个函数逐字节相同 |
 | `scripts/motion.py ⇄ check_coverage.py` | 表面 import 环 | 靠**函数内延迟导入**刻意打断 | **刻意设计，不是 bug**。别"顺手修掉"。拆分时那条 `import` 跟着 `main()` 留在门面 —— **有常驻判据盯着它**（`check_structure.py` 的 `check_known_breaks()`：环检测故意忽略函数内导入，就必须有另一条判据防止它被挪走） |

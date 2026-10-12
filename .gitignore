@@ -9,6 +9,12 @@ __pycache__/
 **/review/
 *.com.pptx
 
+# out/ 是一次性构建产物：注入后的 deck、COM 往返件、渲染 PNG、导出的 PDF。
+# 它们由 examples/*/build_*.py + scripts/motion.py + scripts/motion.ps1 按需重建，
+# 每次重建字节都不同（时间戳 / cTn id），入库只会在 git 里堆噪音。
+# 入库的是**结构复核副本** tests/fixtures/*.pptx —— 那份才承载判据。
+out/
+
 # Calibration artifacts: make_calibration.ps1 rebuilds these on demand, and the
 # analyser's own report lands in tests/calib/analysis/.
 tests/calib/*.mp4

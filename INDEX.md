@@ -28,12 +28,15 @@ motion-design-spec*，这里沿用。
 
 ## ① 动效设计知识 —— 该怎么动
 
-**先读** [`reference/recipe-library.md`](reference/recipe-library.md)
-—— 6 条**原理**（不是效果清单）。新素材从原理推导，不查表。
+**先读** [`reference/decision-tree.md`](reference/decision-tree.md)
+—— 拿到一份 pptx 怎么开工：分叉条件 + 每条配方的**失败信号**。
+它由 [`recipes.json`](reference/recipes.json) 生成，加配方只改 JSON。
 
 | 想知道 | 去哪 |
 | --- | --- |
+| **从哪开始**（分叉条件 / 失败信号） | [`decision-tree.md`](reference/decision-tree.md) |
 | 有哪些**原理**可套 | [`recipe-library.md`](reference/recipe-library.md) |
+| SVG / 矢量能做到什么边界 | [`svg-in-ppt.md`](reference/svg-in-ppt.md) |
 | **时长/节奏/密度**的量化规范 | [`motion-design-spec.md`](reference/motion-design-spec.md) |
 | **权威纲领**（Carbon/Material）与 PPT 能力边界 | [`motion-principles.md`](reference/motion-principles.md) |
 | 现成模板**从零设计**动效 | [`template-patterns.md`](reference/template-patterns.md) |

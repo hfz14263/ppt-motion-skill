@@ -279,6 +279,19 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
                     "elementId": media.get("elementId"),
                 })
 
+            # SVG payloads are inserted by the COM layer (AddPicture), but the
+            # spec is parsed here so that: (a) `check` reports them, and (b)
+            # [Content_Types].xml gets its Default Extension="svg" declaration.
+            # Without (b) PowerPoint refuses the vector part on save.
+            # See reference/svg-in-ppt.md for why COM owns the injection.
+            for svg in (entry.get("svg") or []):
+                report.setdefault("svg_plan", []).append({
+                    "slide": idx,
+                    "src": svg.get("src"),
+                    "bounds": svg.get("bounds"),
+                    "elementId": svg.get("elementId"),
+                })
+
             if new_xml != xml:
                 replacements[sname] = new_xml.encode("utf-8")
 
@@ -292,6 +305,9 @@ def apply_motion(pptx_in, spec, out_path, assert_geometry=False):
         for m in report["media_plan"]:
             if m["src"]:
                 ct_xml = ensure_content_type(ct_xml, os.path.splitext(m["src"])[1].lstrip("."))
+        for s in report.get("svg_plan") or []:
+            if s["src"]:
+                ct_xml = ensure_content_type(ct_xml, "svg")
         if ct_xml != original:
             replacements[ct_name] = ct_xml.encode("utf-8")
 

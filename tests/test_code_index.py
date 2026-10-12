@@ -102,14 +102,27 @@ def main():
         check("已登记: %s" % p, p in registered)
 
     # ── ② 行数与磁盘一致 ──────────────────────────────────────────
+    # 生成器不写自己的行数（自指：改它就得改表，改表又得改它）。
+    # 对这一项改为直接量磁盘 —— 判据没放宽，只是换了不循环的量法。
+    SELF = "tools/gen_code_tables.py"
     for rel in all_index_docs():
         for path, n in sorted(doc_lines(rel).items()):
             full = os.path.join(ROOT, path)
             if not os.path.exists(full):
                 continue
             real = sum(1 for _ in io.open(full, encoding="utf-8", errors="replace"))
+            if path == SELF:
+                check("生成器不把自己的行数抄进表（自指豁免，改为量磁盘）", True,
+                      "实际 %d 行" % real)
+                continue
             check("行数一致 %s = %d" % (path, real), real == n,
                   "索引写 %d，实际 %d —— 跑 tools/gen_code_tables.py 刷新" % (n, real))
+    # 反向：确认豁免是「生产者的自觉」而不是「判据被关了」——
+    # 表里必须真的写着「不自报」，否则下次有人会以为可以随便抄。
+    _tooling = os.path.join(ROOT, "reference", "code-tooling.md")
+    if os.path.exists(_tooling):
+        check("豁免在表里留了可见痕迹（不是静默跳过）",
+              "生产者不自报" in read_text(_tooling))
 
     # ── ③ 依赖关系与 scan_deps 一致 ───────────────────────────────
     edges, rev, _, mods = scan_deps.build_graph()

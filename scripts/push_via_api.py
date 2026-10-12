@@ -21,7 +21,9 @@
 
     TOKEN=$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill \
             2>/dev/null | sed -n 's/^password=//p')
-    GH_TOKEN="$TOKEN" REPO_DIR="D:/workbuddy/idea/ppt-motion-skill" \
+    # REPO_DIR 给**仓库根目录**（不是安装目录下 —— 2026-10-12 已迁到
+    # D:/Projects/idea/ppt-motion-skill）。别再写死绝对路径，换机器就断。
+    GH_TOKEN="$TOKEN" REPO_DIR="$(pwd)" \
       <python> scripts/push_via_api.py
 
     · 代理走 $HTTPS_PROXY（本机已设），全程约 3–4 分钟，建议后台跑

@@ -14,6 +14,7 @@
 > 16–22 组守的是文档与规范，与切换实测表无关。组号**保持原编号**。
 > 23 组为 2026-10-09 新增（生成器产物判据，§十.7）。
 > 24 组为 2026-10-10 新增（配方证据的结构复核件逐值核对）。
+> 27 组为 2026-10-10 追加（**Morph 配对必须查 shape id** —— 只查 name 会全绿而实际失效）。
 
 模块内容表（9 组；组号是稳定接口，与拆分前一致）
 ------------------------------------------------
@@ -26,8 +27,10 @@
   22  根因收敛后的两族结构
   23  设计系统索引：生成器产物可复现
   24  配方证据（莲花 fan）：结构复核件逐值可核对
+  27  配方证据（太阳系）：Morph 配对逐值可核对（含 **id**）
 """
 import io
+import json
 import os
 import re
 import subprocess
@@ -368,8 +371,15 @@ def main():
           "位置不对" in std or "位置不对" in std.replace("**", ""))
     check("守则标出了唯一例外（history/ 归档不补丁）",
           "history/" in std and "毁证" in std)
+    # 2026-10-10：HANDOVER 的「验证文化」整节搬进了 history/verification-culture.md
+    # （它已经超了 20k 硬上限）。这两条守则跟着搬走了，判据还只读 HANDOVER.md，
+    # 于是变成"两处不许各说各话"自己先说了不算 —— 判据要跟着内容搬家。
+    cult_p = os.path.join(ROOT, "history", "verification-culture.md")
+    cult = io.open(cult_p, encoding="utf-8").read() if os.path.exists(cult_p) else ""
+    hov_all = hov + "\n" + cult
+
     check("HANDOVER 的验证文化里也写了这条（两处不许各说各话）",
-          "打补丁" in hov and "就地" in hov)
+          "打补丁" in hov_all and "就地" in hov_all)
     # 反模式：不能出现"新开一份修正版"这类指导 —— 那正是它要禁的
     for kw in ("修正版", "重写整节"):
         check("规范没有把「%s」列为做法" % kw,
@@ -381,7 +391,7 @@ def main():
     # 确认更正留下了「当时为什么判断错了」的痕迹，而不是悄悄改掉。
     if hov:
         check("§8.4 的更正留了原因（不是悄悄改掉的）",
-              "更正" in hov and "把两者混为一谈" in hov,
+              "更正" in hov_all and "把两者混为一谈" in hov_all,
               "就地更正必须留下当时判断错在哪")
 
     # ── 第 22 组：根因收敛后的两族结构（2026-10-08） ─────────────────────
@@ -565,6 +575,333 @@ def main():
               "p159:morph" in s2 and "mc:AlternateContent" in s2 and
               "<p:fade/>" in s2)
         z.close()
+
+    # ---- 25. 决策树：生成器产物可复现 + 配方字段齐全 -------------------------
+    # 为什么需要这一组：reference/decision-tree.md 是 build_decision_tree.py
+    # 的**产物**，数据源是 recipes.json 的 applicable_when / breaks_how。
+    # 它最容易腐烂的地方不是内容过时，而是「有人直接手改了 md」——
+    # 下次重跑静默覆盖，读者以为自己改的东西生效了。
+    # §十.7「生成型工具的产物必须有判据」，这一组就是它。
+    print()
+    print("== 25. 决策树：生成器产物可复现 + 配方字段齐全 ==")
+    dt_p = os.path.join(ROOT, "reference", "decision-tree.md")
+    dt_gen = os.path.join(ROOT, "reference", "design-system", "build_decision_tree.py")
+    check("决策树存在", os.path.exists(dt_p))
+    check("生成器存在（决策树是产物，不是手写的）", os.path.exists(dt_gen))
+    if os.path.exists(dt_gen):
+        r = subprocess.run([sys.executable, dt_gen, "--check"],
+                           capture_output=True, text=True, encoding="utf-8")
+        check("--check 通过（决策树与 recipes.json 一致）", r.returncode == 0,
+              ((r.stdout or "") + (r.stderr or "")).strip()[-160:])
+    # 独立口径：不看生成器，直接验「配方表自己声明齐了没有」。
+    # —— 与 --check 两个角度：一个验产物一致，一个验数据源完整。
+    rj_p = os.path.join(ROOT, "reference", "recipes.json")
+    if os.path.exists(rj_p):
+        entries = json.loads(read_text(rj_p)).get("entries", [])
+        need = ("applicable_when", "breaks_how", "constraints", "evidence")
+        incomplete = [e.get("id", "?") for e in entries
+                      for f in need if not e.get(f)]
+        check("%d 条配方的 applicable_when / breaks_how 齐全" % len(entries),
+              bool(entries) and not incomplete,
+              "缺字段: " + ", ".join(sorted(set(incomplete))[:4]))
+        # 每条配方至少要有一个失败信号 —— 否则它无法被验收，不该进决策树
+        nobreak = [e["id"] for e in entries if len(e.get("breaks_how") or []) < 1]
+        check("没有「零失败信号」的配方", not nobreak,
+              ", ".join(nobreak[:4]))
+    if os.path.exists(dt_p):
+        dt = read_text(dt_p)
+        for label in ("gen:preflight", "gen:tree", "gen:table", "gen:breaks"):
+            s, e = f"<!-- {label}:start -->", f"<!-- {label}:end -->"
+            seg = dt[dt.index(s) + len(s):dt.index(e)].strip() \
+                if s in dt and e in dt else ""
+            check(f"[{label}] 区间已生成（非空非占位）",
+                  bool(seg) and seg != "> 待生成",
+                  "区间为空或仍是占位符")
+        check("决策树说明了自己的腐烂方式并指向 recipes.json",
+              "recipes.json" in dt and "生成" in dt)
+
+    # ---- 26. SVG 载荷：机制判据（能力边界写进代码，不只写进文档） -------------
+    # 为什么需要这一组：reference/svg-in-ppt.md 声称「SVG 不能自己动、
+    # Morph 会让它发虚、注入走 COM 不走 XML」。这些是**会过期的事实**——
+    # 哪天 PowerPoint 支持了 SVG 动画，文档就该改。
+    # 把「文档说的」和「代码做的」钉在一起，文档才不会变成传说。
+    print()
+    print("== 26. SVG 载荷：机制与文档声明一致 ==")
+    svg_doc = os.path.join(ROOT, "reference", "svg-in-ppt.md")
+    check("SVG 边界文档存在", os.path.exists(svg_doc))
+    ps1 = read_text(os.path.join(ROOT, "scripts", "motion.ps1"))
+    check("COM 层有 Add-SvgLayer", "function Add-SvgLayer" in ps1)
+    check("COM 层真的用 AddPicture 注入（不是手写 XML）",
+          "AddPicture" in ps1)
+    check("svg 与 media 分开注入（分类错误的教训）",
+          "$bucket" in ps1 and "svgPlan" in ps1)
+    check("路径已规范化（AddPicture 不接受正斜杠）",
+          ps1.count("GetFullPath") >= 2)
+    mxml = read_text(os.path.join(ROOT, "scripts", "motion_xml.py"))
+    check("[Content_Types].xml 已声明 svg", '"svg": "image/svg+xml"' in mxml)
+    mpy = read_text(os.path.join(ROOT, "scripts", "motion.py"))
+    check("XML 层解析 svg 段", "svg_plan" in mpy)
+    if os.path.exists(svg_doc):
+        d = read_text(svg_doc)
+        check("文档写明「SVG 不能自己动」（微软官方口径）",
+              "do not support SVG Animation" in d)
+        check("文档写明 Morph 会发虚（三个坑之一）",
+              "Morph" in d and "糊" in d)
+        # 三件事各落各处：morph 在 <p:transition>、svg 在 asvg:svgBlip、
+        # zoom 在独立 part。三者混谈是这个 topic 最常见的误解，所以钉住。
+        # （判据用文档里真出现的字符串 —— 上一版查 96DAC541 时整组 FAIL，
+        #   而文档写的是全称 uri 不是短 id。那次是判据错了，不是文档缺。）
+        check("文档把三件事分开（morph / svg / zoom 各落各处）",
+              "asvg:svgBlip" in d and "zoomM" in d
+              and "<p:transition>" in d)
+
+    # ---- 27. 配方证据（太阳系）：结构复核件逐值可核对 --------------------------
+    # 为什么需要这一组：recipe「motion-lives-between-pages」原先只有 test_morph
+    # 的机制断言，**没有一份"多页连贯叙事"的端到端样例**。这条配方说
+    # "两页同名同 id、只改数值，Morph 自动补间" —— 听起来显然，实际最容易
+    # 坏在【跨页配对失败】上：id 被重新排、名字对不上、某一页漏改。
+    # 这一组把配方声明逐值钉在副本上（含藏在 mc:AlternateContent 里的 morph、
+    # 以及总览页↔详情页的同名形状对）。
+    print()
+    print("== 27. 配方证据（太阳系）：结构复核件逐值可核对 ==")
+    solar = os.path.join(ROOT, "tests", "fixtures", "solar-system-structure.pptx")
+    spec_p = os.path.join(ROOT, "examples", "solar-motion.yaml")
+    check("结构复核件存在", os.path.exists(solar))
+    check("可跑 spec 存在（三件套的第一件）", os.path.exists(spec_p))
+    if os.path.exists(solar):
+        z = zipfile.ZipFile(solar)
+        slides = sorted((n for n in z.namelist()
+                         if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+                        key=lambda n: int(re.search(r"\d+", n.split("/")[-1]).group()))
+        check("9 页（1 总览 + 8 行星）", len(slides) == 9, "实得 %d" % len(slides))
+
+        def _shapes(xml_bytes):
+            """{name: (x, y, cx, cy, shape_id)} —— id 必须一起读出来。"""
+            root = ET.fromstring(xml_bytes)
+            out = {}
+            for sp in root.iter():
+                if not (sp.tag.endswith("}sp") or sp.tag.endswith("}pic")
+                        or sp.tag.endswith("}cxnSp")):
+                    continue
+                nv = sp.find(".//" + P + "cNvPr")
+                xf = sp.find(".//" + A + "xfrm")
+                if nv is None or xf is None:
+                    continue
+                o, e = xf.find(A + "off"), xf.find(A + "ext")
+                if o is None or e is None:
+                    continue
+                out[nv.get("name")] = (int(o.get("x")), int(o.get("y")),
+                                       int(e.get("cx")), int(e.get("cy")),
+                                       nv.get("id"))
+            return out
+
+        p1 = _shapes(z.read("ppt/slides/slide1.xml"))
+        # 配方 1 的核心断言：总览页有 8 行星 + 8 引线 + 16 个标签 + 太阳
+        keys = [str(j) for j in range(1, 9)]      # 形状名是序号式：PLANET_1..8
+        check("总览页有 8 颗行星（PLANET_1..8，两页同名同 id）",
+              all("PLANET_%s" % k in p1 for k in keys),
+              "缺: " + ", ".join(k for k in keys if "PLANET_%s" % k not in p1))
+        check("总览页有 8 根引线（LEAD_1..8，视频里的细线）",
+              all("LEAD_%s" % k in p1 for k in keys))
+        check("总览页有中英双标签（LABEL_1..8 + CN_1..8）",
+              all(("LABEL_%s" % k in p1 and "CN_%s" % k in p1) for k in keys))
+        check("总览页有太阳（SUN）", "SUN" in p1)
+
+        # ── Morph 配对的三条硬判据 ──────────────────────────────────
+        # ① 跨页同名形状全部存在
+        # ② **同名形状的 shape id 必须逐值相同** ← 这一条是 2026-10-10 补的，
+        #    因为漏了它整套判据全绿而放映看不到任何补间。
+        #    实测：Morph 按 **id** 配对，name 相同但 id 错位就配不上。
+        # ③ 同页内 id 必须唯一（两个形状共用 id 会让 Morph 把它们互相配对）
+        pair_ok, pair_missing = [], []
+        id_mismatch = []
+        for i in range(2, 10):
+            pg = _shapes(z.read("ppt/slides/slide%d.xml" % i))
+            for nm in pg:
+                if nm.startswith(("PLANET_", "LEAD_", "LABEL_", "CN_")) \
+                        or nm in ("HDR_TITLE", "HDR_CN", "TAGLINE",
+                                  "BODY", "INDEX", "FOOT", "SUN"):
+                    if nm in p1:
+                        pair_ok.append((i, nm))
+                        if p1[nm][4] != pg[nm][4]:
+                            id_mismatch.append("s%d:%s id=%s≠s1:%s"
+                                               % (i, nm, pg[nm][4], p1[nm][4]))
+                    else:
+                        pair_missing.append("s%d:%s" % (i, nm))
+        check("跨页同名形状全部成对（8 详情页 × 39 形状 = 312 对）",
+              len(pair_ok) == 312 and not pair_missing,
+              "共 %d 对，缺 %s" % (len(pair_ok), ", ".join(pair_missing[:4])))
+        check("**同名形状的 shape id 逐值相同**（Morph 按 id 配对，不是 name）",
+              not id_mismatch,
+              "共 %d 处错位: %s" % (len(id_mismatch), "; ".join(id_mismatch[:3])))
+
+        # ③ 页内 id 唯一 —— 共用会让 Morph 把两个形状互相配对（实测踩过）
+        dup_pages = []
+        for i in range(1, 10):
+            ids = [v[4] for v in _shapes(z.read("ppt/slides/slide%d.xml" % i)).values()]
+            seen = set()
+            for cid in ids:
+                if cid in seen:
+                    dup_pages.append("P%d:id=%s" % (i, cid))
+                seen.add(cid)
+        check("同页内 shape id 唯一（共用会让 Morph 互相对配）",
+              not dup_pages, "; ".join(dup_pages[:4]))
+
+        # 唯一的变量：位置/尺寸必须**不同**（相同 = 没东西可补间 = 硬切）
+        # 这是配方 1 最容易被"看起来对"掩盖的失败模式。
+        diff_pos = []
+        for i, k in enumerate(keys, start=2):
+            pg = _shapes(z.read("ppt/slides/slide%d.xml" % i))
+            if "PLANET_%s" % k in pg and "PLANET_%s" % k in p1:
+                # 只比几何（前 4 项），id 在上面单独判
+                diff_pos.append(pg["PLANET_%s" % k][:4] != p1["PLANET_%s" % k][:4])
+        check("行星在总览页与详情页位置/尺寸**都不同**（有差异才有补间）",
+              len(diff_pos) == 8 and all(diff_pos),
+              "%d/8 有差异" % sum(diff_pos))
+
+        # ── 「挪出画布」判据（2026-10-12 新增）────────────────────────────
+        # 详情页里，非当前行星的那 7 组必须**完全在画布外**。
+        # 这是本样例的退场设计：滑出画面，而不是在画布内缩小、堆到角落。
+        # 前一种做法（缩到 2pt 停在左下角）实测的观感是"一团东西飞向角落
+        # 缩成小点" —— 那不是退场，是乱。判据钉的就是这个差别。
+        CW, CH = 12192000, 6858000      # 画布尺寸（EMU，16:9）
+
+        def _outside(geom):
+            x, y, cx, cy = geom[:4]
+            return (x + cx <= 0) or (x >= CW) or (y + cy <= 0) or (y >= CH)
+
+        outside_ok, outside_bad, focus_bad = 0, [], []
+        for j in range(2, 10):          # 详情页 P2..P9
+            pg = _shapes(z.read("ppt/slides/slide%d.xml" % j))
+            focus = j - 1               # 页 j 聚焦的是第 j-1 颗行星
+            for i in range(1, 9):
+                members = ("PLANET_%d" % i, "LEAD_%d" % i,
+                           "LABEL_%d" % i, "CN_%d" % i)
+                if i == focus:
+                    if "PLANET_%d" % i in pg and _outside(pg["PLANET_%d" % i]):
+                        focus_bad.append("s%d:PLANET_%d" % (j, i))
+                    continue
+                for nm in members:
+                    if nm not in pg:
+                        continue
+                    if _outside(pg[nm]):
+                        outside_ok += 1
+                    else:
+                        outside_bad.append("s%d:%s" % (j, nm))
+        check("详情页里非当前行星组**全部在画布外**（挪出画布，不是缩小堆角落）",
+              not outside_bad and outside_ok == 7 * 4 * 8,
+              "在外 %d/224；留在画布内: %s" % (outside_ok, ", ".join(outside_bad[:5])))
+        check("每页聚焦的行星在画布内（不然「聚焦」无从谈起）",
+              not focus_bad, ", ".join(focus_bad))
+
+        # ── 跨页差异判据：可见形状在相邻页之间必须有差异 ──────────────────
+        # morph 页面**不带页内 timing**（实测：带 entrance 的形状会被踢出
+        # 补间，先淡出再重新入场）。所以过渡完全靠两页的差异 ——
+        # 某形状若在两页完全一样（几何 + 文字），它在 morph 中一动不动。
+        # 只有页脚（每页本来就一样的落款）例外。
+        FOOTER_TXT = ("太阳系漫游指南",)
+
+        def _full(xml_bytes):
+            """{name: (x, y, cx, cy, id, text)} —— 差异判据要连文字一起看。"""
+            root = ET.fromstring(xml_bytes)
+            out = {}
+            for sp in root.iter():
+                if not (sp.tag.endswith("}sp") or sp.tag.endswith("}pic")
+                        or sp.tag.endswith("}cxnSp")):
+                    continue
+                nv = sp.find(".//" + P + "cNvPr")
+                xf = sp.find(".//" + A + "xfrm")
+                if nv is None or xf is None:
+                    continue
+                o, e = xf.find(A + "off"), xf.find(A + "ext")
+                if o is None or e is None:
+                    continue
+                txt = "".join(t.text or "" for t in sp.iter(A + "t"))
+                out[nv.get("name")] = (int(o.get("x")), int(o.get("y")),
+                                       int(e.get("cx")), int(e.get("cy")),
+                                       nv.get("id"), txt.strip())
+            return out
+
+        full = {i: _full(z.read("ppt/slides/slide%d.xml" % i))
+                for i in range(1, 10)}
+        static_bad, unpaired_bad = [], []
+        for j in range(2, 10):
+            cur, prv = full[j], full[j - 1]
+            for nm, g in cur.items():
+                if any(k in (g[5] or "") for k in FOOTER_TXT):
+                    continue                     # 页脚：每页一样的落款，故意静止
+                pg2 = prv.get(nm)
+                if pg2 is None:
+                    unpaired_bad.append("s%d:%s" % (j, nm))
+                    continue
+                if _outside(g) and _outside(pg2):
+                    continue                     # 两页都在画布外：看不见，静止无妨
+                same = (g[:4] == pg2[:4]) and ((g[5] or "") == (pg2[5] or ""))
+                if same:
+                    static_bad.append("s%d:%s" % (j, nm))
+        check("相邻页里可见形状**都有差异**（morph 的动画在差异里；无差异=静止）",
+              not static_bad, ", ".join(static_bad[:6]))
+        check("相邻页里没有无配对形状（否则 morph 只能让它淡入淡出）",
+              not unpaired_bad, ", ".join(unpaired_bad[:6]))
+
+        # 每页都要有 morph；timing 只该在第一页
+        morphs = 0
+        timed = 0
+        for s in slides:
+            raw = z.read(s).decode("utf-8", "replace")
+            if "p159:morph" in raw and "mc:AlternateContent" in raw:
+                morphs += 1
+            if "<p:timing>" in raw:
+                timed += 1
+        check("9 页全部带 p159:morph（平滑 3954，藏在 mc:AlternateContent 里）",
+              morphs == 9, "%d/9" % morphs)
+        # 2026-10-12 实测：morph 页面上的页内 entrance 动画会把形状踢出补间
+        # （先淡出、morph 完再重新入场）。所以 timing 只保留在 P1（它是第一页，
+        # 没有"上一页"，入场表演只能靠 timing），P2..P9 必须为空。
+        check("只有总览页带 <p:timing>（详情页带页内动画会踢出 morph 补间）",
+              timed == 1 and "<p:timing>" in z.read(slides[0]).decode("utf-8"),
+              "共 %d 页带 timing" % timed)
+
+        s1 = z.read("ppt/slides/slide1.xml").decode("utf-8")
+        check("总览页效果数 ≥ 30（39 个：6 文字/太阳/8 行星/8 引线/16 标签/页脚）",
+              s1.count("<p:par>") >= 30, "实得 %d" % s1.count("<p:par>"))
+
+        # 正文段落数正确（_set_text 幂等性回归）——模板与 stage3 各写一次，
+        # 不幂等就会越写越多（实测：详情页正文曾重复两遍）。
+        body_bad = []
+        for i in range(2, 10):
+            raw = z.read("ppt/slides/slide%d.xml" % i).decode("utf-8", "replace")
+            m = re.search(r'name="BODY".*?</p:sp>', raw, re.S)
+            n = m.group(0).count("<a:p>") if m else -1
+            if n != 3:
+                body_bad.append("s%d:%d段" % (i, n))
+        check("每页正文恰好 3 段（_set_text 幂等：不重复、不丢失）",
+              not body_bad, ", ".join(body_bad))
+
+        # 私有元数据必须为空（副本的意义之一就是能公开入库）
+        core = z.read("docProps/core.xml").decode("utf-8")
+        check("docProps 无作者残留（可公开入库）",
+              not re.search(r"<dc:creator>\s*\S", core)
+              and not re.search(r"<cp:lastModifiedBy>\s*\S", core))
+
+        # 版面契约：背景必须是 p:bg（这样它不参与动画、不进 Morph 候选）
+        root1 = ET.fromstring(z.read("ppt/slides/slide1.xml"))
+        check("总览页用 p:bg 铺星空（背景不参与动画与 Morph 配对）",
+              root1.find(P + "cSld/" + P + "bg") is not None)
+        z.close()
+
+    if os.path.exists(spec_p):
+        sp = read_text(spec_p)
+        # spec 里的 target 一律是 name 而非数字 id —— authoring-rules §A1
+        targets = re.findall(r"\{target:\s*([^,}]+)", sp)
+        numeric = [t for t in targets if t.strip().isdigit()]
+        check("spec 的 target 全是 shape name，无手写 id（§A1）",
+              bool(targets) and not numeric,
+              "有 %d 个数字 target" % len(numeric))
+        check("spec 给 9 页都写了 transition",
+              sp.count("transition:") == 9, "实得 %d" % sp.count("transition:"))
+        check("spec 覆盖 8 行星（PLANET_1..8 每颗都被点名）",
+              all(("PLANET_%s" % k) in sp for k in keys))
 
     return report(TITLE, fails)
 

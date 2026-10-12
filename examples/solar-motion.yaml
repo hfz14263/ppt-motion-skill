@@ -1,0 +1,152 @@
+# 太阳系漫游指南 · 动效 spec
+# 配方来源：decision-tree 第 4 条「多页连贯叙事 → 差异驱动 + Morph」
+#
+#   复刻对象：用户提供的太阳系演示视频（网页版）。
+#   放弃的能力：悬停提示、点击聚焦（网页独有，PPT 无 JS 运行时）。
+#   保留并强化的：太阳升起、逐行星入场、引线逐条画出、跨页 Morph 聚焦。
+#
+# ── 这份 spec 与常见写法最大的不同：详情页**没有任何 effects** ─────────────
+#
+# 2026-10-12 实测（CreateVideo 导出视频后逐帧看）：
+#
+#   一个形状如果在本页有页内 entrance 动画，它就**不参与 Morph 补间**。
+#   观众看到的是「先淡出，等 Morph 结束再重新入场」—— 位置补间根本没有发生。
+#   视频帧证据：红方块 A 在 3.17s 淡出、4.17s 才从画面底部重新飞入。
+#
+# 所以 Morph 页面正确的做法是：**把过渡完全交给页面切换**，页内 timing 留空。
+# 详情页的 39 个形状全部靠 P2..P9 之间的**几何差异**获得动画 ——
+# 位置差就是动画本身（差从哪来：build_deck.py 的 group_geom）。
+#
+# 唯一例外是总览页（P1）：它没有「上一页」，入场表演只能靠 timing。
+#
+# 目标与 id 一律来自 `python scripts/motion.py inspect` 的实测输出
+# （本文件写作前已核对，见 reference/authoring-rules.md §A1）。
+# 下方 target 全部写 shape **name**，引擎按名字匹配、不靠手抄 id。
+#
+# 跑法：
+#   python scripts/motion.py apply --pptx examples/material/solar/solar-system.pptx \
+#          --spec examples/solar-motion.yaml --out out/solar.pptx --assert-geometry
+#   powershell -NoProfile -File scripts/motion.ps1 -Pptx out/solar.pptx \
+#          -Spec examples/solar-motion.yaml -OutDir out/solar -ExportPdf
+
+version: 1
+
+defaults:
+  trigger: after
+  duration: 0.7
+
+slides:
+  # ==================================================================== 总览页
+  # 有完整 timing —— 理由见文件头。它是全片唯一一页靠页内动画表演的。
+  #
+  # ── 全部用 `with` + 绝对时间表 ─────────────────────────────────────────
+  # `with` 的效果会归入同一个「组」，delay 相对**组的开始**（= 绝对时间）。
+  # 于是这里的 delay 就是「这一幕在开场后第几秒发生」——一眼可核对。
+  #
+  # 2026-10-12 踩过并修掉：生成器原先把每个效果平铺为兄弟节点，而平级
+  # 兄弟的 delay 相对**前一项的结束**——with 与 after 行为完全相同（串行）。
+  # 按旧写法，这 39 个效果要 31 秒才播完（视频抽帧：8 秒时第 3 颗行星
+  # 才入场）。修法是给生成器加【组】（scripts/motion_timing.py 的
+  # build_timing），with 项并入同一组、共享组的开始时刻。
+  #
+  # 时间表（秒，相对开场）：
+  #   0.00 标题立起，INDEX 同帧    0.20 太阳升起
+  #   0.15 副标   0.30 导语   0.42 说明
+  #   0.35 起每 0.135s 一颗行星（由近及远）
+  #   引线紧随其行星 0.2s；标签在引线画完那一刻出现
+  #   2.30 页脚落定 —— 整段约 2.9s
+  - page: 1
+    transition: {type: morph, duration: 1.2}
+
+    effects:
+      # -- 头部 --
+      - {target: HDR_TITLE, effect: fade, duration: 0.9, trigger: with, delay: 0}
+      - {target: INDEX,     effect: fade, duration: 0.5, trigger: with, delay: 0}
+      - {target: HDR_CN,    effect: fade, duration: 0.7, trigger: with, delay: 0.15}
+      # 这三个形状在详情页是内容、在总览页是导语，两页同名同 id ——
+      # 于是进入详情页时它们也会被 Morph 平滑接手（内容跳变、位置补间）。
+      - {target: TAGLINE,   effect: fade, duration: 0.7, trigger: with, delay: 0.30}
+      - {target: BODY,      effect: fade, duration: 0.7, trigger: with, delay: 0.42}
+
+      # -- 太阳：从画面左侧升起（演示视频的标志性动作） --
+      - {target: SUN, effect: zoom, duration: 1.4, trigger: with, delay: 0.20, smooth: 0.3}
+
+      # -- 8 行星：由近及远依次落位（每颗错开 0.135s） --
+      - {target: PLANET_1, effect: fade, duration: 0.6, trigger: with, delay: 0.35}
+      - {target: PLANET_2, effect: fade, duration: 0.6, trigger: with, delay: 0.485}
+      - {target: PLANET_3, effect: fade, duration: 0.6, trigger: with, delay: 0.62}
+      - {target: PLANET_4, effect: fade, duration: 0.6, trigger: with, delay: 0.755}
+      - {target: PLANET_5, effect: zoom, duration: 0.8, trigger: with, delay: 0.89}
+      - {target: PLANET_6, effect: zoom, duration: 0.8, trigger: with, delay: 1.025}
+      - {target: PLANET_7, effect: fade, duration: 0.6, trigger: with, delay: 1.16}
+      - {target: PLANET_8, effect: fade, duration: 0.6, trigger: with, delay: 1.295}
+
+      # -- 引线：细线用 wipe 画出，比 fade 更有「连线生长」的意味 --
+      - {target: LEAD_1, effect: wipe, duration: 0.4, trigger: with, delay: 0.55, dir: up}
+      - {target: LEAD_2, effect: wipe, duration: 0.4, trigger: with, delay: 0.685}
+      - {target: LEAD_3, effect: wipe, duration: 0.4, trigger: with, delay: 0.82}
+      - {target: LEAD_4, effect: wipe, duration: 0.4, trigger: with, delay: 0.955}
+      - {target: LEAD_5, effect: wipe, duration: 0.5, trigger: with, delay: 1.09}
+      - {target: LEAD_6, effect: wipe, duration: 0.5, trigger: with, delay: 1.225}
+      - {target: LEAD_7, effect: wipe, duration: 0.4, trigger: with, delay: 1.36}
+      - {target: LEAD_8, effect: wipe, duration: 0.4, trigger: with, delay: 1.495}
+
+      # -- 标签：在各自引线画完的那一刻出现（delay = 引线 delay + 引线时长）--
+      - {target: LABEL_1, effect: fade, duration: 0.4, trigger: with, delay: 0.95}
+      - {target: CN_1,    effect: fade, duration: 0.4, trigger: with, delay: 0.95}
+      - {target: LABEL_2, effect: fade, duration: 0.4, trigger: with, delay: 1.085}
+      - {target: CN_2,    effect: fade, duration: 0.4, trigger: with, delay: 1.085}
+      - {target: LABEL_3, effect: fade, duration: 0.4, trigger: with, delay: 1.22}
+      - {target: CN_3,    effect: fade, duration: 0.4, trigger: with, delay: 1.22}
+      - {target: LABEL_4, effect: fade, duration: 0.4, trigger: with, delay: 1.355}
+      - {target: CN_4,    effect: fade, duration: 0.4, trigger: with, delay: 1.355}
+      - {target: LABEL_5, effect: fade, duration: 0.4, trigger: with, delay: 1.59}
+      - {target: CN_5,    effect: fade, duration: 0.4, trigger: with, delay: 1.59}
+      - {target: LABEL_6, effect: fade, duration: 0.4, trigger: with, delay: 1.725}
+      - {target: CN_6,    effect: fade, duration: 0.4, trigger: with, delay: 1.725}
+      - {target: LABEL_7, effect: fade, duration: 0.4, trigger: with, delay: 1.76}
+      - {target: CN_7,    effect: fade, duration: 0.4, trigger: with, delay: 1.76}
+      - {target: LABEL_8, effect: fade, duration: 0.4, trigger: with, delay: 1.895}
+      - {target: CN_8,    effect: fade, duration: 0.4, trigger: with, delay: 1.895}
+
+      - {target: FOOT, effect: fade, duration: 0.6, trigger: with, delay: 2.30}
+
+  # ============================================================ 详情页 P2..P9
+  # **零 effects** —— 过渡全部由 Morph 承担（理由见文件头实测说明）。
+  #
+  # 每个形状的「动画」在两页之间的差异里，例如 水星页 → 金星页：
+  #
+  #     金星  从右外侧 1100 → 中央 480   （滑入，-620）
+  #     水星  从中央 480 → 左外侧 -140   （滑出，-620）
+  #     其余行星组  整队平移 -85.7（一格，保持带间距）
+  #     标题块/正文  位置小幅移动
+  #     太阳  在画布外静止（它只在总览页可见）
+  #
+  # 这些数值由 build_deck.py 的 group_geom 决定，spec 不重复描述 ——
+  # 版面和动效分开维护，改版面不用改 spec。
+  #
+  # 加一条页内 effect 到这些页面 = 让对应形状退出 Morph 补间（实测）。
+  # 所以要加之前先想清楚：那个形状是想「补间过来」还是「单独入场」。
+  - page: 2
+    transition: {type: morph, duration: 1.0}
+
+  - page: 3
+    transition: {type: morph, duration: 1.0}
+
+  - page: 4
+    transition: {type: morph, duration: 1.0}
+
+  - page: 5
+    transition: {type: morph, duration: 1.0}
+
+  - page: 6
+    transition: {type: morph, duration: 1.0}
+
+  - page: 7
+    transition: {type: morph, duration: 1.0}
+
+  - page: 8
+    transition: {type: morph, duration: 1.0}
+
+  - page: 9
+    transition: {type: morph, duration: 1.0}

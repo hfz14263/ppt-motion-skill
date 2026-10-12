@@ -135,8 +135,18 @@ s = V.check(flip)["slides"][0]
 check("flip: 报出翻转残留 WARN", any("翻转" in w for w in s["warnings"]), s["warnings"])
 
 # ---------------------------------------------------------------- 真样例（视频复现成品）
-REPRO = r"D:\workbuddy\idea\material\video\repro\repro.pptx"
-if os.path.isfile(REPRO):
+# 路径**不写死**：2026-10-12 项目从 D:/workbuddy/idea 迁到 D:/Projects/idea，
+# 原来的绝对路径会失效。三个来源依次尝试：环境变量 → 仓库内 → 新位置。
+# 找不到就跳过该段（不判 FAIL）—— 这是"有则验之"的附加检查，缺它不该让测试红。
+REPRO = os.environ.get("REPRO_PPTX") or ""
+if not REPRO:
+    _here = os.path.dirname(os.path.abspath(__file__))
+    for _c in (os.path.join(_here, "..", "..", "material", "video", "repro", "repro.pptx"),
+               r"D:\Projects\idea\material\video\repro\repro.pptx"):
+        if os.path.isfile(_c):
+            REPRO = _c
+            break
+if REPRO and os.path.isfile(REPRO):
     s = V.check(REPRO)["slides"][0]
     check("repro.pptx: 识别为 dual-photo", s["class"] == "dual-photo", s["class"])
     if s["foreground"]:

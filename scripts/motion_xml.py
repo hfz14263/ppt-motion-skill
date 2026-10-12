@@ -118,6 +118,12 @@ EXT_CONTENT_TYPES = {
     "mp4": "video/mp4", "m4v": "video/mp4", "mov": "video/quicktime",
     "wmv": "video/x-ms-wmv", "avi": "video/avi",
     "wav": "audio/wav", "mp3": "audio/mpeg", "m4a": "audio/mp4", "wma": "audio/x-ms-wma",
+    # Vector payloads. PowerPoint requires the svg Default to be declared or it
+    # refuses the part on save; the actual injection happens in the COM layer
+    # (AddPicture), see reference/svg-in-ppt.md. Declared here so the XML layer
+    # can prepare [Content_Types].xml before handing off.
+    "svg": "image/svg+xml",
+    "emf": "image/x-emf", "wmf": "image/x-wmf",
 }
 
 
